@@ -504,10 +504,10 @@ async function updateCanvasItem(fabricObject) {
                 width: fabricObject.width,
                 height: fabricObject.height,
                 rotation: fabricObject.angle || 0,
-                z_index: canvas.getObjects().indexOf(fabricObject)
+                z_index: canvas.getObjects().indexOf(fabricObject),
+                content: fabricObject.text || fabricObject.getSrc ? fabricObject.getSrc() : '' // Update text content
             })
-            .eq('user_id', fabricObject.userId)
-            .eq('item_type', fabricObject.itemType);
+            .eq('id', fabricObject.customId); // Use ID instead of user_id + item_type
         
         if (error) throw error;
         
