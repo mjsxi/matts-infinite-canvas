@@ -98,33 +98,18 @@ function initializeCanvas() {
     });
     
     // Handle object scaling (resizing)
-    canvas.on('object:scaling', function(e) {
-        // Update in real-time while scaling
-        updateCanvasItem(e.target);
-    });
-    
     canvas.on('object:scaled', function(e) {
         // Update when scaling is finished
         updateCanvasItem(e.target);
     });
     
     // Handle object moving
-    canvas.on('object:moving', function(e) {
-        // Update in real-time while moving
-        updateCanvasItem(e.target);
-    });
-    
     canvas.on('object:moved', function(e) {
         // Update when moving is finished
         updateCanvasItem(e.target);
     });
     
     // Handle object rotating
-    canvas.on('object:rotating', function(e) {
-        // Update in real-time while rotating
-        updateCanvasItem(e.target);
-    });
-    
     canvas.on('object:rotated', function(e) {
         // Update when rotating is finished
         updateCanvasItem(e.target);
@@ -662,6 +647,13 @@ async function updateCanvasItem(fabricObject) {
         
         console.log('Item updated successfully');
         
+        // Re-apply styling for images to ensure it's preserved
+        if (fabricObject.itemType === 'image') {
+            setTimeout(() => {
+                applyImageStyling(fabricObject);
+            }, 50);
+        }
+        
     } catch (error) {
         console.error('Error updating item:', error);
     }
@@ -695,6 +687,12 @@ async function loadCanvasItems() {
         
         console.log('Canvas items loading complete');
         
+        // Force update all image styling to ensure consistency
+        setTimeout(() => {
+            console.log('Forcing update of all image styling...');
+            updateAllImageStyling();
+        }, 1000);
+        
     } catch (error) {
         console.error('Error loading items:', error);
         showStatus('Error loading canvas items', 'error');
@@ -727,9 +725,6 @@ async function addItemToCanvas(item) {
                     angle: item.rotation
                 });
                 
-                // Apply styling to image
-                applyImageStyling(fabricImg);
-                
                 // Add custom properties
                 fabricImg.customId = item.id;
                 fabricImg.userId = item.user_id;
@@ -737,6 +732,10 @@ async function addItemToCanvas(item) {
                 fabricImg.originalWidth = item.original_width;
                 fabricImg.originalHeight = item.original_height;
                 fabricImg.aspectRatio = item.aspect_ratio;
+                
+                // Apply styling to image after properties are set
+                console.log('Applying styling to loaded image:', fabricImg.customId);
+                applyImageStyling(fabricImg);
                 
                 // If no ID exists (old data), create a new record
                 if (!item.id) {
@@ -972,6 +971,8 @@ function sendToBack() {
 
 // Image styling functions
 function applyImageStyling(fabricImg) {
+    console.log('Applying image styling with settings:', IMAGE_STYLING);
+    
     // Apply shadow
     fabricImg.set({
         shadow: new fabric.Shadow({
@@ -981,6 +982,8 @@ function applyImageStyling(fabricImg) {
             offsetY: IMAGE_STYLING.shadowOffsetY
         })
     });
+    
+    console.log('Image styling applied successfully');
 }
 
 function updateAllImageStyling() {
