@@ -112,6 +112,8 @@ function initializeUser() {
     userId = localStorage.getItem('canvas_user_id');
     userNickname = localStorage.getItem('canvas_user_nickname');
     
+    console.log('Initializing user:', { userId, userNickname });
+    
     // Check for admin session
     const adminSession = localStorage.getItem('canvas_admin_session');
     if (adminSession && Date.now() < parseInt(adminSession)) {
@@ -122,11 +124,14 @@ function initializeUser() {
     if (!userId) {
         userId = 'user_' + Math.random().toString(36).substr(2, 9);
         localStorage.setItem('canvas_user_id', userId);
+        console.log('Generated new userId:', userId);
     }
     
     if (!userNickname) {
+        console.log('No nickname found, showing user modal');
         showUserModal();
     } else {
+        console.log('Nickname found, updating user info');
         updateUserInfo();
         // Show admin tools if admin session is valid
         if (isAdmin) {
@@ -163,9 +168,12 @@ function showUserModal() {
 
 function setUserNickname() {
     const nickname = document.getElementById('userNickname').value.trim();
+    console.log('Setting nickname:', nickname);
+    
     if (nickname) {
         userNickname = nickname;
         localStorage.setItem('canvas_user_nickname', nickname);
+        console.log('Nickname saved to localStorage:', nickname);
         document.getElementById('userModal').classList.add('hidden');
         updateUserInfo();
         
@@ -173,6 +181,10 @@ function setUserNickname() {
         if (isAdmin) {
             toggleAdminMode();
         }
+        
+        console.log('User setup complete');
+    } else {
+        console.log('No nickname provided');
     }
 }
 
@@ -403,15 +415,28 @@ async function handleFileUpload(event) {
 function addImageToCanvas(imageUrl) {
     console.log('Creating image from URL:', imageUrl);
     
-    fabric.Image.fromURL(imageUrl, function(img) {
-        console.log('Image loaded successfully:', img);
+    // Create a simple image element
+    const imgElement = new Image();
+    imgElement.onload = function() {
+        console.log('Image loaded successfully, dimensions:', imgElement.width, 'x', imgElement.height);
         
-        // Calculate aspect ratio and set height to 100px
-        const aspectRatio = img.width / img.height;
-        const displayHeight = 100;
-        const displayWidth = displayHeight * aspectRatio;
+        // Calculate aspect ratio and set a reasonable size
+        const aspectRatio = imgElement.width / imgElement.height;
+        const maxSize = 200; // Maximum dimension
+        let displayWidth, displayHeight;
         
-        img.set({
+        if (aspectRatio > 1) {
+            // Landscape image
+            displayWidth = maxSize;
+            displayHeight = maxSize / aspectRatio;
+        } else {
+            // Portrait image
+            displayHeight = maxSize;
+            displayWidth = maxSize * aspectRatio;
+        }
+        
+        // Create a Fabric.js image from the loaded image element
+        const fabricImg = new fabric.Image(imgElement, {
             left: canvas.getCenter().left,
             top: canvas.getCenter().top,
             width: displayWidth,
@@ -421,68 +446,36 @@ function addImageToCanvas(imageUrl) {
         });
         
         // Add custom properties
-        img.userId = userId;
-        img.itemType = 'image';
-        img.originalWidth = img.width;
-        img.originalHeight = img.height;
-        img.aspectRatio = aspectRatio;
+        fabricImg.userId = userId;
+        fabricImg.itemType = 'image';
+        fabricImg.originalWidth = imgElement.width;
+        fabricImg.originalHeight = imgElement.height;
+        fabricImg.aspectRatio = aspectRatio;
         
         console.log('Adding image to canvas with properties:', {
-            userId: img.userId,
-            itemType: img.itemType,
-            width: img.width,
-            height: img.height
+            userId: fabricImg.userId,
+            itemType: fabricImg.itemType,
+            width: fabricImg.width,
+            height: fabricImg.height
         });
         
-        canvas.add(img);
-        canvas.setActiveObject(img);
+        canvas.add(fabricImg);
+        canvas.setActiveObject(fabricImg);
         
         console.log('Image added to canvas. Canvas objects count:', canvas.getObjects().length);
         console.log('Active object:', canvas.getActiveObject());
         
         // Save to database and get the ID
-        saveCanvasItem(img, imageUrl);
+        saveCanvasItem(fabricImg, imageUrl);
         
-    }, { crossOrigin: 'anonymous' });
-        
-        // Calculate aspect ratio and set height to 100px
-        const aspectRatio = img.width / img.height;
-        const displayHeight = 100;
-        const displayWidth = displayHeight * aspectRatio;
-        
-        img.set({
-            left: canvas.getCenter().left,
-            top: canvas.getCenter().top,
-            width: displayWidth,
-            height: displayHeight,
-            originX: 'center',
-            originY: 'center'
-        });
-        
-        // Add custom properties
-        img.userId = userId;
-        img.itemType = 'image';
-        img.originalWidth = img.width;
-        img.originalHeight = img.height;
-        img.aspectRatio = aspectRatio;
-        
-        console.log('Adding image to canvas with properties:', {
-            userId: img.userId,
-            itemType: img.itemType,
-            width: img.width,
-            height: img.height
-        });
-        
-        canvas.add(img);
-        canvas.setActiveObject(img);
-        
-        console.log('Image added to canvas. Canvas objects count:', canvas.getObjects().length);
-        console.log('Active object:', canvas.getActiveObject());
-        
-        // Save to database and get the ID
-        saveCanvasItem(img, imageUrl);
-        
-    }, { crossOrigin: 'anonymous' });
+    };
+    
+    imgElement.onerror = function() {
+        console.error('Error loading image from URL:', imageUrl);
+        showStatus('Error loading image', 'error');
+    };
+    
+    imgElement.src = imageUrl;
 }
 
 // Text Functions
@@ -619,6 +612,7 @@ async function updateCanvasItem(fabricObject) {
 }
 
 async function loadCanvasItems() {
+    console.log('Loading canvas items...');
     showLoading();
     
     try {
@@ -628,6 +622,8 @@ async function loadCanvasItems() {
             .order('z_index', { ascending: true });
         
         if (error) throw error;
+        
+        console.log('Canvas items loaded from database:', data.length);
         
         // Clear existing objects (except center indicator)
         canvas.getObjects().forEach(obj => {
@@ -641,6 +637,8 @@ async function loadCanvasItems() {
             await addItemToCanvas(item);
         }
         
+        console.log('Canvas items loading complete');
+        
     } catch (error) {
         console.error('Error loading items:', error);
         showStatus('Error loading canvas items', 'error');
@@ -652,8 +650,20 @@ async function loadCanvasItems() {
 async function addItemToCanvas(item) {
     return new Promise((resolve) => {
         if (item.item_type === 'image') {
-            fabric.Image.fromURL(item.content, function(img) {
-                img.set({
+            // Check if the content is a blob URL (which will be invalid)
+            if (item.content && item.content.startsWith('blob:')) {
+                console.log('Skipping invalid blob URL:', item.content);
+                resolve();
+                return;
+            }
+            
+            // Create a simple image element
+            const imgElement = new Image();
+            imgElement.onload = function() {
+                console.log('Loading existing image from URL:', item.content);
+                
+                // Create Fabric.js image from the loaded image element
+                const fabricImg = new fabric.Image(imgElement, {
                     left: item.x,
                     top: item.y,
                     width: item.width,
@@ -662,24 +672,31 @@ async function addItemToCanvas(item) {
                 });
                 
                 // Add custom properties
-                img.customId = item.id;
-                img.userId = item.user_id;
-                img.itemType = item.item_type;
-                img.originalWidth = item.original_width;
-                img.originalHeight = item.original_height;
-                img.aspectRatio = item.aspect_ratio;
+                fabricImg.customId = item.id;
+                fabricImg.userId = item.user_id;
+                fabricImg.itemType = item.item_type;
+                fabricImg.originalWidth = item.original_width;
+                fabricImg.originalHeight = item.original_height;
+                fabricImg.aspectRatio = item.aspect_ratio;
                 
                 // If no ID exists (old data), create a new record
                 if (!item.id) {
                     console.log('Image has no ID, creating new record...');
-                    saveCanvasItem(img, item.content);
+                    saveCanvasItem(fabricImg, item.content);
                 }
                 
-                console.log('Loaded image object with customId:', img.customId, 'full item:', item);
+                console.log('Loaded image object with customId:', fabricImg.customId, 'full item:', item);
                 
-                canvas.add(img);
+                canvas.add(fabricImg);
                 resolve();
-            }, { crossOrigin: 'anonymous' });
+            };
+            
+            imgElement.onerror = function() {
+                console.error('Error loading existing image from URL:', item.content);
+                resolve(); // Continue loading other items
+            };
+            
+            imgElement.src = item.content;
         } else if (item.item_type === 'text') {
             const textObj = new fabric.IText(item.content, {
                 left: item.x,
@@ -847,10 +864,12 @@ function removeItemFromCanvas(itemId) {
 
 // Utility Functions
 function showLoading() {
+    console.log('Showing loading indicator');
     document.getElementById('loadingIndicator').classList.remove('hidden');
 }
 
 function hideLoading() {
+    console.log('Hiding loading indicator');
     document.getElementById('loadingIndicator').classList.add('hidden');
 }
 
