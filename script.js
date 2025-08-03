@@ -1,9 +1,10 @@
 // Supabase Configuration
 const SUPABASE_URL = 'https://ruefemuqeehlqieitoma.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ1ZWZlbXVxZWVobHFpZWl0b21hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQxNzc5ODQsImV4cCI6MjA2OTc1Mzk4NH0.Bl3Af45EF-RINH_MD5AcZITNbk4wj79cm3Znsbrpb9k';
+const SUPABASE_KEY = 'eyJhbGciOiJJUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ1ZWZlbXVxZWVobHFpZWl0b21hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzU4NDc1NjIsImV4cCI6MjA1MTQyMzU2Mn0.eot4Fhxb6f4x5rI1Hb4TwLCgpYrmxKrADEK1Lh59h_o';
 
 // Initialize Supabase
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const { createClient } = supabase;
+const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // Global Variables
 let canvas;
@@ -215,7 +216,7 @@ async function setCenterPoint(event) {
     
     try {
         // Update center point in database
-        const { error } = await supabase
+        const { error } = await supabaseClient
             .from('canvas_center')
             .upsert({
                 id: 1,
@@ -262,7 +263,7 @@ function showCenterIndicator(x, y) {
 
 async function loadCenterPoint() {
     try {
-        const { data, error } = await supabase
+        const { data, error } = await supabaseClient
             .from('canvas_center')
             .select('*')
             .eq('is_active', true)
@@ -299,14 +300,14 @@ async function handleFileUpload(event) {
     try {
         // Upload file to Supabase Storage
         const fileName = `${Date.now()}_${file.name}`;
-        const { data, error } = await supabase.storage
+        const { data, error } = await supabaseClient.storage
             .from('canvas-media')
             .upload(fileName, file);
         
         if (error) throw error;
         
         // Get public URL
-        const { data: { publicUrl } } = supabase.storage
+        const { data: { publicUrl } } = supabaseClient.storage
             .from('canvas-media')
             .getPublicUrl(fileName);
         
@@ -400,7 +401,7 @@ function addTextToCanvas() {
 // Database Functions
 async function saveCanvasItem(fabricObject, content) {
     try {
-        const { error } = await supabase
+        const { error } = await supabaseClient
             .from('canvas_items')
             .insert({
                 x: fabricObject.left,
@@ -429,7 +430,7 @@ async function updateCanvasItem(fabricObject) {
     if (!fabricObject.customId) return;
     
     try {
-        const { error } = await supabase
+        const { error } = await supabaseClient
             .from('canvas_items')
             .update({
                 x: fabricObject.left,
@@ -453,7 +454,7 @@ async function loadCanvasItems() {
     showLoading();
     
     try {
-        const { data, error } = await supabase
+        const { data, error } = await supabaseClient
             .from('canvas_items')
             .select('*')
             .order('z_index', { ascending: true });
@@ -558,7 +559,7 @@ async function clearCanvas() {
     if (confirm('Are you sure you want to clear the entire canvas? This cannot be undone.')) {
         try {
             // Delete from database
-            const { error } = await supabase
+            const { error } = await supabaseClient
                 .from('canvas_items')
                 .delete()
                 .neq('id', 0); // Delete all items
@@ -584,7 +585,7 @@ async function clearCanvas() {
 // Real-time Subscriptions
 function setupRealtime() {
     // Listen for new canvas items
-    supabase
+    supabaseClient
         .channel('canvas_items')
         .on('postgres_changes', 
             { event: 'INSERT', schema: 'public', table: 'canvas_items' },
@@ -611,7 +612,7 @@ function setupRealtime() {
         .subscribe();
     
     // Listen for center point changes
-    supabase
+    supabaseClient
         .channel('canvas_center')
         .on('postgres_changes',
             { event: '*', schema: 'public', table: 'canvas_center' },
@@ -689,7 +690,7 @@ async function deleteCanvasItem(fabricObject) {
     if (!fabricObject.customId) return;
     
     try {
-        const { error } = await supabase
+        const { error } = await supabaseClient
             .from('canvas_items')
             .delete()
             .eq('id', fabricObject.customId);
