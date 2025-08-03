@@ -467,6 +467,51 @@ body {
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
+/* Text Controls */
+.text-control {
+    padding: 4px 8px;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    font-size: 12px;
+    background: white;
+    margin-right: 8px;
+}
+
+.text-control:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    outline: none;
+}
+
+.text-control:last-child {
+    margin-right: 0;
+}
+
+/* Specific sizing for text controls */
+#fontFamilySelect {
+    width: 120px;
+}
+
+#fontSizeInput {
+    width: 60px;
+}
+
+#fontWeightSelect {
+    width: 80px;
+}
+
+#lineHeightInput {
+    width: 60px;
+}
+
+.color-input {
+    width: 40px;
+    height: 28px;
+    padding: 2px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
 .unit-label {
     font-size: 11px;
     color: #718096;

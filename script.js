@@ -151,17 +151,20 @@ function initializeCanvas() {
         checkObjectPermissions(e.selected[0]);
         toggleZIndexControls(true);
         toggleBorderRadiusControls(e.selected[0]);
+        toggleTextControls(e.selected[0]);
     });
 
     canvas.on('selection:updated', function(e) {
         checkObjectPermissions(e.selected[0]);
         toggleZIndexControls(true);
         toggleBorderRadiusControls(e.selected[0]);
+        toggleTextControls(e.selected[0]);
     });
     
     canvas.on('selection:cleared', function() {
         toggleZIndexControls(false);
         toggleBorderRadiusControls(null);
+        toggleTextControls(null);
     });
     
     // Also check permissions when objects are modified
@@ -301,6 +304,13 @@ function bindEvents() {
     document.getElementById('bringToFrontBtn').addEventListener('click', bringToFront);
     document.getElementById('sendToBackBtn').addEventListener('click', sendToBack);
     document.getElementById('borderRadiusInput').addEventListener('input', updateBorderRadius);
+    
+    // Text control event listeners
+    document.getElementById('fontFamilySelect').addEventListener('change', updateTextProperty);
+    document.getElementById('fontSizeInput').addEventListener('input', updateTextProperty);
+    document.getElementById('fontWeightSelect').addEventListener('change', updateTextProperty);
+    document.getElementById('textColorInput').addEventListener('input', updateTextProperty);
+    document.getElementById('lineHeightInput').addEventListener('input', updateTextProperty);
 }
 
 // User Management
@@ -661,14 +671,20 @@ function addTextToCanvas() {
     const text = document.getElementById('textInput').value.trim();
     if (!text) return;
     
-    const textObj = new fabric.IText(text, {
+    const textObj = new fabric.Textbox(text, {
         left: canvasCenterPoint.x,
         top: canvasCenterPoint.y,
         fontFamily: 'Arial',
         fontSize: 24,
+        fontWeight: 'normal',
         fill: '#333333',
+        lineHeight: 1.2,
         originX: 'center',
-        originY: 'center'
+        originY: 'center',
+        width: 450, // Set maximum width - this will enforce wrapping
+        splitByGrapheme: false, // Don't break characters
+        breakWords: false, // Don't break words
+        dynamicMinWidth: 1 // Allow text to shrink when needed
     });
     
     // Add custom properties
@@ -704,27 +720,39 @@ function addTextToCanvas() {
 // Database Functions
 async function saveCanvasItem(fabricObject, content) {
     try {
+        const insertData = {
+            x: fabricObject.left,
+            y: fabricObject.top,
+            item_type: fabricObject.itemType,
+            content: content,
+            user_id: userId,
+            width: fabricObject.width,
+            height: fabricObject.height,
+            original_width: fabricObject.originalWidth || fabricObject.width,
+            original_height: fabricObject.originalHeight || fabricObject.height,
+            aspect_ratio: fabricObject.aspectRatio || 1,
+            rotation: fabricObject.angle || 0,
+            z_index: canvas.getObjects().indexOf(fabricObject),
+            border_radius: fabricObject.borderRadius || (fabricObject.itemType === 'image' ? IMAGE_STYLING.borderRadius : 0)
+        };
+        
+        // Text properties will be stored on the client object but not in database
+        // until the database schema is updated to include these columns
+        
+        console.log('Attempting to save item with data:', insertData);
+        
         const { data, error } = await supabaseClient
             .from('canvas_items')
-            .insert({
-                x: fabricObject.left,
-                y: fabricObject.top,
-                item_type: fabricObject.itemType,
-                content: content,
-                user_id: userId,
-                width: fabricObject.width,
-                height: fabricObject.height,
-                original_width: fabricObject.originalWidth || fabricObject.width,
-                original_height: fabricObject.originalHeight || fabricObject.height,
-                aspect_ratio: fabricObject.aspectRatio || 1,
-                rotation: fabricObject.angle || 0,
-                z_index: canvas.getObjects().indexOf(fabricObject),
-                border_radius: fabricObject.borderRadius || (fabricObject.itemType === 'image' ? IMAGE_STYLING.borderRadius : 0)
-            })
+            .insert(insertData)
             .select()
             .single();
         
-        if (error) throw error;
+        if (error) {
+            console.error('Supabase insert error:', error);
+            throw error;
+        }
+        
+        console.log('Item saved successfully:', data);
         
         // Update the fabric object with the database ID
         fabricObject.customId = data.id;
@@ -767,6 +795,9 @@ async function updateCanvasItem(fabricObject) {
             border_radius: fabricObject.borderRadius || (fabricObject.itemType === 'image' ? IMAGE_STYLING.borderRadius : 0)
         };
         
+        // Text properties will be stored on the client object but not in database
+        // until the database schema is updated to include these columns
+        
         console.log('Updating item with data:', {
             id: fabricObject.customId,
             type: fabricObject.itemType,
@@ -780,6 +811,7 @@ async function updateCanvasItem(fabricObject) {
         
         if (error) {
             console.error('Supabase update error:', error);
+            console.error('Error details:', JSON.stringify(error, null, 2));
             throw error;
         }
         
@@ -931,14 +963,22 @@ async function addItemToCanvas(item) {
             
             imgElement.src = item.content;
         } else if (item.item_type === 'text') {
-            const textObj = new fabric.IText(item.content, {
+            const textObj = new fabric.Textbox(item.content, {
                 left: item.x,
                 top: item.y,
-                width: item.width,
+                width: Math.min(item.width || 450, 450), // Enforce max width of 450px - this will enforce wrapping
                 height: item.height,
                 angle: item.rotation,
                 fontSize: 24,
-                fill: '#333333'
+                fontFamily: 'Arial',
+                fontWeight: 'normal',
+                fill: '#333333',
+                lineHeight: 1.2,
+                splitByGrapheme: false, // Don't break characters
+                breakWords: false, // Don't break words
+                dynamicMinWidth: 1, // Allow text to shrink when needed
+                originX: 'center',
+                originY: 'center'
             });
             
             // Add custom properties
@@ -1154,6 +1194,25 @@ function toggleBorderRadiusControls(selectedObject) {
     }
 }
 
+function toggleTextControls(selectedObject) {
+    const textControls = document.getElementById('textControls');
+    
+    if (selectedObject && selectedObject.itemType === 'text') {
+        // Show controls for text objects only
+        textControls.style.display = 'flex';
+        
+        // Update control values to match selected text object
+        document.getElementById('fontFamilySelect').value = selectedObject.fontFamily || 'Arial';
+        document.getElementById('fontSizeInput').value = selectedObject.fontSize || 24;
+        document.getElementById('fontWeightSelect').value = selectedObject.fontWeight || 'normal';
+        document.getElementById('textColorInput').value = selectedObject.fill || '#333333';
+        document.getElementById('lineHeightInput').value = selectedObject.lineHeight || 1.2;
+    } else {
+        // Hide controls for non-text objects or when nothing is selected
+        textControls.style.display = 'none';
+    }
+}
+
 function updateBorderRadius() {
     const activeObject = canvas.getActiveObject();
     const borderRadiusInput = document.getElementById('borderRadiusInput');
@@ -1164,6 +1223,38 @@ function updateBorderRadius() {
         
         // Re-apply styling with the new border radius
         applyImageStyling(activeObject);
+        canvas.requestRenderAll();
+        
+        // Save the change to the database
+        updateCanvasItem(activeObject);
+    }
+}
+
+function updateTextProperty() {
+    const activeObject = canvas.getActiveObject();
+    
+    if (activeObject && activeObject.itemType === 'text') {
+        // Get current values from controls
+        const fontFamily = document.getElementById('fontFamilySelect').value;
+        const fontSize = parseInt(document.getElementById('fontSizeInput').value) || 24;
+        const fontWeight = document.getElementById('fontWeightSelect').value;
+        const textColor = document.getElementById('textColorInput').value;
+        const lineHeight = parseFloat(document.getElementById('lineHeightInput').value) || 1.2;
+        
+        // Update the text object properties
+        activeObject.set({
+            fontFamily: fontFamily,
+            fontSize: fontSize,
+            fontWeight: fontWeight,
+            fill: textColor,
+            lineHeight: lineHeight
+        });
+        
+        // Update the label position in case text dimensions changed
+        if (activeObject.userLabel) {
+            updateUserLabelPosition(activeObject, activeObject.userLabel);
+        }
+        
         canvas.requestRenderAll();
         
         // Save the change to the database
@@ -1360,14 +1451,24 @@ function addUserLabel(fabricObject) {
 }
 
 function updateUserLabelPosition(fabricObject, label) {
-    // Use stored width/height data from Supabase for consistency
-    // This is the same approach used for images and should work better for text too
-    const storedWidth = fabricObject.width * (fabricObject.scaleX || 1);
-    const storedHeight = fabricObject.height * (fabricObject.scaleY || 1);
+    let objectWidth, objectHeight;
+    
+    // Now that text has a consistent max width, we can use scaling factors for both types
+    // This makes label positioning more predictable and consistent
+    if (fabricObject.itemType === 'text') {
+        // For text objects with constrained width, use width/height with scaling factors
+        // This gives us predictable positioning even when text is scaled
+        objectWidth = fabricObject.width * (fabricObject.scaleX || 1);
+        objectHeight = fabricObject.height * (fabricObject.scaleY || 1);
+    } else {
+        // For images and other objects, continue using width/height with scaling factors
+        objectWidth = fabricObject.width * (fabricObject.scaleX || 1);
+        objectHeight = fabricObject.height * (fabricObject.scaleY || 1);
+    }
     
     // Position label above the top-left corner in local coordinates
-    const localOffsetX = -storedWidth / 2; // Left edge relative to center
-    const localOffsetY = -storedHeight / 2 - LABEL_STYLING.offsetY; // Above by offsetY pixels
+    const localOffsetX = -objectWidth / 2; // Left edge relative to center
+    const localOffsetY = -objectHeight / 2 - LABEL_STYLING.offsetY; // Above by offsetY pixels
     
     // Transform the local offset to world coordinates using object's transform
     const angle = fabricObject.angle || 0;
