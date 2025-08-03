@@ -479,6 +479,12 @@ function selectItem(item) {
 function clearSelection() {
     if (selectedItem) {
         selectedItem.classList.remove('selected');
+        
+        // Reset interactive state for code items when deselected
+        if (selectedItem.classList.contains('code-item')) {
+            selectedItem.classList.remove('interactive');
+        }
+        
         hideResizeHandles();
         selectedItem = null;
     }
@@ -1197,9 +1203,7 @@ async function saveItemToDatabase(item) {
         font_weight: item.style.fontWeight || 'normal',
         text_color: item.style.color || '#333333',
         line_height: parseFloat(item.style.lineHeight) || 1.15,
-        html_content: item.dataset.type === 'code' ? getItemContent(item) : null,
-        // For text items, save min-width instead of width
-        min_width: isTextItem ? (parseFloat(item.style.minWidth) || 100) : null
+        html_content: item.dataset.type === 'code' ? getItemContent(item) : null
     };
     
     // Debug logging for text items
@@ -1207,7 +1211,6 @@ async function saveItemToDatabase(item) {
         console.log('Saving text item:', {
             id: itemData.id,
             content: itemData.content,
-            min_width: itemData.min_width,
             width: itemData.width,
             height: itemData.height
         });
@@ -1344,8 +1347,7 @@ function createItemFromData(data) {
             id: data.id,
             content: data.content,
             width: data.width,
-            height: data.height,
-            min_width: data.min_width
+            height: data.height
         });
     }
     
@@ -1391,11 +1393,9 @@ function createItemFromData(data) {
             if (data.font_weight) item.style.fontWeight = data.font_weight;
             if (data.text_color) item.style.color = data.text_color;
             if (data.line_height) item.style.lineHeight = data.line_height;
-            if (data.min_width) item.style.minWidth = data.min_width + 'px';
             
             // Debug: log the final state of the text item
             console.log('Text item created with styles:', {
-                minWidth: item.style.minWidth,
                 width: item.style.width,
                 height: item.style.height,
                 fontSize: item.style.fontSize,
@@ -1440,9 +1440,6 @@ function updateItemFromData(item, data) {
         case 'text':
             if (item.textContent !== data.content) {
                 item.textContent = data.content;
-            }
-            if (data.min_width) {
-                item.style.minWidth = data.min_width + 'px';
             }
             break;
         case 'image':
