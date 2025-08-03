@@ -117,7 +117,11 @@ function initializeCanvas() {
         touchStartTime = Date.now();
         
         if (e.touches.length === 1) {
-            // Single finger touch - prepare for panning
+            // Single finger touch - ALWAYS prevent default to stop mouse event conversion
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Prepare for panning
             singleTouchStart = {
                 x: e.touches[0].clientX,
                 y: e.touches[0].clientY
@@ -132,16 +136,17 @@ function initializeCanvas() {
     
     canvas.wrapperEl.addEventListener('touchmove', function(e) {
         if (e.touches.length === 1) {
-            // Single finger panning
+            // Single finger panning - ALWAYS prevent default first
+            e.preventDefault();
+            e.stopPropagation();
+            
             const touch = e.touches[0];
             const deltaX = touch.clientX - singleTouchStart.x;
             const deltaY = touch.clientY - singleTouchStart.y;
             
-            // Only start panning if moved more than 10px (prevents accidental panning)
-            if (Math.abs(deltaX) > 10 || Math.abs(deltaY) > 10) {
+            // Start panning with any movement (no threshold)
+            if (Math.abs(deltaX) > 0 || Math.abs(deltaY) > 0) {
                 isSingleTouchPanning = true;
-                e.preventDefault();
-                e.stopPropagation();
                 
                 // Update viewport for panning
                 const vpt = canvas.viewportTransform;
