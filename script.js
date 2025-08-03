@@ -420,30 +420,21 @@ function addImageToCanvas(imageUrl) {
     imgElement.onload = function() {
         console.log('Image loaded successfully, dimensions:', imgElement.width, 'x', imgElement.height);
         
-        // Calculate aspect ratio and set a reasonable size
+        // Calculate aspect ratio and set height to 150px, width by aspect ratio
         const aspectRatio = imgElement.width / imgElement.height;
-        const maxSize = 200; // Maximum dimension
-        let displayWidth, displayHeight;
-        
-        if (aspectRatio > 1) {
-            // Landscape image
-            displayWidth = maxSize;
-            displayHeight = maxSize / aspectRatio;
-        } else {
-            // Portrait image
-            displayHeight = maxSize;
-            displayWidth = maxSize * aspectRatio;
-        }
+        const displayHeight = 150; // Fixed height
+        const displayWidth = displayHeight * aspectRatio; // Width calculated by aspect ratio
         
         // Create a Fabric.js image from the loaded image element
         const fabricImg = new fabric.Image(imgElement, {
             left: canvas.getCenter().left,
             top: canvas.getCenter().top,
-            width: displayWidth,
-            height: displayHeight,
             originX: 'center',
             originY: 'center'
         });
+        
+        // Set the dimensions after creation to ensure proper scaling
+        fabricImg.scaleToHeight(displayHeight);
         
         // Add custom properties
         fabricImg.userId = userId;
