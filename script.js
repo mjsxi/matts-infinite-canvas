@@ -275,10 +275,7 @@ async function setCenterPoint(event) {
     if (!isAdmin || !isSettingCenter) return;
     
     const rect = canvas.getElement().getBoundingClientRect();
-    const point = canvas.restorePointerVpt({
-        x: event.clientX - rect.left,
-        y: event.clientY - rect.top
-    });
+    const point = canvas.getPointer(event);
     
     try {
         // Update center point in database
@@ -323,7 +320,7 @@ function showCenterIndicator(x, y) {
             opacity: 0.8
         });
         canvas.add(centerIndicator);
-        canvas.bringToFront(centerIndicator);
+        canvas.bringObjectToFront(centerIndicator);
     }
 }
 
@@ -359,23 +356,37 @@ function addImage() {
 
 async function handleFileUpload(event) {
     const file = event.target.files[0];
-    if (!file) return;
+    if (!file) {
+        console.log('No file selected');
+        return;
+    }
+    
+    console.log('File selected:', file.name, 'Size:', file.size, 'Type:', file.type);
     
     showLoading();
     
     try {
         // Upload file to Supabase Storage
         const fileName = `${Date.now()}_${file.name}`;
+        console.log('Uploading file:', fileName);
+        
         const { data, error } = await supabaseClient.storage
             .from('canvas-media')
             .upload(fileName, file);
         
-        if (error) throw error;
+        if (error) {
+            console.error('Storage upload error:', error);
+            throw error;
+        }
+        
+        console.log('File uploaded successfully:', data);
         
         // Get public URL
         const { data: { publicUrl } } = supabaseClient.storage
             .from('canvas-media')
             .getPublicUrl(fileName);
+        
+        console.log('Public URL:', publicUrl);
         
         // Create image object on canvas
         addImageToCanvas(publicUrl);
@@ -390,7 +401,11 @@ async function handleFileUpload(event) {
 }
 
 function addImageToCanvas(imageUrl) {
+    console.log('Creating image from URL:', imageUrl);
+    
     fabric.Image.fromURL(imageUrl, function(img) {
+        console.log('Image loaded successfully:', img);
+        
         // Calculate aspect ratio and set height to 100px
         const aspectRatio = img.width / img.height;
         const displayHeight = 100;
@@ -406,17 +421,65 @@ function addImageToCanvas(imageUrl) {
         });
         
         // Add custom properties
-        img.customId = 'img_' + Date.now();
         img.userId = userId;
         img.itemType = 'image';
         img.originalWidth = img.width;
         img.originalHeight = img.height;
         img.aspectRatio = aspectRatio;
         
+        console.log('Adding image to canvas with properties:', {
+            userId: img.userId,
+            itemType: img.itemType,
+            width: img.width,
+            height: img.height
+        });
+        
         canvas.add(img);
         canvas.setActiveObject(img);
         
-        // Save to database
+        console.log('Image added to canvas. Canvas objects count:', canvas.getObjects().length);
+        console.log('Active object:', canvas.getActiveObject());
+        
+        // Save to database and get the ID
+        saveCanvasItem(img, imageUrl);
+        
+    }, { crossOrigin: 'anonymous' });
+        
+        // Calculate aspect ratio and set height to 100px
+        const aspectRatio = img.width / img.height;
+        const displayHeight = 100;
+        const displayWidth = displayHeight * aspectRatio;
+        
+        img.set({
+            left: canvas.getCenter().left,
+            top: canvas.getCenter().top,
+            width: displayWidth,
+            height: displayHeight,
+            originX: 'center',
+            originY: 'center'
+        });
+        
+        // Add custom properties
+        img.userId = userId;
+        img.itemType = 'image';
+        img.originalWidth = img.width;
+        img.originalHeight = img.height;
+        img.aspectRatio = aspectRatio;
+        
+        console.log('Adding image to canvas with properties:', {
+            userId: img.userId,
+            itemType: img.itemType,
+            width: img.width,
+            height: img.height
+        });
+        
+        canvas.add(img);
+        canvas.setActiveObject(img);
+        
+        console.log('Image added to canvas. Canvas objects count:', canvas.getObjects().length);
+        console.log('Active object:', canvas.getActiveObject());
+        
+        // Save to database and get the ID
         saveCanvasItem(img, imageUrl);
         
     }, { crossOrigin: 'anonymous' });
@@ -448,7 +511,6 @@ function addTextToCanvas() {
     });
     
     // Add custom properties
-    textObj.customId = 'text_' + Date.now();
     textObj.userId = userId;
     textObj.itemType = 'text';
     textObj.originalWidth = textObj.width;
@@ -457,17 +519,19 @@ function addTextToCanvas() {
     
     // Add text change listener
     textObj.on('changed', function() {
+        console.log('Text changed:', textObj.text);
         updateCanvasItem(textObj);
     });
     
     textObj.on('editing:exited', function() {
+        console.log('Text editing exited:', textObj.text);
         updateCanvasItem(textObj);
     });
     
     canvas.add(textObj);
     canvas.setActiveObject(textObj);
     
-    // Save to database
+    // Save to database and get the ID
     saveCanvasItem(textObj, text);
     
     closeTextModal();
@@ -476,7 +540,7 @@ function addTextToCanvas() {
 // Database Functions
 async function saveCanvasItem(fabricObject, content) {
     try {
-        const { error } = await supabaseClient
+        const { data, error } = await supabaseClient
             .from('canvas_items')
             .insert({
                 x: fabricObject.left,
@@ -491,20 +555,47 @@ async function saveCanvasItem(fabricObject, content) {
                 aspect_ratio: fabricObject.aspectRatio || 1,
                 rotation: fabricObject.angle || 0,
                 z_index: canvas.getObjects().indexOf(fabricObject)
-            });
+            })
+            .select()
+            .single();
         
         if (error) throw error;
+        
+        // Update the fabric object with the database ID
+        fabricObject.customId = data.id;
+        
+        return data.id;
         
     } catch (error) {
         console.error('Error saving item:', error);
         showStatus('Error saving item', 'error');
+        return null;
     }
 }
 
 async function updateCanvasItem(fabricObject) {
-    if (!fabricObject.customId) return;
+    if (!fabricObject.customId) {
+        console.log('No customId found for object:', fabricObject);
+        return;
+    }
     
     try {
+        // Get the correct content based on object type
+        let content = '';
+        if (fabricObject.itemType === 'text') {
+            content = fabricObject.text || '';
+        } else if (fabricObject.itemType === 'image') {
+            content = fabricObject.getSrc ? fabricObject.getSrc() : '';
+        }
+        
+        console.log('Updating item:', {
+            id: fabricObject.customId,
+            type: fabricObject.itemType,
+            content: content,
+            x: fabricObject.left,
+            y: fabricObject.top
+        });
+        
         const { error } = await supabaseClient
             .from('canvas_items')
             .update({
@@ -514,11 +605,13 @@ async function updateCanvasItem(fabricObject) {
                 height: fabricObject.height,
                 rotation: fabricObject.angle || 0,
                 z_index: canvas.getObjects().indexOf(fabricObject),
-                content: fabricObject.text || fabricObject.getSrc ? fabricObject.getSrc() : '' // Update text content
+                content: content
             })
-            .eq('id', fabricObject.customId); // Use ID instead of user_id + item_type
+            .eq('id', fabricObject.customId);
         
         if (error) throw error;
+        
+        console.log('Item updated successfully');
         
     } catch (error) {
         console.error('Error updating item:', error);
@@ -576,6 +669,14 @@ async function addItemToCanvas(item) {
                 img.originalHeight = item.original_height;
                 img.aspectRatio = item.aspect_ratio;
                 
+                // If no ID exists (old data), create a new record
+                if (!item.id) {
+                    console.log('Image has no ID, creating new record...');
+                    saveCanvasItem(img, item.content);
+                }
+                
+                console.log('Loaded image object with customId:', img.customId, 'full item:', item);
+                
                 canvas.add(img);
                 resolve();
             }, { crossOrigin: 'anonymous' });
@@ -598,12 +699,22 @@ async function addItemToCanvas(item) {
             textObj.originalHeight = item.original_height;
             textObj.aspectRatio = item.aspect_ratio;
             
-            // Add text change listeners for existing text
+            // If no ID exists (old data), create a new record
+            if (!item.id) {
+                console.log('Item has no ID, creating new record...');
+                saveCanvasItem(textObj, item.content);
+            }
+            
+            console.log('Loaded text object with customId:', textObj.customId, 'content:', item.content, 'full item:', item);
+            
+                    // Add text change listeners for existing text
             textObj.on('changed', function() {
+                console.log('Existing text changed:', textObj.text);
                 updateCanvasItem(textObj);
             });
             
             textObj.on('editing:exited', function() {
+                console.log('Existing text editing exited:', textObj.text);
                 updateCanvasItem(textObj);
             });
             
