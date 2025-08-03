@@ -82,8 +82,8 @@ function initializeCanvas() {
             const delta = e.deltaY;
             let zoom = canvas.getZoom();
             
-            // More natural zoom speed for trackpad
-            const zoomFactor = e.ctrlKey || e.metaKey ? 0.999 : 0.995;
+            // More responsive zoom speed for trackpad
+            const zoomFactor = e.ctrlKey || e.metaKey ? 0.99 : 0.985;
             zoom *= zoomFactor ** delta;
             
             if (zoom > 20) zoom = 20;
@@ -129,8 +129,9 @@ function initializeCanvas() {
             };
             
             if (lastTouchDistance > 0) {
-                // Zoom based on distance change
-                const zoomDelta = distance / lastTouchDistance;
+                // Zoom based on distance change with increased sensitivity
+                const rawZoomDelta = distance / lastTouchDistance;
+                const zoomDelta = 1 + (rawZoomDelta - 1) * 2.5; // Amplify zoom changes
                 let zoom = canvas.getZoom() * zoomDelta;
                 
                 if (zoom > 20) zoom = 20;
