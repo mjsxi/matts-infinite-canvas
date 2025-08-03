@@ -26,14 +26,30 @@
 
     <!-- Admin Toolbar -->
     <div id="toolbar" class="toolbar hidden">
-        <button onclick="addImage()">📷 Image</button>
-        <button onclick="addText()">📝 Text</button>
-        <button onclick="addCode()">💻 Code</button>
-        <button onclick="setCenter()">📍 Set Center</button>
-        <button onclick="bringToFront()">⬆️ Front</button>
-        <button onclick="sendToBack()">⬇️ Back</button>
-        <button onclick="clearAll()">🗑️ Clear All</button>
-        <button onclick="logout()">🚪 Logout</button>
+        <button onclick="addImage()" class="toolbar-btn first-btn">
+            <img src="icons/image.svg" alt="Image">
+        </button>
+        <button onclick="addText()" class="toolbar-btn middle-btn">
+            <img src="icons/text.svg" alt="Text">
+        </button>
+        <button onclick="addCode()" class="toolbar-btn middle-btn">
+            <img src="icons/code.svg" alt="Code">
+        </button>
+        <button onclick="setCenter()" class="toolbar-btn middle-btn">
+            <img src="icons/pin.svg" alt="Set Center">
+        </button>
+        <button onclick="bringToFront()" class="toolbar-btn middle-btn">
+            <img src="icons/move-up.svg" alt="Bring to Front">
+        </button>
+        <button onclick="sendToBack()" class="toolbar-btn middle-btn">
+            <img src="icons/move-down.svg" alt="Send to Back">
+        </button>
+        <button onclick="clearAll()" class="toolbar-btn middle-btn">
+            <img src="icons/clear.svg" alt="Clear All">
+        </button>
+        <button onclick="logout()" class="toolbar-btn last-btn">
+            <img src="icons/logout.svg" alt="Logout">
+        </button>
     </div>
 
     <!-- Code Modal -->
