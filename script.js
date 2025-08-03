@@ -107,6 +107,37 @@ function initializeCanvas() {
         // Update when scaling is finished
         updateCanvasItem(e.target);
     });
+    
+    // Handle object moving
+    canvas.on('object:moving', function(e) {
+        // Update in real-time while moving
+        updateCanvasItem(e.target);
+    });
+    
+    canvas.on('object:moved', function(e) {
+        // Update when moving is finished
+        updateCanvasItem(e.target);
+    });
+    
+    // Handle object rotating
+    canvas.on('object:rotating', function(e) {
+        // Update in real-time while rotating
+        updateCanvasItem(e.target);
+    });
+    
+    canvas.on('object:rotated', function(e) {
+        // Update when rotating is finished
+        updateCanvasItem(e.target);
+    });
+    
+    // Handle text editing
+    canvas.on('text:changed', function(e) {
+        updateCanvasItem(e.target);
+    });
+    
+    canvas.on('text:editing:exited', function(e) {
+        updateCanvasItem(e.target);
+    });
 
     // Handle object selection for permissions and z-index controls
     canvas.on('selection:created', function(e) {
@@ -617,9 +648,13 @@ async function updateCanvasItem(fabricObject) {
                 y: fabricObject.top,
                 width: fabricObject.width * (fabricObject.scaleX || 1),
                 height: fabricObject.height * (fabricObject.scaleY || 1),
+                original_width: fabricObject.originalWidth || fabricObject.width * (fabricObject.scaleX || 1),
+                original_height: fabricObject.originalHeight || fabricObject.height * (fabricObject.scaleY || 1),
+                aspect_ratio: fabricObject.aspectRatio || 1,
                 rotation: fabricObject.angle || 0,
                 z_index: canvas.getObjects().indexOf(fabricObject),
-                content: content
+                content: content,
+                updated_at: new Date().toISOString()
             })
             .eq('id', fabricObject.customId);
         
@@ -911,7 +946,12 @@ function bringToFront() {
     const activeObject = canvas.getActiveObject();
     if (activeObject) {
         canvas.bringObjectToFront(activeObject);
-        updateCanvasItem(activeObject);
+        // Update all objects to ensure z-index is correct
+        canvas.getObjects().forEach((obj, index) => {
+            if (obj.customId) {
+                updateCanvasItem(obj);
+            }
+        });
         showStatus('Brought to front', 'success');
     }
 }
@@ -920,7 +960,12 @@ function sendToBack() {
     const activeObject = canvas.getActiveObject();
     if (activeObject) {
         canvas.sendObjectToBack(activeObject);
-        updateCanvasItem(activeObject);
+        // Update all objects to ensure z-index is correct
+        canvas.getObjects().forEach((obj, index) => {
+            if (obj.customId) {
+                updateCanvasItem(obj);
+            }
+        });
         showStatus('Sent to back', 'success');
     }
 }
