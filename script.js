@@ -94,33 +94,36 @@ function initializeCanvas() {
 
     // Handle object modifications
     canvas.on('object:modified', function(e) {
+        console.log('Object modified event fired for:', e.target);
         updateCanvasItem(e.target);
     });
     
     // Handle object scaling (resizing)
     canvas.on('object:scaled', function(e) {
-        // Update when scaling is finished
+        console.log('Object scaled event fired for:', e.target);
         updateCanvasItem(e.target);
     });
     
     // Handle object moving
     canvas.on('object:moved', function(e) {
-        // Update when moving is finished
+        console.log('Object moved event fired for:', e.target);
         updateCanvasItem(e.target);
     });
     
     // Handle object rotating
     canvas.on('object:rotated', function(e) {
-        // Update when rotating is finished
+        console.log('Object rotated event fired for:', e.target);
         updateCanvasItem(e.target);
     });
     
     // Handle text editing
     canvas.on('text:changed', function(e) {
+        console.log('Text changed event fired for:', e.target);
         updateCanvasItem(e.target);
     });
     
     canvas.on('text:editing:exited', function(e) {
+        console.log('Text editing exited event fired for:', e.target);
         updateCanvasItem(e.target);
     });
 
@@ -489,6 +492,27 @@ function addImageToCanvas(imageUrl) {
         fabricImg.originalHeight = imgElement.height;
         fabricImg.aspectRatio = aspectRatio;
         
+        // Add event listeners for image updates
+        fabricImg.on('modified', function() {
+            console.log('New image modified event fired for:', fabricImg.customId);
+            updateCanvasItem(fabricImg);
+        });
+        
+        fabricImg.on('scaled', function() {
+            console.log('New image scaled event fired for:', fabricImg.customId);
+            updateCanvasItem(fabricImg);
+        });
+        
+        fabricImg.on('moved', function() {
+            console.log('New image moved event fired for:', fabricImg.customId);
+            updateCanvasItem(fabricImg);
+        });
+        
+        fabricImg.on('rotated', function() {
+            console.log('New image rotated event fired for:', fabricImg.customId);
+            updateCanvasItem(fabricImg);
+        });
+        
         console.log('Adding image to canvas with properties:', {
             userId: fabricImg.userId,
             itemType: fabricImg.itemType,
@@ -618,34 +642,36 @@ async function updateCanvasItem(fabricObject) {
             content = fabricObject.getSrc ? fabricObject.getSrc() : '';
         }
         
-        console.log('Updating item:', {
+        const updateData = {
+            x: fabricObject.left,
+            y: fabricObject.top,
+            width: fabricObject.width * (fabricObject.scaleX || 1),
+            height: fabricObject.height * (fabricObject.scaleY || 1),
+            original_width: fabricObject.originalWidth || fabricObject.width * (fabricObject.scaleX || 1),
+            original_height: fabricObject.originalHeight || fabricObject.height * (fabricObject.scaleY || 1),
+            aspect_ratio: fabricObject.aspectRatio || 1,
+            rotation: fabricObject.angle || 0,
+            z_index: canvas.getObjects().indexOf(fabricObject),
+            content: content
+        };
+        
+        console.log('Updating item with data:', {
             id: fabricObject.customId,
             type: fabricObject.itemType,
-            content: content,
-            x: fabricObject.left,
-            y: fabricObject.top
+            updateData: updateData
         });
         
         const { error } = await supabaseClient
             .from('canvas_items')
-            .update({
-                x: fabricObject.left,
-                y: fabricObject.top,
-                width: fabricObject.width * (fabricObject.scaleX || 1),
-                height: fabricObject.height * (fabricObject.scaleY || 1),
-                original_width: fabricObject.originalWidth || fabricObject.width * (fabricObject.scaleX || 1),
-                original_height: fabricObject.originalHeight || fabricObject.height * (fabricObject.scaleY || 1),
-                aspect_ratio: fabricObject.aspectRatio || 1,
-                rotation: fabricObject.angle || 0,
-                z_index: canvas.getObjects().indexOf(fabricObject),
-                content: content,
-                updated_at: new Date().toISOString()
-            })
+            .update(updateData)
             .eq('id', fabricObject.customId);
         
-        if (error) throw error;
+        if (error) {
+            console.error('Supabase update error:', error);
+            throw error;
+        }
         
-        console.log('Item updated successfully');
+        console.log('Item updated successfully in Supabase');
         
         // Re-apply styling for images to ensure it's preserved
         if (fabricObject.itemType === 'image') {
@@ -736,6 +762,27 @@ async function addItemToCanvas(item) {
                 // Apply styling to image after properties are set
                 console.log('Applying styling to loaded image:', fabricImg.customId);
                 applyImageStyling(fabricImg);
+                
+                // Add event listeners for image updates
+                fabricImg.on('modified', function() {
+                    console.log('Image modified event fired for:', fabricImg.customId);
+                    updateCanvasItem(fabricImg);
+                });
+                
+                fabricImg.on('scaled', function() {
+                    console.log('Image scaled event fired for:', fabricImg.customId);
+                    updateCanvasItem(fabricImg);
+                });
+                
+                fabricImg.on('moved', function() {
+                    console.log('Image moved event fired for:', fabricImg.customId);
+                    updateCanvasItem(fabricImg);
+                });
+                
+                fabricImg.on('rotated', function() {
+                    console.log('Image rotated event fired for:', fabricImg.customId);
+                    updateCanvasItem(fabricImg);
+                });
                 
                 // If no ID exists (old data), create a new record
                 if (!item.id) {
