@@ -686,8 +686,13 @@ function createImageItem(src, x = centerPoint.x, y = centerPoint.y, width = 200,
     // Set default border radius as CSS variable
     item.style.setProperty('--item-border-radius', '0px');
     
+    // Set z-index to be on top for new items
     if (!fromDatabase) {
         item.dataset.id = ++itemCounter;
+        // Get the highest z-index and add 1
+        const items = Array.from(canvas.querySelectorAll('.canvas-item'));
+        const maxZIndex = items.length > 0 ? Math.max(...items.map(item => parseInt(item.style.zIndex) || 1)) : 1;
+        item.style.zIndex = maxZIndex + 1;
     }
     item.dataset.type = 'image';
     
@@ -759,8 +764,13 @@ function createTextItem(content = 'Click to edit text...', x = centerPoint.x, y 
     // Set default border radius as CSS variable
     item.style.setProperty('--item-border-radius', '0px');
     
+    // Set z-index to be on top for new items
     if (!fromDatabase) {
         item.dataset.id = ++itemCounter;
+        // Get the highest z-index and add 1
+        const items = Array.from(canvas.querySelectorAll('.canvas-item'));
+        const maxZIndex = items.length > 0 ? Math.max(...items.map(item => parseInt(item.style.zIndex) || 1)) : 1;
+        item.style.zIndex = maxZIndex + 1;
     }
     item.dataset.type = 'text';
     
@@ -813,8 +823,13 @@ function createCodeItem(htmlContent, x = centerPoint.x, y = centerPoint.y, width
     // Set default border radius as CSS variable
     item.style.setProperty('--item-border-radius', '0px');
     
+    // Set z-index to be on top for new items
     if (!fromDatabase) {
         item.dataset.id = ++itemCounter;
+        // Get the highest z-index and add 1
+        const items = Array.from(canvas.querySelectorAll('.canvas-item'));
+        const maxZIndex = items.length > 0 ? Math.max(...items.map(item => parseInt(item.style.zIndex) || 1)) : 1;
+        item.style.zIndex = maxZIndex + 1;
     }
     item.dataset.type = 'code';
     
