@@ -46,11 +46,11 @@ const ADMIN_PASSWORD = 'canvas123';
 
 // Dot grid configuration
 const DOT_GRID_CONFIG = {
-    spacing: 50,                    // Distance between dots in pixels
-    dotSize: 1.5,                    // Dot radius in pixels
-    color: 'rgba(0, 0, 0, 0.15)', // Dot color with alpha transparency
-    minZoomToShow: 0.2,            // Minimum zoom level to show dots
-    maxZoomToShow: 10.0             // Maximum zoom level to show dots
+    spacing: 40,                    // Distance between dots in pixels
+    dotSize: 1.25,                    // Dot radius in pixels
+    color: 'rgba(0, 0, 0, 0.1)', // Dot color with alpha transparency
+    minZoomToShow: 0.3,            // Minimum zoom level to show dots
+    maxZoomToShow: 8.0             // Maximum zoom level to show dots
 };
 
 // Initialize on page load
@@ -123,6 +123,9 @@ function initializeCanvas() {
             vpt[5] -= e.deltaY * panSpeed; // Vertical pan
             canvas.requestRenderAll();
         }
+        
+        // Update object coordinates and handles after viewport changes
+        updateObjectHandles();
         
         e.preventDefault();
         e.stopPropagation();
@@ -209,6 +212,9 @@ function initializeCanvas() {
                 vpt[4] += deltaX;
                 vpt[5] += deltaY;
                 canvas.requestRenderAll();
+                
+                // Update object handles during touch panning
+                updateObjectHandles();
                 
                 // Update start position for next movement
                 singleTouchStart = {
@@ -308,6 +314,9 @@ function initializeCanvas() {
             vpt[5] += touchVelocity.y;
             canvas.requestRenderAll();
             
+            // Update object handles during inertia
+            updateObjectHandles();
+            
             // Decay velocity
             touchVelocity.x *= INERTIA_DECAY;
             touchVelocity.y *= INERTIA_DECAY;
@@ -380,6 +389,9 @@ function initializeCanvas() {
             canvas.requestRenderAll();
             canvas.lastPosX = e.clientX;
             canvas.lastPosY = e.clientY;
+            
+            // Update object handles during dragging
+            updateObjectHandles();
         }
     });
 
@@ -400,8 +412,34 @@ function initializeCanvas() {
     });
     
     // Handle object scaling (resizing)
+    canvas.on('object:scaling', function(e) {
+        // For images, ensure aspect ratio is maintained during scaling
+        if (e.target.itemType === 'image') {
+            const obj = e.target;
+            // Force uniform scaling by making scaleX and scaleY equal
+            const scale = Math.max(obj.scaleX, obj.scaleY);
+            obj.set({
+                scaleX: scale,
+                scaleY: scale
+            });
+            canvas.requestRenderAll();
+        }
+    });
+    
     canvas.on('object:scaled', function(e) {
         console.log('Object scaled event fired for:', e.target);
+        
+        // For images, ensure aspect ratio is maintained by using uniform scaling
+        if (e.target.itemType === 'image') {
+            const obj = e.target;
+            // Force uniform scaling by making scaleX and scaleY equal
+            const scale = Math.max(obj.scaleX, obj.scaleY);
+            obj.set({
+                scaleX: scale,
+                scaleY: scale
+            });
+        }
+        
         updateCanvasItem(e.target);
         // Label position updates automatically via setCoords override
     });
@@ -535,6 +573,23 @@ function initializeCanvas() {
             height: window.innerHeight
         });
     });
+}
+
+// Update object handles and coordinates after viewport changes
+function updateObjectHandles() {
+    // Update coordinates for all objects so handles follow properly
+    canvas.getObjects().forEach(obj => {
+        if (obj.setCoords) {
+            obj.setCoords();
+        }
+    });
+    
+    // If there's an active object, update its controls
+    const activeObject = canvas.getActiveObject();
+    if (activeObject) {
+        activeObject.setCoords();
+        canvas.requestRenderAll();
+    }
 }
 
 // Initialize Dot Grid
@@ -980,7 +1035,10 @@ function addImageToCanvas(imageUrl) {
             originY: 'center',
             lockUniScaling: true, // Maintain aspect ratio when scaling
             lockScalingFlip: true, // Prevent flipping
-            centeredScaling: true // Scale from center
+            centeredScaling: true, // Scale from center
+            uniformScaling: true, // Force uniform scaling
+            lockSkewingX: true, // Prevent X skewing
+            lockSkewingY: true // Prevent Y skewing
         });
         
         // Set the dimensions after creation to ensure proper scaling
@@ -1297,7 +1355,10 @@ async function addItemToCanvas(item) {
                     angle: item.rotation,
                     lockUniScaling: true, // Maintain aspect ratio when scaling
                     lockScalingFlip: true, // Prevent flipping
-                    centeredScaling: true // Scale from center
+                    centeredScaling: true, // Scale from center
+                    uniformScaling: true, // Force uniform scaling
+                    lockSkewingX: true, // Prevent X skewing
+                    lockSkewingY: true // Prevent Y skewing
                 });
                 
                 // Use scaleX and scaleY to maintain aspect ratio instead of width/height
