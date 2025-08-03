@@ -343,21 +343,27 @@ body {
 
 /* Responsive Design */
 @media (max-width: 768px) {
+    /* Mobile viewport fixes */
+    body {
+        height: 100vh;
+        height: 100dvh; /* Dynamic viewport height for mobile browsers */
+        overflow: hidden;
+    }
+    
+    #canvasContainer {
+        width: 100vw;
+        height: 100vh;
+        height: 100dvh; /* Dynamic viewport height for mobile browsers */
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+    }
+    
+    /* Hide toolbar on mobile (handled by JS but add CSS backup) */
     #toolbar {
-        flex-direction: column;
-        gap: 10px;
-        padding: 15px;
-    }
-    
-    .toolbar-section {
-        width: 100%;
-        justify-content: center;
-        flex-wrap: wrap;
-    }
-    
-    .tool-btn {
-        padding: 10px 15px;
-        font-size: 13px;
+        display: none !important;
     }
     
     .modal-content {

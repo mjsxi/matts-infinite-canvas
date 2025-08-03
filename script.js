@@ -30,14 +30,14 @@ const IMAGE_STYLING = {
 
 // User label styling variables - easy to customize
 const LABEL_STYLING = {
-    fontSize: 12,
+    fontSize: 8,
     fontFamily: 'sans-serif',
     textColor: '#ffffff',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     ownItemBackgroundColor: 'rgba(102, 126, 234, 0.8)',
-    paddingHorizontal: 10, // Left and right padding
-    paddingVertical: 6,    // Top and bottom padding
-    borderRadius: 8,
+    paddingHorizontal: 8, // Left and right padding
+    paddingVertical: 4,    // Top and bottom padding
+    borderRadius: 6,
     offsetY: 6 // Pixels above the object
 };
 
@@ -727,33 +727,9 @@ function bindEvents() {
 
 // Mobile-specific functions
 function hideEditingControlsOnMobile() {
-    // Hide add buttons since users can't edit on mobile
-    document.getElementById('addImageBtn').style.display = 'none';
-    document.getElementById('addTextBtn').style.display = 'none';
-    
-    // Hide z-index controls (permanently on mobile)
-    document.getElementById('zIndexControls').style.display = 'none';
-    
-    // Hide border radius controls (permanently on mobile)
-    document.getElementById('borderRadiusControls').style.display = 'none';
-    
-    // Hide text controls (permanently on mobile)
-    document.getElementById('textControls').style.display = 'none';
-    
-    // Add a mobile notice to the toolbar
+    // Hide the entire toolbar on mobile
     const toolbar = document.getElementById('toolbar');
-    const mobileNotice = document.createElement('div');
-    mobileNotice.innerHTML = '📱 Mobile View - Canvas is read-only';
-    mobileNotice.style.cssText = `
-        background: rgba(255, 193, 7, 0.2);
-        color: #856404;
-        padding: 8px 12px;
-        border-radius: 8px;
-        font-size: 12px;
-        font-weight: 500;
-        border: 1px solid rgba(255, 193, 7, 0.3);
-    `;
-    toolbar.appendChild(mobileNotice);
+    toolbar.style.display = 'none';
 }
 
 // User Management
