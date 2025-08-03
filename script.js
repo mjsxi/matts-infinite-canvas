@@ -14,6 +14,7 @@ let userNickname = null;
 let isSettingCenter = false;
 let centerIndicator = null;
 let adminSessionExpiry = null;
+let canvasCenterPoint = { x: 0, y: 0 };
 
 // Image styling variables - easy to customize
 const IMAGE_STYLING = {
@@ -140,6 +141,11 @@ function initializeCanvas() {
     
     canvas.on('selection:cleared', function() {
         toggleZIndexControls(false);
+    });
+    
+    // Also check permissions when objects are modified
+    canvas.on('object:modified', function(e) {
+        checkObjectPermissions(e.target);
     });
 
     // Resize canvas on window resize
@@ -340,14 +346,16 @@ async function setCenterPoint(event) {
         const { error } = await supabaseClient
             .from('canvas_center')
             .upsert({
-                id: 1,
+                id: 0,
                 x: point.x,
                 y: point.y,
-                is_active: true,
-                updated_at: new Date().toISOString()
+                is_active: true
             });
         
         if (error) throw error;
+        
+        // Update global center point
+        canvasCenterPoint = { x: point.x, y: point.y };
         
         showCenterIndicator(point.x, point.y);
         showStatus('Center point updated!', 'success');
@@ -391,6 +399,9 @@ async function loadCenterPoint() {
             .single();
         
         if (data && !error) {
+            // Store the center point for new items
+            canvasCenterPoint = { x: data.x, y: data.y };
+            
             // Center the canvas on this point
             const centerX = window.innerWidth / 2 - data.x;
             const centerY = window.innerHeight / 2 - data.y;
@@ -473,8 +484,8 @@ function addImageToCanvas(imageUrl) {
         
         // Create a Fabric.js image from the loaded image element
         const fabricImg = new fabric.Image(imgElement, {
-            left: canvas.getCenter().left,
-            top: canvas.getCenter().top,
+            left: canvasCenterPoint.x,
+            top: canvasCenterPoint.y,
             originX: 'center',
             originY: 'center'
         });
@@ -555,8 +566,8 @@ function addTextToCanvas() {
     if (!text) return;
     
     const textObj = new fabric.IText(text, {
-        left: canvas.getCenter().left,
-        top: canvas.getCenter().top,
+        left: canvasCenterPoint.x,
+        top: canvasCenterPoint.y,
         fontFamily: 'Arial',
         fontSize: 24,
         fill: '#333333',
