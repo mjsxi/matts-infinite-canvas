@@ -674,11 +674,11 @@ function addTextToCanvas() {
     const textObj = new fabric.Textbox(text, {
         left: canvasCenterPoint.x,
         top: canvasCenterPoint.y,
-        fontFamily: 'Arial',
+        fontFamily: 'sans-serif',
         fontSize: 24,
         fontWeight: 'normal',
         fill: '#333333',
-        lineHeight: 1.2,
+        lineHeight: 1.15,
         originX: 'center',
         originY: 'center',
         width: 450, // Set maximum width - this will enforce wrapping
@@ -736,8 +736,14 @@ async function saveCanvasItem(fabricObject, content) {
             border_radius: fabricObject.borderRadius || (fabricObject.itemType === 'image' ? IMAGE_STYLING.borderRadius : 0)
         };
         
-        // Text properties will be stored on the client object but not in database
-        // until the database schema is updated to include these columns
+        // Add text-specific properties if this is a text object
+        if (fabricObject.itemType === 'text') {
+            insertData.font_family = fabricObject.fontFamily || 'sans-serif';
+            insertData.font_size = fabricObject.fontSize || 24;
+            insertData.font_weight = fabricObject.fontWeight || 'normal';
+            insertData.text_color = fabricObject.fill || '#333333';
+            insertData.line_height = fabricObject.lineHeight || 1.15;
+        }
         
         console.log('Attempting to save item with data:', insertData);
         
@@ -795,8 +801,14 @@ async function updateCanvasItem(fabricObject) {
             border_radius: fabricObject.borderRadius || (fabricObject.itemType === 'image' ? IMAGE_STYLING.borderRadius : 0)
         };
         
-        // Text properties will be stored on the client object but not in database
-        // until the database schema is updated to include these columns
+        // Add text-specific properties if this is a text object
+        if (fabricObject.itemType === 'text') {
+            updateData.font_family = fabricObject.fontFamily || 'sans-serif';
+            updateData.font_size = fabricObject.fontSize || 24;
+            updateData.font_weight = fabricObject.fontWeight || 'normal';
+            updateData.text_color = fabricObject.fill || '#333333';
+            updateData.line_height = fabricObject.lineHeight || 1.15;
+        }
         
         console.log('Updating item with data:', {
             id: fabricObject.customId,
@@ -969,11 +981,11 @@ async function addItemToCanvas(item) {
                 width: Math.min(item.width || 450, 450), // Enforce max width of 450px - this will enforce wrapping
                 height: item.height,
                 angle: item.rotation,
-                fontSize: 24,
-                fontFamily: 'Arial',
-                fontWeight: 'normal',
-                fill: '#333333',
-                lineHeight: 1.2,
+                fontSize: item.font_size || 24,
+                fontFamily: item.font_family || 'sans-serif',
+                fontWeight: item.font_weight || 'normal',
+                fill: item.text_color || '#333333',
+                lineHeight: item.line_height || 1.15,
                 splitByGrapheme: false, // Don't break characters
                 breakWords: false, // Don't break words
                 dynamicMinWidth: 1, // Allow text to shrink when needed
@@ -1202,11 +1214,11 @@ function toggleTextControls(selectedObject) {
         textControls.style.display = 'flex';
         
         // Update control values to match selected text object
-        document.getElementById('fontFamilySelect').value = selectedObject.fontFamily || 'Arial';
+        document.getElementById('fontFamilySelect').value = selectedObject.fontFamily || 'sans-serif';
         document.getElementById('fontSizeInput').value = selectedObject.fontSize || 24;
         document.getElementById('fontWeightSelect').value = selectedObject.fontWeight || 'normal';
         document.getElementById('textColorInput').value = selectedObject.fill || '#333333';
-        document.getElementById('lineHeightInput').value = selectedObject.lineHeight || 1.2;
+        document.getElementById('lineHeightInput').value = selectedObject.lineHeight || 1.15;
     } else {
         // Hide controls for non-text objects or when nothing is selected
         textControls.style.display = 'none';
