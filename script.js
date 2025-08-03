@@ -210,14 +210,39 @@ function initializeCanvas() {
         lastTouchDistance = 0;
         lastTouchCenter = { x: 0, y: 0 };
         
-        // Prevent Safari from interpreting touches as mouse events that cause object disappearance
-        if (isSingleTouchPanning) {
+        // Always prevent Safari from converting touch to mouse events
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Reset panning state
+        isSingleTouchPanning = false;
+    }, { passive: false });
+    
+    // Additional Safari fixes - prevent all mouse events that could be converted from touch
+    canvas.wrapperEl.addEventListener('mousedown', function(e) {
+        // If this is a converted touch event (common in Safari), prevent it
+        if (Date.now() - touchStartTime < 500) {
             e.preventDefault();
             e.stopPropagation();
-            isSingleTouchPanning = false;
-        } else if (e.touches.length === 0 && Date.now() - touchStartTime < 300) {
-            // Short taps might be trying to interact with objects, allow them but prevent mouse conversion
+            return false;
+        }
+    }, { passive: false });
+    
+    canvas.wrapperEl.addEventListener('mouseup', function(e) {
+        // If this is a converted touch event (common in Safari), prevent it
+        if (Date.now() - touchStartTime < 500) {
             e.preventDefault();
+            e.stopPropagation();
+            return false;
+        }
+    }, { passive: false });
+    
+    canvas.wrapperEl.addEventListener('click', function(e) {
+        // If this is a converted touch event (common in Safari), prevent it
+        if (Date.now() - touchStartTime < 500) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
         }
     }, { passive: false });
 
