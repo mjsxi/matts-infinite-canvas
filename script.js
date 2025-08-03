@@ -455,6 +455,15 @@ function addTextToCanvas() {
     textObj.originalHeight = textObj.height;
     textObj.aspectRatio = textObj.width / textObj.height;
     
+    // Add text change listener
+    textObj.on('changed', function() {
+        updateCanvasItem(textObj);
+    });
+    
+    textObj.on('editing:exited', function() {
+        updateCanvasItem(textObj);
+    });
+    
     canvas.add(textObj);
     canvas.setActiveObject(textObj);
     
@@ -588,6 +597,15 @@ async function addItemToCanvas(item) {
             textObj.originalWidth = item.original_width;
             textObj.originalHeight = item.original_height;
             textObj.aspectRatio = item.aspect_ratio;
+            
+            // Add text change listeners for existing text
+            textObj.on('changed', function() {
+                updateCanvasItem(textObj);
+            });
+            
+            textObj.on('editing:exited', function() {
+                updateCanvasItem(textObj);
+            });
             
             canvas.add(textObj);
             resolve();
