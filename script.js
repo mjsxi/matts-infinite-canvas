@@ -15,6 +15,9 @@ let isSettingCenter = false;
 let centerIndicator = null;
 let adminSessionExpiry = null;
 let canvasCenterPoint = { x: 0, y: 0 };
+let dotGridEnabled = true;
+let dotGridCanvas = null;
+let dotGridCtx = null;
 
 // Image styling variables - easy to customize
 const IMAGE_STYLING = {
@@ -41,9 +44,19 @@ const LABEL_STYLING = {
 // Admin password (change this!)
 const ADMIN_PASSWORD = 'canvas123';
 
+// Dot grid configuration
+const DOT_GRID_CONFIG = {
+    spacing: 50,                    // Distance between dots in pixels
+    dotSize: 1.5,                    // Dot radius in pixels
+    color: 'rgba(0, 0, 0, 0.15)', // Dot color with alpha transparency
+    minZoomToShow: 0.2,            // Minimum zoom level to show dots
+    maxZoomToShow: 10.0             // Maximum zoom level to show dots
+};
+
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
     initializeCanvas();
+    initializeDotGrid();
     initializeUser();
     bindEvents();
     loadCanvasItems();
@@ -522,6 +535,78 @@ function initializeCanvas() {
             height: window.innerHeight
         });
     });
+}
+
+// Initialize Dot Grid
+function initializeDotGrid() {
+    if (!dotGridEnabled) return;
+    
+    // Create a separate canvas element for the dot grid
+    createDotGridCanvas();
+    
+    // Update dots on canvas changes
+    canvas.on('after:render', updateDotGrid);
+    canvas.on('mouse:wheel', updateDotGrid);
+    canvas.on('mouse:up', updateDotGrid);
+    
+    console.log('Dot grid system initialized');
+}
+
+function createDotGridCanvas() {
+    // Create canvas element for dots
+    dotGridCanvas = document.createElement('canvas');
+    dotGridCanvas.id = 'dotGridCanvas';
+    dotGridCanvas.style.position = 'absolute';
+    dotGridCanvas.style.top = '0';
+    dotGridCanvas.style.left = '0';
+    dotGridCanvas.style.zIndex = '0'; // Behind main canvas
+    dotGridCanvas.style.pointerEvents = 'none'; // Don't capture mouse events
+    dotGridCanvas.width = window.innerWidth;
+    dotGridCanvas.height = window.innerHeight;
+    
+    // Insert before the main canvas
+    const mainCanvas = document.getElementById('canvas');
+    mainCanvas.parentNode.insertBefore(dotGridCanvas, mainCanvas);
+    
+    dotGridCtx = dotGridCanvas.getContext('2d');
+    
+    // Update size on window resize
+    window.addEventListener('resize', () => {
+        dotGridCanvas.width = window.innerWidth;
+        dotGridCanvas.height = window.innerHeight;
+        updateDotGrid();
+    });
+}
+
+function updateDotGrid() {
+    if (!dotGridEnabled || !dotGridCtx) return;
+    
+    const zoom = canvas.getZoom();
+    const shouldShow = zoom >= DOT_GRID_CONFIG.minZoomToShow && zoom <= DOT_GRID_CONFIG.maxZoomToShow;
+    
+    // Clear the dot grid canvas
+    dotGridCtx.clearRect(0, 0, dotGridCanvas.width, dotGridCanvas.height);
+    
+    if (!shouldShow) return;
+    
+    const vpt = canvas.viewportTransform;
+    const spacing = DOT_GRID_CONFIG.spacing * zoom;
+    
+    // Set dot style
+    dotGridCtx.fillStyle = DOT_GRID_CONFIG.color;
+    
+    // Calculate grid offset based on viewport transform
+    const offsetX = vpt[4] % spacing;
+    const offsetY = vpt[5] % spacing;
+    
+    // Draw dots
+    for (let x = offsetX; x < dotGridCanvas.width; x += spacing) {
+        for (let y = offsetY; y < dotGridCanvas.height; y += spacing) {
+            dotGridCtx.beginPath();
+            dotGridCtx.arc(x, y, DOT_GRID_CONFIG.dotSize, 0, 2 * Math.PI);
+            dotGridCtx.fill();
+        }
+    }
 }
 
 // Initialize User Session with Persistence
