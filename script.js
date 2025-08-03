@@ -110,16 +110,52 @@ function initializeCanvas() {
     let touchStartTime = 0;
     
     // Handle touch events more carefully for Safari
+    let singleTouchStart = { x: 0, y: 0 };
+    let isSingleTouchPanning = false;
+    
     canvas.wrapperEl.addEventListener('touchstart', function(e) {
         touchStartTime = Date.now();
-        if (e.touches.length === 2) {
+        
+        if (e.touches.length === 1) {
+            // Single finger touch - prepare for panning
+            singleTouchStart = {
+                x: e.touches[0].clientX,
+                y: e.touches[0].clientY
+            };
+            isSingleTouchPanning = false;
+        } else if (e.touches.length === 2) {
+            // Two finger touch - prevent default for zoom/pan
             e.preventDefault();
             e.stopPropagation();
         }
     }, { passive: false });
     
     canvas.wrapperEl.addEventListener('touchmove', function(e) {
-        if (e.touches.length === 2) {
+        if (e.touches.length === 1) {
+            // Single finger panning
+            const touch = e.touches[0];
+            const deltaX = touch.clientX - singleTouchStart.x;
+            const deltaY = touch.clientY - singleTouchStart.y;
+            
+            // Only start panning if moved more than 10px (prevents accidental panning)
+            if (Math.abs(deltaX) > 10 || Math.abs(deltaY) > 10) {
+                isSingleTouchPanning = true;
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Update viewport for panning
+                const vpt = canvas.viewportTransform;
+                vpt[4] += deltaX;
+                vpt[5] += deltaY;
+                canvas.requestRenderAll();
+                
+                // Update start position for next movement
+                singleTouchStart = {
+                    x: touch.clientX,
+                    y: touch.clientY
+                };
+            }
+        } else if (e.touches.length === 2) {
             e.preventDefault();
             e.stopPropagation();
             
@@ -174,10 +210,14 @@ function initializeCanvas() {
         lastTouchDistance = 0;
         lastTouchCenter = { x: 0, y: 0 };
         
-        // Prevent Safari from interpreting single touch as mouse events
-        if (e.touches.length === 0 && Date.now() - touchStartTime < 500) {
+        // Prevent Safari from interpreting touches as mouse events that cause object disappearance
+        if (isSingleTouchPanning) {
             e.preventDefault();
             e.stopPropagation();
+            isSingleTouchPanning = false;
+        } else if (e.touches.length === 0 && Date.now() - touchStartTime < 300) {
+            // Short taps might be trying to interact with objects, allow them but prevent mouse conversion
+            e.preventDefault();
         }
     }, { passive: false });
 
