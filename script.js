@@ -15,6 +15,14 @@ let isSettingCenter = false;
 let centerIndicator = null;
 let adminSessionExpiry = null;
 
+// Image styling variables - easy to customize
+const IMAGE_STYLING = {
+    shadowColor: 'rgba(0, 0, 0, 0.5)',
+    shadowBlur: 20,
+    shadowOffsetX: 0,
+    shadowOffsetY: 8
+};
+
 // Admin password (change this!)
 const ADMIN_PASSWORD = 'canvas123';
 
@@ -89,13 +97,19 @@ function initializeCanvas() {
         updateCanvasItem(e.target);
     });
 
-    // Handle object selection for permissions
+    // Handle object selection for permissions and z-index controls
     canvas.on('selection:created', function(e) {
         checkObjectPermissions(e.selected[0]);
+        toggleZIndexControls(true);
     });
 
     canvas.on('selection:updated', function(e) {
         checkObjectPermissions(e.selected[0]);
+        toggleZIndexControls(true);
+    });
+    
+    canvas.on('selection:cleared', function() {
+        toggleZIndexControls(false);
     });
 
     // Resize canvas on window resize
@@ -159,6 +173,8 @@ function bindEvents() {
     document.getElementById('setCenterBtn').addEventListener('click', toggleSetCenter);
     document.getElementById('clearCanvasBtn').addEventListener('click', clearCanvas);
     document.getElementById('fileInput').addEventListener('change', handleFileUpload);
+    document.getElementById('bringToFrontBtn').addEventListener('click', bringToFront);
+    document.getElementById('sendToBackBtn').addEventListener('click', sendToBack);
 }
 
 // User Management
@@ -436,6 +452,9 @@ function addImageToCanvas(imageUrl) {
         // Set the dimensions after creation to ensure proper scaling
         fabricImg.scaleToHeight(displayHeight);
         
+        // Apply styling to image
+        applyImageStyling(fabricImg);
+        
         // Add custom properties
         fabricImg.userId = userId;
         fabricImg.itemType = 'image';
@@ -662,6 +681,9 @@ async function addItemToCanvas(item) {
                     angle: item.rotation
                 });
                 
+                // Apply styling to image
+                applyImageStyling(fabricImg);
+                
                 // Add custom properties
                 fabricImg.customId = item.id;
                 fabricImg.userId = item.user_id;
@@ -862,6 +884,58 @@ function showLoading() {
 function hideLoading() {
     console.log('Hiding loading indicator');
     document.getElementById('loadingIndicator').classList.add('hidden');
+}
+
+// Z-Index Controls
+function toggleZIndexControls(show) {
+    const zIndexControls = document.getElementById('zIndexControls');
+    if (show) {
+        zIndexControls.style.display = 'flex';
+    } else {
+        zIndexControls.style.display = 'none';
+    }
+}
+
+function bringToFront() {
+    const activeObject = canvas.getActiveObject();
+    if (activeObject) {
+        canvas.bringObjectToFront(activeObject);
+        updateCanvasItem(activeObject);
+        showStatus('Brought to front', 'success');
+    }
+}
+
+function sendToBack() {
+    const activeObject = canvas.getActiveObject();
+    if (activeObject) {
+        canvas.sendObjectToBack(activeObject);
+        updateCanvasItem(activeObject);
+        showStatus('Sent to back', 'success');
+    }
+}
+
+// Image styling functions
+function applyImageStyling(fabricImg) {
+    // Apply shadow
+    fabricImg.set({
+        shadow: new fabric.Shadow({
+            color: IMAGE_STYLING.shadowColor,
+            blur: IMAGE_STYLING.shadowBlur,
+            offsetX: IMAGE_STYLING.shadowOffsetX,
+            offsetY: IMAGE_STYLING.shadowOffsetY
+        })
+    });
+}
+
+function updateAllImageStyling() {
+    const objects = canvas.getObjects();
+    objects.forEach(obj => {
+        if (obj.itemType === 'image') {
+            applyImageStyling(obj);
+        }
+    });
+    canvas.requestRenderAll();
+    showStatus('Updated all image styling', 'success');
 }
 
 function showStatus(message, type = 'info') {

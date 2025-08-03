@@ -1,3 +1,12 @@
+/* CSS Variables for easy customization */
+:root {
+    --image-border-radius: 16px;
+    --image-shadow-color: rgba(0, 0, 0, 0.5);
+    --image-shadow-blur: 8px;
+    --image-shadow-offset-x: 0px;
+    --image-shadow-offset-y: 6px;
+}
+
 /* Reset and Base Styles */
 * {
     margin: 0;
