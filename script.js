@@ -124,8 +124,23 @@ function initializeCanvas() {
     let singleTouchStart = { x: 0, y: 0 };
     let isSingleTouchPanning = false;
     
+    // Inertia scrolling variables
+    let lastTouchMoveTime = 0;
+    let touchVelocity = { x: 0, y: 0 };
+    let inertiaAnimationId = null;
+    const INERTIA_DECAY = 0.95; // Velocity decay factor (0-1, lower = faster decay)
+    const MIN_VELOCITY = 0.5; // Minimum velocity to continue animation
+    const VELOCITY_SAMPLES = 3; // Number of recent velocity samples to average
+    let velocityHistory = [];
+    
     canvas.wrapperEl.addEventListener('touchstart', function(e) {
         touchStartTime = Date.now();
+        
+        // Stop any ongoing inertia animation
+        if (inertiaAnimationId) {
+            cancelAnimationFrame(inertiaAnimationId);
+            inertiaAnimationId = null;
+        }
         
         if (e.touches.length === 1) {
             // Single finger touch - ALWAYS prevent default to stop mouse event conversion
@@ -138,6 +153,11 @@ function initializeCanvas() {
                 y: e.touches[0].clientY
             };
             isSingleTouchPanning = false;
+            
+            // Reset velocity tracking
+            touchVelocity = { x: 0, y: 0 };
+            velocityHistory = [];
+            lastTouchMoveTime = Date.now();
         } else if (e.touches.length === 2) {
             // Two finger touch - prevent default for zoom/pan
             e.preventDefault();
@@ -154,10 +174,22 @@ function initializeCanvas() {
             const touch = e.touches[0];
             const deltaX = touch.clientX - singleTouchStart.x;
             const deltaY = touch.clientY - singleTouchStart.y;
+            const currentTime = Date.now();
+            const timeDelta = Math.max(currentTime - lastTouchMoveTime, 1); // Prevent division by zero
             
             // Start panning with any movement (no threshold)
             if (Math.abs(deltaX) > 0 || Math.abs(deltaY) > 0) {
                 isSingleTouchPanning = true;
+                
+                // Calculate velocity for inertia
+                const velocityX = deltaX / timeDelta * 16; // Normalize to ~60fps
+                const velocityY = deltaY / timeDelta * 16;
+                
+                // Store velocity sample in history
+                velocityHistory.push({ x: velocityX, y: velocityY });
+                if (velocityHistory.length > VELOCITY_SAMPLES) {
+                    velocityHistory.shift(); // Keep only recent samples
+                }
                 
                 // Update viewport for panning
                 const vpt = canvas.viewportTransform;
@@ -170,6 +202,7 @@ function initializeCanvas() {
                     x: touch.clientX,
                     y: touch.clientY
                 };
+                lastTouchMoveTime = currentTime;
             }
         } else if (e.touches.length === 2) {
             e.preventDefault();
@@ -230,9 +263,54 @@ function initializeCanvas() {
         e.preventDefault();
         e.stopPropagation();
         
+        // Start inertia animation if user was panning and has sufficient velocity
+        if (isSingleTouchPanning && velocityHistory.length > 0) {
+            // Calculate average velocity from recent samples
+            const avgVelocity = velocityHistory.reduce((acc, v) => ({
+                x: acc.x + v.x,
+                y: acc.y + v.y
+            }), { x: 0, y: 0 });
+            
+            touchVelocity.x = avgVelocity.x / velocityHistory.length;
+            touchVelocity.y = avgVelocity.y / velocityHistory.length;
+            
+            // Only start inertia if velocity is significant
+            const velocityMagnitude = Math.sqrt(touchVelocity.x * touchVelocity.x + touchVelocity.y * touchVelocity.y);
+            if (velocityMagnitude > MIN_VELOCITY) {
+                startInertiaAnimation();
+            }
+        }
+        
         // Reset panning state
         isSingleTouchPanning = false;
+        velocityHistory = [];
     }, { passive: false });
+    
+    // Inertia animation function
+    function startInertiaAnimation() {
+        function animate() {
+            // Apply current velocity to viewport
+            const vpt = canvas.viewportTransform;
+            vpt[4] += touchVelocity.x;
+            vpt[5] += touchVelocity.y;
+            canvas.requestRenderAll();
+            
+            // Decay velocity
+            touchVelocity.x *= INERTIA_DECAY;
+            touchVelocity.y *= INERTIA_DECAY;
+            
+            // Continue animation if velocity is still significant
+            const velocityMagnitude = Math.sqrt(touchVelocity.x * touchVelocity.x + touchVelocity.y * touchVelocity.y);
+            if (velocityMagnitude > MIN_VELOCITY) {
+                inertiaAnimationId = requestAnimationFrame(animate);
+            } else {
+                inertiaAnimationId = null;
+                touchVelocity = { x: 0, y: 0 };
+            }
+        }
+        
+        inertiaAnimationId = requestAnimationFrame(animate);
+    }
     
     // Additional Safari fixes - prevent all mouse events that could be converted from touch
     canvas.wrapperEl.addEventListener('mousedown', function(e) {
@@ -264,6 +342,13 @@ function initializeCanvas() {
 
     // Pan on middle mouse button or when no object is selected
     canvas.on('mouse:down', function(opt) {
+        // Stop any ongoing inertia animation
+        if (inertiaAnimationId) {
+            cancelAnimationFrame(inertiaAnimationId);
+            inertiaAnimationId = null;
+            touchVelocity = { x: 0, y: 0 };
+        }
+        
         const evt = opt.e;
         if (evt.button === 1 || (!canvas.getActiveObject() && !isSettingCenter)) {
             canvas.isDragging = true;
