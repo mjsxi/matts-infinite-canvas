@@ -757,10 +757,20 @@ async function addItemToCanvas(item) {
                 const fabricImg = new fabric.Image(imgElement, {
                     left: item.x,
                     top: item.y,
-                    width: item.width,
-                    height: item.height,
+                    originX: 'center',
+                    originY: 'center',
                     angle: item.rotation
                 });
+                
+                // Use scaleX and scaleY to maintain aspect ratio instead of width/height
+                if (item.width && item.height && item.original_width && item.original_height) {
+                    const scaleX = item.width / item.original_width;
+                    const scaleY = item.height / item.original_height;
+                    fabricImg.set({
+                        scaleX: scaleX,
+                        scaleY: scaleY
+                    });
+                }
                 
                 // Add custom properties
                 fabricImg.customId = item.id;
