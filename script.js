@@ -440,6 +440,11 @@ function initializeCanvas() {
             });
         }
         
+        // For HTML objects, allow free resizing and update position
+        if (e.target.itemType === 'html') {
+            positionHtmlElement(e.target);
+        }
+        
         updateCanvasItem(e.target);
         // Label position updates automatically via setCoords override
     });
@@ -448,6 +453,10 @@ function initializeCanvas() {
     canvas.on('object:moved', function(e) {
         console.log('Object moved event fired for:', e.target);
         updateCanvasItem(e.target);
+        // Update HTML position if it's an HTML object
+        if (e.target.itemType === 'html') {
+            positionHtmlElement(e.target);
+        }
         // Label position updates automatically via setCoords override
     });
     
@@ -455,6 +464,10 @@ function initializeCanvas() {
     canvas.on('object:rotated', function(e) {
         console.log('Object rotated event fired for:', e.target);
         updateCanvasItem(e.target);
+        // Update HTML position if it's an HTML object
+        if (e.target.itemType === 'html') {
+            positionHtmlElement(e.target);
+        }
         // Label position updates automatically via setCoords override
     });
     
@@ -475,6 +488,7 @@ function initializeCanvas() {
         toggleZIndexControls(true);
         toggleBorderRadiusControls(e.selected[0]);
         toggleTextControls(e.selected[0]);
+        // HTML blocks don't need repositioning on selection - they should stay in place
     });
 
     canvas.on('selection:updated', function(e) {
@@ -482,12 +496,20 @@ function initializeCanvas() {
         toggleZIndexControls(true);
         toggleBorderRadiusControls(e.selected[0]);
         toggleTextControls(e.selected[0]);
+        // HTML blocks don't need repositioning on selection - they should stay in place
     });
     
     canvas.on('selection:cleared', function() {
         toggleZIndexControls(false);
         toggleBorderRadiusControls(null);
         toggleTextControls(null);
+        // Make HTML objects non-selectable again when deselected
+        canvas.getObjects().forEach(obj => {
+            if (obj.itemType === 'html') {
+                obj.selectable = false;
+                obj.evented = false;
+            }
+        });
     });
     
     // Also check permissions when objects are modified
@@ -581,6 +603,10 @@ function updateObjectHandles() {
     canvas.getObjects().forEach(obj => {
         if (obj.setCoords) {
             obj.setCoords();
+        }
+        // Update HTML positions
+        if (obj.itemType === 'html') {
+            positionHtmlElement(obj);
         }
     });
     
@@ -708,7 +734,8 @@ function checkAdminSession() {
 // Bind Event Listeners
 function bindEvents() {
     document.getElementById('addImageBtn').addEventListener('click', addImage);
-    document.getElementById('addTextBtn').addEventListener('click', showTextModal);
+    document.getElementById('addTextBtn').addEventListener('click', addTextDirectly);
+    document.getElementById('addIframeBtn').addEventListener('click', showHtmlModal);
     document.getElementById('adminBtn').addEventListener('click', showAdminModal);
     document.getElementById('setCenterBtn').addEventListener('click', toggleSetCenter);
     document.getElementById('clearCanvasBtn').addEventListener('click', clearCanvas);
@@ -1079,21 +1106,8 @@ function addImageToCanvas(imageUrl) {
 }
 
 // Text Functions
-function showTextModal() {
-    document.getElementById('textModal').classList.remove('hidden');
-    document.getElementById('textInput').focus();
-}
-
-function closeTextModal() {
-    document.getElementById('textModal').classList.add('hidden');
-    document.getElementById('textInput').value = '';
-}
-
-function addTextToCanvas() {
-    const text = document.getElementById('textInput').value.trim();
-    if (!text) return;
-    
-    const textObj = new fabric.Textbox(text, {
+function addTextDirectly() {
+    const textObj = new fabric.Textbox('type something', {
         left: canvasCenterPoint.x,
         top: canvasCenterPoint.y,
         fontFamily: 'sans-serif',
@@ -1134,9 +1148,169 @@ function addTextToCanvas() {
     addUserLabel(textObj);
     
     // Save to database and get the ID
+    saveCanvasItem(textObj, 'type something');
+    
+    // Immediately enter editing mode and select all placeholder text
+    textObj.enterEditing();
+    textObj.selectAll();
+}
+
+// Legacy function kept for compatibility (used in HTML modal)
+function addTextToCanvas() {
+    const text = document.getElementById('textInput').value.trim();
+    if (!text) return;
+    
+    const textObj = new fabric.Textbox(text, {
+        left: canvasCenterPoint.x,
+        top: canvasCenterPoint.y,
+        fontFamily: 'sans-serif',
+        fontSize: 24,
+        fontWeight: 'normal',
+        fill: '#333333',
+        lineHeight: 1.15,
+        originX: 'center',
+        originY: 'center',
+        width: 450,
+        splitByGrapheme: false,
+        breakWords: false,
+        dynamicMinWidth: 1
+    });
+    
+    textObj.userId = userId;
+    textObj.itemType = 'text';
+    textObj.originalWidth = textObj.width;
+    textObj.originalHeight = textObj.height;
+    textObj.aspectRatio = textObj.width / textObj.height;
+    
+    textObj.on('changed', function() {
+        updateCanvasItem(textObj);
+    });
+    
+    textObj.on('editing:exited', function() {
+        updateCanvasItem(textObj);
+    });
+    
+    canvas.add(textObj);
+    canvas.setActiveObject(textObj);
+    addUserLabel(textObj);
     saveCanvasItem(textObj, text);
     
-    closeTextModal();
+    document.getElementById('textModal').classList.add('hidden');
+    document.getElementById('textInput').value = '';
+}
+
+// HTML Functions
+function showHtmlModal() {
+    document.getElementById('htmlModal').classList.remove('hidden');
+    document.getElementById('htmlInput').focus();
+}
+
+function closeHtmlModal() {
+    document.getElementById('htmlModal').classList.add('hidden');
+    document.getElementById('htmlInput').value = '';
+    document.getElementById('htmlTitleInput').value = '';
+}
+
+function addHtmlToCanvas() {
+    const htmlContent = document.getElementById('htmlInput').value.trim();
+    const title = document.getElementById('htmlTitleInput').value.trim() || 'HTML Demo';
+    
+    if (!htmlContent) {
+        alert('Please enter HTML content');
+        return;
+    }
+    
+    // Create iframe element with srcdoc for embedded HTML
+    const iframeElement = document.createElement('iframe');
+    iframeElement.srcdoc = htmlContent; // Use srcdoc instead of src for embedded HTML
+    iframeElement.width = 400;
+    iframeElement.height = 300;
+    iframeElement.frameBorder = '0';
+    iframeElement.allowFullscreen = true;
+    iframeElement.style.borderRadius = '12px';
+    iframeElement.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.2)';
+    iframeElement.style.border = '2px solid #ddd';
+    iframeElement.style.pointerEvents = 'all'; // Always allow interaction
+    
+    // Create Fabric.js object to hold the iframe (with free resize - no aspect ratio lock)
+    const htmlObj = new fabric.Rect({
+        left: canvasCenterPoint.x,
+        top: canvasCenterPoint.y,
+        width: 400,
+        height: 300,
+        fill: 'transparent', // Transparent background so iframe is fully interactive
+        stroke: 'transparent', // No visible border by default
+        strokeWidth: 0,
+        rx: 12,
+        ry: 12,
+        originX: 'center',
+        originY: 'center',
+        lockUniScaling: false, // Allow free resizing
+        uniformScaling: false, // Disable uniform scaling
+        selectable: false, // Make non-selectable by default
+        evented: false // Disable events on the HTML block itself
+    });
+    
+    // Add custom properties
+    htmlObj.customId = 'html_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    htmlObj.userId = userId;
+    htmlObj.itemType = 'html';
+    htmlObj.htmlContent = htmlContent;
+    htmlObj.htmlTitle = title;
+    htmlObj.originalWidth = 400;
+    htmlObj.originalHeight = 300;
+    htmlObj.aspectRatio = 400 / 300;
+    
+    // Store iframe element reference
+    htmlObj.iframeElement = iframeElement;
+    
+    canvas.add(htmlObj);
+    canvas.setActiveObject(htmlObj);
+    
+    // Position iframe element over canvas object
+    positionHtmlElement(htmlObj);
+    
+    // Add user label
+    addUserLabel(htmlObj);
+    
+    // Save to database
+    saveCanvasItem(htmlObj, htmlContent);
+    
+    closeHtmlModal();
+}
+
+function positionHtmlElement(htmlObj) {
+    if (!htmlObj.iframeElement) return;
+    
+    const canvasEl = canvas.getElement();
+    const canvasRect = canvasEl.getBoundingClientRect();
+    const zoom = canvas.getZoom();
+    const vpt = canvas.viewportTransform;
+    
+    // Calculate screen position
+    const objLeft = htmlObj.left * zoom + vpt[4] + canvasRect.left;
+    const objTop = htmlObj.top * zoom + vpt[5] + canvasRect.top;
+    const objWidth = htmlObj.width * zoom * (htmlObj.scaleX || 1);
+    const objHeight = htmlObj.height * zoom * (htmlObj.scaleY || 1);
+    const rotation = htmlObj.angle || 0;
+    
+    // Position iframe element
+    htmlObj.iframeElement.style.position = 'fixed';
+    htmlObj.iframeElement.style.left = (objLeft - objWidth/2) + 'px';
+    htmlObj.iframeElement.style.top = (objTop - objHeight/2) + 'px';
+    htmlObj.iframeElement.style.width = objWidth + 'px';
+    htmlObj.iframeElement.style.height = objHeight + 'px';
+    htmlObj.iframeElement.style.zIndex = '999';
+    htmlObj.iframeElement.style.pointerEvents = 'all'; // Always allow interaction with HTML content
+    
+    // Apply rotation transform
+    htmlObj.iframeElement.style.transformOrigin = 'center center';
+    htmlObj.iframeElement.style.transform = `rotate(${rotation}deg)`;
+    
+    // Add to document if not already added
+    if (!document.body.contains(htmlObj.iframeElement)) {
+        document.body.appendChild(htmlObj.iframeElement);
+    }
 }
 
 // Database Functions
@@ -1165,6 +1339,12 @@ async function saveCanvasItem(fabricObject, content) {
             insertData.font_weight = fabricObject.fontWeight || 'normal';
             insertData.text_color = fabricObject.fill || '#333333';
             insertData.line_height = fabricObject.lineHeight || 1.15;
+        }
+        
+        // Add HTML-specific properties if this is an HTML object
+        if (fabricObject.itemType === 'html') {
+            insertData.html_content = fabricObject.htmlContent; // Save HTML content to html_content field
+            insertData.content = fabricObject.htmlTitle || 'HTML Demo'; // Save title to content field
         }
         
         console.log('Attempting to save item with data:', insertData);
@@ -1230,6 +1410,12 @@ async function updateCanvasItem(fabricObject) {
             updateData.font_weight = fabricObject.fontWeight || 'normal';
             updateData.text_color = fabricObject.fill || '#333333';
             updateData.line_height = fabricObject.lineHeight || 1.15;
+        }
+        
+        // Add HTML-specific properties if this is an HTML object
+        if (fabricObject.itemType === 'html') {
+            updateData.html_content = fabricObject.htmlContent; // Update HTML content
+            updateData.content = fabricObject.htmlTitle || 'HTML Demo'; // Update title
         }
         
         console.log('Updating item with data:', {
@@ -1354,7 +1540,7 @@ async function addItemToCanvas(item) {
                 fabricImg.originalWidth = item.original_width;
                 fabricImg.originalHeight = item.original_height;
                 fabricImg.aspectRatio = item.aspect_ratio;
-                fabricImg.borderRadius = item.border_radius || IMAGE_STYLING.borderRadius; // Load per-image border radius
+                fabricImg.borderRadius = (item.border_radius !== undefined && item.border_radius !== null) ? item.border_radius : IMAGE_STYLING.borderRadius; // Load per-image border radius
                 
                 // Apply styling to image after properties are set
                 console.log('Applying styling to loaded image:', fabricImg.customId);
@@ -1449,6 +1635,61 @@ async function addItemToCanvas(item) {
             
             // Add user label for existing text objects
             addUserLabel(textObj);
+            
+            resolve();
+        } else if (item.item_type === 'html') {
+            // Create iframe element with srcdoc for embedded HTML
+            const iframeElement = document.createElement('iframe');
+            iframeElement.srcdoc = item.html_content; // Use html_content field for HTML content
+            iframeElement.width = item.width || 400;
+            iframeElement.height = item.height || 300;
+            iframeElement.frameBorder = '0';
+            iframeElement.allowFullscreen = true;
+            iframeElement.style.borderRadius = '12px';
+            iframeElement.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.2)';
+            iframeElement.style.border = '2px solid #ddd';
+            iframeElement.style.pointerEvents = 'all'; // Always allow interaction
+            
+            // Create Fabric.js rectangle to represent HTML (with free resize)
+            const htmlObj = new fabric.Rect({
+                left: item.x,
+                top: item.y,
+                width: item.width || 400,
+                height: item.height || 300,
+                fill: 'transparent', // Transparent background so iframe is fully interactive
+                stroke: 'transparent', // No visible border by default
+                strokeWidth: 0,
+                rx: 12,
+                ry: 12,
+                originX: 'center',
+                originY: 'center',
+                angle: item.rotation,
+                lockUniScaling: false, // Allow free resizing
+                uniformScaling: false, // Disable uniform scaling
+                selectable: false, // Make non-selectable by default
+                evented: false // Disable events on the HTML block itself
+            });
+            
+            // Add custom properties
+            htmlObj.customId = item.id;
+            htmlObj.userId = item.user_id;
+            htmlObj.itemType = item.item_type;
+            htmlObj.htmlContent = item.html_content; // Load HTML content from html_content field
+            htmlObj.htmlTitle = item.content || 'HTML Demo'; // Load title from content field
+            htmlObj.originalWidth = item.original_width;
+            htmlObj.originalHeight = item.original_height;
+            htmlObj.aspectRatio = item.aspect_ratio;
+            htmlObj.iframeElement = iframeElement;
+            
+            canvas.add(htmlObj);
+            
+            // Position iframe element
+            positionHtmlElement(htmlObj);
+            
+            // Add user label
+            addUserLabel(htmlObj);
+            
+            console.log('Loaded HTML object with customId:', htmlObj.customId);
             
             resolve();
         }
@@ -1755,7 +1996,7 @@ function applyImageStyling(fabricImg) {
     });
     
     // Apply rounded corners using clipPath that matches image dimensions exactly
-    const borderRadius = fabricImg.borderRadius || IMAGE_STYLING.borderRadius;
+    const borderRadius = (fabricImg.borderRadius !== undefined && fabricImg.borderRadius !== null) ? fabricImg.borderRadius : IMAGE_STYLING.borderRadius;
     if (borderRadius > 0) {
         // Use the image's natural width and height (before any scaling)
         const imageWidth = fabricImg.width;
@@ -1772,6 +2013,11 @@ function applyImageStyling(fabricImg) {
         
         fabricImg.set({
             clipPath: clipPath
+        });
+    } else {
+        // Remove clipPath when borderRadius is 0
+        fabricImg.set({
+            clipPath: null
         });
     }
     
@@ -1812,8 +2058,8 @@ function addUserLabel(fabricObject) {
         canvas.remove(fabricObject.userLabel);
     }
     
-    // Only add labels to images and text objects
-    if (!fabricObject.itemType || (fabricObject.itemType !== 'image' && fabricObject.itemType !== 'text')) {
+    // Only add labels to images, text, and HTML objects
+    if (!fabricObject.itemType || (fabricObject.itemType !== 'image' && fabricObject.itemType !== 'text' && fabricObject.itemType !== 'html')) {
         return;
     }
     
@@ -1885,6 +2131,70 @@ function addUserLabel(fabricObject) {
     
     // Make label follow the object transformations
     attachLabelToObject(fabricObject, labelGroup);
+    
+    // Special handling for HTML object labels
+    if (fabricObject.itemType === 'html') {
+        // Store initial positions for drag calculation
+        let isDragging = false;
+        let dragStartX, dragStartY;
+        let objectStartX, objectStartY;
+        
+        // Handle label mouse down - both selection and drag start
+        labelGroup.on('mousedown', function(e) {
+            e.e.preventDefault();
+            e.e.stopPropagation();
+            
+            // Make the HTML object temporarily selectable and select it
+            fabricObject.selectable = true;
+            fabricObject.evented = true;
+            
+            
+            canvas.setActiveObject(fabricObject);
+            canvas.renderAll();
+            
+            // Start drag tracking
+            isDragging = true;
+            dragStartX = e.pointer.x;
+            dragStartY = e.pointer.y;
+            objectStartX = fabricObject.left;
+            objectStartY = fabricObject.top;
+            
+            // Add canvas event listeners for dragging
+            canvas.on('mouse:move', handleMouseMove);
+            canvas.on('mouse:up', handleMouseUp);
+        });
+        
+        // Handle dragging via canvas mouse events
+        const handleMouseMove = function(e) {
+            if (isDragging && fabricObject.selectable) {
+                const pointer = canvas.getPointer(e.e);
+                const deltaX = pointer.x - dragStartX;
+                const deltaY = pointer.y - dragStartY;
+                
+                fabricObject.left = objectStartX + deltaX;
+                fabricObject.top = objectStartY + deltaY;
+                fabricObject.setCoords();
+                
+                // Update iframe position
+                positionHtmlElement(fabricObject);
+                
+                // Update label position
+                updateUserLabelPosition(fabricObject, labelGroup);
+                
+                canvas.renderAll();
+            }
+        };
+        
+        const handleMouseUp = function() {
+            if (isDragging) {
+                isDragging = false;
+                updateCanvasItem(fabricObject);
+                canvas.off('mouse:move', handleMouseMove);
+                canvas.off('mouse:up', handleMouseUp);
+            }
+        };
+        
+    }
 }
 
 function updateUserLabelPosition(fabricObject, label) {
@@ -1950,17 +2260,82 @@ function showStatus(message, type = 'info') {
 
 // Keyboard Shortcuts
 document.addEventListener('keydown', function(e) {
-    // Delete selected object (if user owns it or is admin)
+    // Check if user is currently typing in an input field, textarea, or editing text
+    const isTyping = document.activeElement && (
+        document.activeElement.tagName === 'INPUT' ||
+        document.activeElement.tagName === 'TEXTAREA' ||
+        document.activeElement.contentEditable === 'true'
+    );
+    
+    // Check if user is editing text on canvas
+    const activeObj = canvas.getActiveObject();
+    const isEditingText = activeObj && activeObj.itemType === 'text' && activeObj.isEditing;
+    
+    // Delete selected object (if user owns it or is admin) - but only if not typing or editing
     if (e.key === 'Delete' || e.key === 'Backspace') {
-        const activeObj = canvas.getActiveObject();
+        // Don't delete if user is typing or editing text
+        if (isTyping || isEditingText) {
+            return; // Let the normal delete/backspace behavior happen
+        }
+        
+        // Only delete canvas objects when nothing is being edited
         if (activeObj && (activeObj.userId === userId || isAdmin)) {
+            e.preventDefault(); // Prevent default only when we're deleting canvas objects
             deleteCanvasItem(activeObj);
         }
     }
     
-    // Escape to cancel center setting
-    if (e.key === 'Escape' && isSettingCenter) {
-        toggleSetCenter();
+    // Escape to cancel center setting or exit text editing
+    if (e.key === 'Escape') {
+        if (isSettingCenter) {
+            toggleSetCenter();
+        } else if (isEditingText) {
+            activeObj.exitEditing();
+            canvas.requestRenderAll();
+        }
+    }
+    
+    // Arrow key movement for selected objects (if not typing or editing text)
+    if (!isTyping && !isEditingText && activeObj && (activeObj.userId === userId || isAdmin)) {
+        let moved = false;
+        const moveDistance = e.shiftKey ? 10 : 1; // Hold Shift for faster movement
+        
+        switch(e.key) {
+            case 'ArrowUp':
+                activeObj.top -= moveDistance;
+                moved = true;
+                break;
+            case 'ArrowDown':
+                activeObj.top += moveDistance;
+                moved = true;
+                break;
+            case 'ArrowLeft':
+                activeObj.left -= moveDistance;
+                moved = true;
+                break;
+            case 'ArrowRight':
+                activeObj.left += moveDistance;
+                moved = true;
+                break;
+        }
+        
+        if (moved) {
+            e.preventDefault();
+            activeObj.setCoords();
+            
+            // Update HTML iframe position if it's an HTML object
+            if (activeObj.itemType === 'html') {
+                positionHtmlElement(activeObj);
+            }
+            
+            // Update user label position
+            if (activeObj.userLabel) {
+                updateUserLabelPosition(activeObj, activeObj.userLabel);
+            }
+            
+            canvas.renderAll();
+            updateCanvasItem(activeObj);
+        }
     }
 });
 
@@ -1978,6 +2353,11 @@ async function deleteCanvasItem(fabricObject) {
         // Remove user label if it exists
         if (fabricObject.userLabel) {
             canvas.remove(fabricObject.userLabel);
+        }
+        
+        // Remove HTML iframe element if it exists
+        if (fabricObject.itemType === 'html' && fabricObject.iframeElement) {
+            document.body.removeChild(fabricObject.iframeElement);
         }
         
         canvas.remove(fabricObject);

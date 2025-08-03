@@ -33,6 +33,7 @@
         <div class="toolbar-section">
             <button id="addImageBtn" class="tool-btn">📷 Add Image</button>
             <button id="addTextBtn" class="tool-btn">📝 Add Text</button>
+            <button id="addIframeBtn" class="tool-btn">🌐 Add Code</button>
             <button id="adminBtn" class="tool-btn admin-btn">⚙️ Admin</button>
         </div>
         
@@ -109,6 +110,34 @@
             <div class="modal-buttons">
                 <button onclick="addTextToCanvas()">Add Text</button>
                 <button onclick="closeTextModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- HTML Input Modal -->
+    <div id="htmlModal" class="modal hidden">
+        <div class="modal-content" style="max-width: 600px;">
+            <h3>Add HTML Code Block</h3>
+            <p>Paste your complete HTML file (with embedded CSS and JS):</p>
+            <textarea id="htmlInput" placeholder="<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        /* Your CSS here */
+    </style>
+</head>
+<body>
+    <!-- Your HTML here -->
+    <script>
+        // Your JavaScript here
+    </script>
+</body>
+</html>" rows="10" style="font-family: monospace; font-size: 12px; margin-bottom: 15px;"></textarea>
+            <label for="htmlTitleInput">Title (optional):</label>
+            <input type="text" id="htmlTitleInput" placeholder="My Interactive Demo">
+            <div class="modal-buttons">
+                <button onclick="addHtmlToCanvas()">Add HTML Block</button>
+                <button onclick="closeHtmlModal()">Cancel</button>
             </div>
         </div>
     </div>
