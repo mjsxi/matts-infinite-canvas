@@ -20,6 +20,12 @@ let isResizing = false;
 let dragStart = { x: 0, y: 0 };
 let lastMousePos = { x: 0, y: 0 };
 
+// Inertia scrolling variables
+let panVelocity = { x: 0, y: 0 };
+let lastPanTime = 0;
+let panPositions = [];
+let inertiaAnimationId = null;
+
 // Item counter for unique IDs
 let itemCounter = 0;
 
@@ -131,10 +137,14 @@ function handleMouseDown(e) {
             return;
         }
         
+        // Stop any ongoing inertia animation
+        stopInertiaAnimation();
+        
         // Start panning
         isPanning = true;
         container.classList.add('panning');
         dragStart = { x: e.clientX, y: e.clientY };
+        lastPanTime = Date.now();
         clearSelection();
     } else if (e.target.closest('.canvas-item')) {
         const item = e.target.closest('.canvas-item');
@@ -153,6 +163,22 @@ function handleMouseMove(e) {
         canvasTransform.x += deltaX;
         canvasTransform.y += deltaY;
         updateCanvasTransform();
+        
+        // Track panning velocity for inertia
+        const now = Date.now();
+        const timeDelta = now - lastPanTime;
+        if (timeDelta > 0) {
+            panVelocity.x = deltaX / timeDelta;
+            panVelocity.y = deltaY / timeDelta;
+        }
+        lastPanTime = now;
+        
+        // Store position for velocity calculation
+        panPositions.push({ x: e.clientX, y: e.clientY, time: now });
+        if (panPositions.length > 5) {
+            panPositions.shift();
+        }
+        
         dragStart = { x: e.clientX, y: e.clientY };
     } else if (isDragging && selectedItem && !isResizing) {
         dragItem(e);
@@ -166,6 +192,27 @@ function handleMouseUp(e) {
         isPanning = false;
         container.classList.remove('panning');
         canvas.classList.remove('dragging');
+        
+        // Calculate final velocity from last few positions
+        if (panPositions.length >= 2) {
+            const recent = panPositions.slice(-3);
+            const first = recent[0];
+            const last = recent[recent.length - 1];
+            const timeDelta = last.time - first.time;
+            
+            if (timeDelta > 0) {
+                panVelocity.x = (last.x - first.x) / timeDelta * 0.5; // Reduce velocity for smoother feel
+                panVelocity.y = (last.y - first.y) / timeDelta * 0.5;
+                
+                // Start inertia animation if velocity is significant
+                if (Math.abs(panVelocity.x) > 0.1 || Math.abs(panVelocity.y) > 0.1) {
+                    startInertiaAnimation();
+                }
+            }
+        }
+        
+        // Clear position history
+        panPositions = [];
     }
     
     if (isDragging && !isResizing) {
@@ -219,10 +266,14 @@ function handleTouchStart(e) {
         // Single finger - handle panning
         e.preventDefault();
         
+        // Stop any ongoing inertia animation
+        stopInertiaAnimation();
+        
         const touch = e.touches[0];
         touchStartPos = { x: touch.clientX, y: touch.clientY };
         touchStartTransform = { ...canvasTransform };
         isSingleTouchPanning = true;
+        lastPanTime = Date.now();
         
         // Check if we're touching a canvas item
         const element = document.elementFromPoint(touch.clientX, touch.clientY);
@@ -270,6 +321,21 @@ function handleTouchMove(e) {
         canvasTransform.y = touchStartTransform.y + deltaY;
         
         updateCanvasTransform();
+        
+        // Track velocity for touch inertia
+        const now = Date.now();
+        const timeDelta = now - lastPanTime;
+        if (timeDelta > 0) {
+            panVelocity.x = deltaX / timeDelta;
+            panVelocity.y = deltaY / timeDelta;
+        }
+        lastPanTime = now;
+        
+        // Store position for velocity calculation
+        panPositions.push({ x: touch.clientX, y: touch.clientY, time: now });
+        if (panPositions.length > 5) {
+            panPositions.shift();
+        }
     } else if (e.touches.length >= 2) {
         // Multi-touch pinch-to-zoom
         e.preventDefault();
@@ -317,12 +383,71 @@ function handleTouchEnd(e) {
         // All touches ended
         touchStartDistance = 0;
         touchStartCenter = { x: 0, y: 0 };
+        
+        // Handle inertia for single touch panning
+        if (isSingleTouchPanning && panPositions.length >= 2) {
+            const recent = panPositions.slice(-3);
+            const first = recent[0];
+            const last = recent[recent.length - 1];
+            const timeDelta = last.time - first.time;
+            
+            if (timeDelta > 0) {
+                panVelocity.x = (last.x - first.x) / timeDelta * 0.5;
+                panVelocity.y = (last.y - first.y) / timeDelta * 0.5;
+                
+                // Start inertia animation if velocity is significant
+                if (Math.abs(panVelocity.x) > 0.1 || Math.abs(panVelocity.y) > 0.1) {
+                    startInertiaAnimation();
+                }
+            }
+        }
+        
         isSingleTouchPanning = false;
+        panPositions = [];
     } else if (e.touches.length === 1) {
         // Went from multi-touch to single touch
         touchStartDistance = 0;
         touchStartCenter = { x: 0, y: 0 };
     }
+}
+
+// Inertia animation function
+function startInertiaAnimation() {
+    if (inertiaAnimationId) {
+        cancelAnimationFrame(inertiaAnimationId);
+    }
+    
+    const friction = 0.95; // Decay factor
+    const minVelocity = 0.1; // Minimum velocity to continue animation
+    
+    function animateInertia() {
+        // Apply velocity
+        canvasTransform.x += panVelocity.x;
+        canvasTransform.y += panVelocity.y;
+        updateCanvasTransform();
+        
+        // Apply friction
+        panVelocity.x *= friction;
+        panVelocity.y *= friction;
+        
+        // Continue animation if velocity is still significant
+        if (Math.abs(panVelocity.x) > minVelocity || Math.abs(panVelocity.y) > minVelocity) {
+            inertiaAnimationId = requestAnimationFrame(animateInertia);
+        } else {
+            inertiaAnimationId = null;
+        }
+    }
+    
+    inertiaAnimationId = requestAnimationFrame(animateInertia);
+}
+
+// Stop inertia animation when user starts panning again
+function stopInertiaAnimation() {
+    if (inertiaAnimationId) {
+        cancelAnimationFrame(inertiaAnimationId);
+        inertiaAnimationId = null;
+    }
+    panVelocity = { x: 0, y: 0 };
 }
 
 function handleKeyDown(e) {
