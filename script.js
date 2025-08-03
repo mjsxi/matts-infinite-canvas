@@ -1,6 +1,6 @@
 // Supabase Configuration
 const SUPABASE_URL = 'https://ruefemuqeehlqieitoma.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJJUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ1ZWZlbXVxZWVobHFpZWl0b21hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzU4NDc1NjIsImV4cCI6MjA1MTQyMzU2Mn0.eot4Fhxb6f4x5rI1Hb4TwLCgpYrmxKrADEK1Lh59h_o';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ1ZWZlbXVxZWVobHFpZWl0b21hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQxNzc5ODQsImV4cCI6MjA2OTc1Mzk4NH0.Bl3Af45EF-RINH_MD5AcZITNbk4wj79cm3Znsbrpb9k';
 
 // Initialize Supabase
 const { createClient } = supabase;
@@ -13,6 +13,7 @@ let userId = null;
 let userNickname = null;
 let isSettingCenter = false;
 let centerIndicator = null;
+let adminSessionExpiry = null;
 
 // Admin password (change this!)
 const ADMIN_PASSWORD = 'canvas123';
@@ -25,6 +26,9 @@ document.addEventListener('DOMContentLoaded', function() {
     loadCanvasItems();
     loadCenterPoint();
     setupRealtime();
+    
+    // Check admin session every 5 minutes
+    setInterval(checkAdminSession, 5 * 60 * 1000);
 });
 
 // Initialize Fabric.js Canvas
@@ -103,10 +107,17 @@ function initializeCanvas() {
     });
 }
 
-// Initialize User Session
+// Initialize User Session with Persistence
 function initializeUser() {
     userId = localStorage.getItem('canvas_user_id');
     userNickname = localStorage.getItem('canvas_user_nickname');
+    
+    // Check for admin session
+    const adminSession = localStorage.getItem('canvas_admin_session');
+    if (adminSession && Date.now() < parseInt(adminSession)) {
+        isAdmin = true;
+        adminSessionExpiry = parseInt(adminSession);
+    }
     
     if (!userId) {
         userId = 'user_' + Math.random().toString(36).substr(2, 9);
@@ -117,6 +128,21 @@ function initializeUser() {
         showUserModal();
     } else {
         updateUserInfo();
+        // Show admin tools if admin session is valid
+        if (isAdmin) {
+            toggleAdminMode();
+        }
+    }
+}
+
+// Check Admin Session Expiry
+function checkAdminSession() {
+    if (isAdmin && adminSessionExpiry && Date.now() > adminSessionExpiry) {
+        isAdmin = false;
+        localStorage.removeItem('canvas_admin_session');
+        adminSessionExpiry = null;
+        toggleAdminMode();
+        showStatus('Admin session expired', 'error');
     }
 }
 
@@ -142,17 +168,30 @@ function setUserNickname() {
         localStorage.setItem('canvas_user_nickname', nickname);
         document.getElementById('userModal').classList.add('hidden');
         updateUserInfo();
+        
+        // Show admin tools if admin session is valid
+        if (isAdmin) {
+            toggleAdminMode();
+        }
     }
 }
 
 function updateUserInfo() {
-    document.getElementById('userInfo').textContent = `👤 ${userNickname}`;
+    const userInfo = document.getElementById('userInfo');
+    if (isAdmin) {
+        userInfo.textContent = `👑 ${userNickname} (Admin)`;
+    } else {
+        userInfo.textContent = `👤 ${userNickname}`;
+    }
 }
 
 // Admin Functions
 function showAdminModal() {
     if (isAdmin) {
-        toggleAdminMode();
+        // If already admin, provide logout option
+        if (confirm('You are currently in admin mode. Do you want to logout?')) {
+            logoutAdmin();
+        }
     } else {
         document.getElementById('adminModal').classList.remove('hidden');
     }
@@ -162,12 +201,28 @@ function checkAdminPassword() {
     const password = document.getElementById('adminPassword').value;
     if (password === ADMIN_PASSWORD) {
         isAdmin = true;
+        
+        // Save admin session (expires in 24 hours)
+        const expiry = Date.now() + (24 * 60 * 60 * 1000);
+        localStorage.setItem('canvas_admin_session', expiry);
+        adminSessionExpiry = expiry;
+        
         closeAdminModal();
         toggleAdminMode();
-        showStatus('Admin mode activated', 'success');
+        updateUserInfo();
+        showStatus('Admin mode activated (24h session)', 'success');
     } else {
         showStatus('Invalid password', 'error');
     }
+}
+
+function logoutAdmin() {
+    isAdmin = false;
+    localStorage.removeItem('canvas_admin_session');
+    adminSessionExpiry = null;
+    toggleAdminMode();
+    updateUserInfo();
+    showStatus('Admin logout successful', 'success');
 }
 
 function closeAdminModal() {
@@ -183,10 +238,21 @@ function toggleAdminMode() {
         adminTools.style.display = 'flex';
         adminBtn.textContent = '👑 Admin Mode';
         adminBtn.style.background = 'linear-gradient(135deg, #48bb78 0%, #38a169 100%)';
+        adminBtn.title = 'Click to logout';
+        
+        // Show center indicator if exists
+        loadCenterPoint();
     } else {
         adminTools.style.display = 'none';
         adminBtn.textContent = '⚙️ Admin';
         adminBtn.style.background = 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)';
+        adminBtn.title = 'Login as admin';
+        
+        // Hide center indicator
+        if (centerIndicator) {
+            canvas.remove(centerIndicator);
+            centerIndicator = null;
+        }
     }
 }
 
