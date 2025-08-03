@@ -56,12 +56,23 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Initialize Fabric.js Canvas
 function initializeCanvas() {
+    // Detect if we're on mobile
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                     (navigator.maxTouchPoints && navigator.maxTouchPoints > 2);
+    
     canvas = new fabric.Canvas('canvas', {
         width: window.innerWidth,
         height: window.innerHeight,
         backgroundColor: '#ffffff',
-        preserveObjectStacking: true
+        preserveObjectStacking: true,
+        selection: !isMobile,      // Disable selection on mobile
+        skipTargetFind: isMobile   // Disable object interaction on mobile
     });
+    
+    // Hide editing controls on mobile
+    if (isMobile) {
+        hideEditingControlsOnMobile();
+    }
 
     // Figma-style trackpad interactions
     canvas.on('mouse:wheel', function(opt) {
@@ -487,6 +498,37 @@ function bindEvents() {
     document.getElementById('fontWeightSelect').addEventListener('change', updateTextProperty);
     document.getElementById('textColorInput').addEventListener('input', updateTextProperty);
     document.getElementById('lineHeightInput').addEventListener('input', updateTextProperty);
+}
+
+// Mobile-specific functions
+function hideEditingControlsOnMobile() {
+    // Hide add buttons since users can't edit on mobile
+    document.getElementById('addImageBtn').style.display = 'none';
+    document.getElementById('addTextBtn').style.display = 'none';
+    
+    // Hide z-index controls (permanently on mobile)
+    document.getElementById('zIndexControls').style.display = 'none';
+    
+    // Hide border radius controls (permanently on mobile)
+    document.getElementById('borderRadiusControls').style.display = 'none';
+    
+    // Hide text controls (permanently on mobile)
+    document.getElementById('textControls').style.display = 'none';
+    
+    // Add a mobile notice to the toolbar
+    const toolbar = document.getElementById('toolbar');
+    const mobileNotice = document.createElement('div');
+    mobileNotice.innerHTML = '📱 Mobile View - Canvas is read-only';
+    mobileNotice.style.cssText = `
+        background: rgba(255, 193, 7, 0.2);
+        color: #856404;
+        padding: 8px 12px;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 500;
+        border: 1px solid rgba(255, 193, 7, 0.3);
+    `;
+    toolbar.appendChild(mobileNotice);
 }
 
 // User Management
