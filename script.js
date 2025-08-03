@@ -968,13 +968,28 @@ function updateExistingItem(itemData) {
     const existingObj = objects.find(obj => obj.customId === itemData.id);
     
     if (existingObj) {
-        existingObj.set({
-            left: itemData.x,
-            top: itemData.y,
-            width: itemData.width,
-            height: itemData.height,
-            angle: itemData.rotation
-        });
+        // For images, use scaleX and scaleY to maintain aspect ratio
+        if (existingObj.itemType === 'image' && itemData.original_width && itemData.original_height) {
+            const scaleX = itemData.width / itemData.original_width;
+            const scaleY = itemData.height / itemData.original_height;
+            
+            existingObj.set({
+                left: itemData.x,
+                top: itemData.y,
+                scaleX: scaleX,
+                scaleY: scaleY,
+                angle: itemData.rotation
+            });
+        } else {
+            // For text and other objects, use width and height
+            existingObj.set({
+                left: itemData.x,
+                top: itemData.y,
+                width: itemData.width,
+                height: itemData.height,
+                angle: itemData.rotation
+            });
+        }
         canvas.requestRenderAll();
     }
 }
