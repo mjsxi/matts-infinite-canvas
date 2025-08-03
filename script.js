@@ -104,14 +104,25 @@ function initializeCanvas() {
         e.stopPropagation();
     });
 
-    // Touch gesture support for mobile/tablet
+    // Touch gesture support for mobile/tablet with Safari fixes
     let lastTouchDistance = 0;
     let lastTouchCenter = { x: 0, y: 0 };
+    let touchStartTime = 0;
     
-    canvas.on('touch:gesture', function(opt) {
-        const e = opt.e;
-        
-        if (e.touches && e.touches.length === 2) {
+    // Handle touch events more carefully for Safari
+    canvas.wrapperEl.addEventListener('touchstart', function(e) {
+        touchStartTime = Date.now();
+        if (e.touches.length === 2) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+    }, { passive: false });
+    
+    canvas.wrapperEl.addEventListener('touchmove', function(e) {
+        if (e.touches.length === 2) {
+            e.preventDefault();
+            e.stopPropagation();
+            
             // Two-finger gesture
             const touch1 = e.touches[0];
             const touch2 = e.touches[1];
@@ -155,17 +166,20 @@ function initializeCanvas() {
             
             lastTouchDistance = distance;
             lastTouchCenter = center;
-            
+        }
+    }, { passive: false });
+    
+    canvas.wrapperEl.addEventListener('touchend', function(e) {
+        // Reset touch tracking
+        lastTouchDistance = 0;
+        lastTouchCenter = { x: 0, y: 0 };
+        
+        // Prevent Safari from interpreting single touch as mouse events
+        if (e.touches.length === 0 && Date.now() - touchStartTime < 500) {
             e.preventDefault();
             e.stopPropagation();
         }
-    });
-    
-    // Reset touch tracking on touch end
-    canvas.on('touch:drag', function() {
-        lastTouchDistance = 0;
-        lastTouchCenter = { x: 0, y: 0 };
-    });
+    }, { passive: false });
 
     // Pan on middle mouse button or when no object is selected
     canvas.on('mouse:down', function(opt) {
