@@ -25,6 +25,19 @@ const IMAGE_STYLING = {
     borderRadius: 20 // Rounded corners radius in pixels
 };
 
+// User label styling variables - easy to customize
+const LABEL_STYLING = {
+    fontSize: 12,
+    fontFamily: 'sans-serif',
+    textColor: '#ffffff',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    ownItemBackgroundColor: 'rgba(102, 126, 234, 0.8)',
+    paddingHorizontal: 10, // Left and right padding
+    paddingVertical: 6,    // Top and bottom padding
+    borderRadius: 8,
+    offsetY: 6 // Pixels above the object
+};
+
 // Admin password (change this!)
 const ADMIN_PASSWORD = 'canvas123';
 
@@ -98,24 +111,28 @@ function initializeCanvas() {
     canvas.on('object:modified', function(e) {
         console.log('Object modified event fired for:', e.target);
         updateCanvasItem(e.target);
+        // Label position updates automatically via setCoords override
     });
     
     // Handle object scaling (resizing)
     canvas.on('object:scaled', function(e) {
         console.log('Object scaled event fired for:', e.target);
         updateCanvasItem(e.target);
+        // Label position updates automatically via setCoords override
     });
     
     // Handle object moving
     canvas.on('object:moved', function(e) {
         console.log('Object moved event fired for:', e.target);
         updateCanvasItem(e.target);
+        // Label position updates automatically via setCoords override
     });
     
     // Handle object rotating
     canvas.on('object:rotated', function(e) {
         console.log('Object rotated event fired for:', e.target);
         updateCanvasItem(e.target);
+        // Label position updates automatically via setCoords override
     });
     
     // Handle text editing
@@ -151,6 +168,77 @@ function initializeCanvas() {
     canvas.on('object:modified', function(e) {
         checkObjectPermissions(e.target);
     });
+    
+    // Handle label dragging to move parent objects
+    canvas.on('object:moving', function(e) {
+        const movingObject = e.target;
+        
+        // Check if this is a label being moved
+        if (movingObject.parentObject) {
+            const parentObject = movingObject.parentObject;
+            
+            // Check permissions - user can only move their own items
+            if (parentObject.userId === userId || isAdmin) {
+                // Calculate how much the label moved
+                const labelDeltaX = movingObject.left - movingObject.originalLeft;
+                const labelDeltaY = movingObject.top - movingObject.originalTop;
+                
+                // Move the parent object by the same amount
+                parentObject.set({
+                    left: parentObject.originalLeft + labelDeltaX,
+                    top: parentObject.originalTop + labelDeltaY
+                });
+                
+                // Update the label position to stay attached to parent
+                updateUserLabelPosition(parentObject, movingObject);
+                
+                canvas.requestRenderAll();
+            } else {
+                // Reset label position if user doesn't have permission
+                movingObject.set({
+                    left: movingObject.originalLeft,
+                    top: movingObject.originalTop
+                });
+                showStatus('You can only move your own items', 'error');
+            }
+        }
+    });
+    
+    // Store original positions when starting to move
+    canvas.on('mouse:down', function(e) {
+        if (e.target) {
+            e.target.originalLeft = e.target.left;
+            e.target.originalTop = e.target.top;
+            
+            // If moving a label, also store parent object's position
+            if (e.target.parentObject) {
+                e.target.parentObject.originalLeft = e.target.parentObject.left;
+                e.target.parentObject.originalTop = e.target.parentObject.top;
+            }
+        }
+    });
+    
+    // Update database when label dragging is finished
+    canvas.on('object:modified', function(e) {
+        const modifiedObject = e.target;
+        
+        // If a label was moved, update the parent object in database
+        if (modifiedObject.parentObject) {
+            updateCanvasItem(modifiedObject.parentObject);
+        }
+    });
+
+    // Update labels when canvas viewport changes (pan/zoom)
+    canvas.on('mouse:up', function() {
+        // Update all labels after mouse operations (helps with panning/zooming)
+        setTimeout(() => {
+            canvas.getObjects().forEach(obj => {
+                if (obj.userLabel && obj.itemType) {
+                    updateUserLabelPosition(obj, obj.userLabel);
+                }
+            });
+        }, 10);
+    });
 
     // Resize canvas on window resize
     window.addEventListener('resize', function() {
@@ -175,17 +263,14 @@ function initializeUser() {
         adminSessionExpiry = parseInt(adminSession);
     }
     
-    if (!userId) {
-        userId = 'user_' + Math.random().toString(36).substr(2, 9);
-        localStorage.setItem('canvas_user_id', userId);
-        console.log('Generated new userId:', userId);
-    }
-    
     if (!userNickname) {
         console.log('No nickname found, showing user modal');
         showUserModal();
     } else {
-        console.log('Nickname found, updating user info');
+        // If we have a nickname, use it as the user_id
+        userId = userNickname;
+        localStorage.setItem('canvas_user_id', userNickname);
+        console.log('Using nickname as userId:', userId);
         updateUserInfo();
         // Show admin tools if admin session is valid
         if (isAdmin) {
@@ -229,7 +314,9 @@ function setUserNickname() {
     
     if (nickname) {
         userNickname = nickname;
+        userId = nickname; // Use nickname as user_id
         localStorage.setItem('canvas_user_nickname', nickname);
+        localStorage.setItem('canvas_user_id', nickname); // Store nickname as user_id
         console.log('Nickname saved to localStorage:', nickname);
         document.getElementById('userModal').classList.add('hidden');
         updateUserInfo();
@@ -605,6 +692,9 @@ function addTextToCanvas() {
     canvas.add(textObj);
     canvas.setActiveObject(textObj);
     
+    // Add user label
+    addUserLabel(textObj);
+    
     // Save to database and get the ID
     saveCanvasItem(textObj, text);
     
@@ -739,6 +829,8 @@ async function loadCanvasItems() {
         setTimeout(() => {
             console.log('Forcing update of all image styling...');
             updateAllImageStyling();
+            // Also fix label z-indexes after loading
+            updateAllLabelZIndexes();
         }, 1000);
         
     } catch (error) {
@@ -877,6 +969,10 @@ async function addItemToCanvas(item) {
             });
             
             canvas.add(textObj);
+            
+            // Add user label for existing text objects
+            addUserLabel(textObj);
+            
             resolve();
         }
     });
@@ -1014,6 +1110,10 @@ function removeItemFromCanvas(itemId) {
     const objToRemove = objects.find(obj => obj.customId === itemId);
     
     if (objToRemove) {
+        // Remove user label if it exists
+        if (objToRemove.userLabel) {
+            canvas.remove(objToRemove.userLabel);
+        }
         canvas.remove(objToRemove);
     }
 }
@@ -1075,6 +1175,12 @@ function bringToFront() {
     const activeObject = canvas.getActiveObject();
     if (activeObject) {
         canvas.bringObjectToFront(activeObject);
+        
+        // If this object has a label, bring it to front too (right after the object)
+        if (activeObject.userLabel) {
+            canvas.bringObjectToFront(activeObject.userLabel);
+        }
+        
         // Update all objects to ensure z-index is correct
         canvas.getObjects().forEach((obj, index) => {
             if (obj.customId) {
@@ -1089,6 +1195,13 @@ function sendToBack() {
     const activeObject = canvas.getActiveObject();
     if (activeObject) {
         canvas.sendObjectToBack(activeObject);
+        
+        // If this object has a label, position it right after the object
+        if (activeObject.userLabel) {
+            const objectIndex = canvas.getObjects().indexOf(activeObject);
+            canvas.moveObjectTo(activeObject.userLabel, objectIndex + 1);
+        }
+        
         // Update all objects to ensure z-index is correct
         canvas.getObjects().forEach((obj, index) => {
             if (obj.customId) {
@@ -1135,6 +1248,9 @@ function applyImageStyling(fabricImg) {
     }
     
     console.log('Image styling applied successfully');
+    
+    // Add user label
+    addUserLabel(fabricImg);
 }
 
 function updateAllImageStyling() {
@@ -1146,6 +1262,141 @@ function updateAllImageStyling() {
     });
     canvas.requestRenderAll();
     showStatus('Updated all image styling', 'success');
+}
+
+function updateAllLabelZIndexes() {
+    const objects = canvas.getObjects();
+    objects.forEach(obj => {
+        if (obj.userLabel && obj.itemType) {
+            // Position label right after its parent object
+            const parentIndex = objects.indexOf(obj);
+            if (parentIndex !== -1) {
+                canvas.moveObjectTo(obj.userLabel, parentIndex + 1);
+            }
+        }
+    });
+    canvas.requestRenderAll();
+}
+
+function addUserLabel(fabricObject) {
+    // Remove existing label if it exists
+    if (fabricObject.userLabel) {
+        canvas.remove(fabricObject.userLabel);
+    }
+    
+    // Only add labels to images and text objects
+    if (!fabricObject.itemType || (fabricObject.itemType !== 'image' && fabricObject.itemType !== 'text')) {
+        return;
+    }
+    
+    // Get the user name (stored in userId now)
+    const userName = fabricObject.userId || 'Unknown';
+    
+    // Choose background color based on ownership
+    const backgroundColor = (fabricObject.userId === userId) ? 
+        LABEL_STYLING.ownItemBackgroundColor : 
+        LABEL_STYLING.backgroundColor;
+    
+    // Create text element (no background)
+    const textElement = new fabric.Text(userName, {
+        fontSize: LABEL_STYLING.fontSize,
+        fontFamily: LABEL_STYLING.fontFamily,
+        fill: LABEL_STYLING.textColor,
+        selectable: false,
+        evented: false,
+        excludeFromExport: true,
+        originX: 'center',
+        originY: 'center'
+    });
+    
+    // Create rounded rectangle background with separate padding
+    const backgroundWidth = textElement.width + (LABEL_STYLING.paddingHorizontal * 2);
+    const backgroundHeight = textElement.height + (LABEL_STYLING.paddingVertical * 2);
+    
+    const background = new fabric.Rect({
+        width: backgroundWidth,
+        height: backgroundHeight,
+        fill: backgroundColor,
+        rx: LABEL_STYLING.borderRadius,
+        ry: LABEL_STYLING.borderRadius,
+        selectable: false,
+        evented: false,
+        excludeFromExport: true,
+        originX: 'center',
+        originY: 'center'
+    });
+    
+    // Create a group with background and text
+    const labelGroup = new fabric.Group([background, textElement], {
+        selectable: true,  // Make label selectable
+        evented: true,     // Allow events on label
+        excludeFromExport: true,
+        originX: 'left',
+        originY: 'bottom',
+        hasControls: false, // Hide resize/rotate controls
+        hasBorders: false   // Hide selection border for cleaner look
+    });
+    
+    // Store reference to parent object on the label
+    labelGroup.parentObject = fabricObject;
+    
+    // Position the label group
+    updateUserLabelPosition(fabricObject, labelGroup);
+    
+    // Store reference to label group on the object
+    fabricObject.userLabel = labelGroup;
+    
+    // Add label to canvas
+    canvas.add(labelGroup);
+    
+    // Position label right after its parent object in the stack
+    const parentIndex = canvas.getObjects().indexOf(fabricObject);
+    if (parentIndex !== -1) {
+        canvas.moveObjectTo(labelGroup, parentIndex + 1);
+    }
+    
+    // Make label follow the object transformations
+    attachLabelToObject(fabricObject, labelGroup);
+}
+
+function updateUserLabelPosition(fabricObject, label) {
+    // Use stored width/height data from Supabase for consistency
+    // This is the same approach used for images and should work better for text too
+    const storedWidth = fabricObject.width * (fabricObject.scaleX || 1);
+    const storedHeight = fabricObject.height * (fabricObject.scaleY || 1);
+    
+    // Position label above the top-left corner in local coordinates
+    const localOffsetX = -storedWidth / 2; // Left edge relative to center
+    const localOffsetY = -storedHeight / 2 - LABEL_STYLING.offsetY; // Above by offsetY pixels
+    
+    // Transform the local offset to world coordinates using object's transform
+    const angle = fabricObject.angle || 0;
+    const cosAngle = Math.cos(fabric.util.degreesToRadians(angle));
+    const sinAngle = Math.sin(fabric.util.degreesToRadians(angle));
+    
+    const worldOffsetX = localOffsetX * cosAngle - localOffsetY * sinAngle;
+    const worldOffsetY = localOffsetX * sinAngle + localOffsetY * cosAngle;
+    
+    // Position label relative to object center with rotation
+    label.set({
+        left: fabricObject.left + worldOffsetX,
+        top: fabricObject.top + worldOffsetY,
+        angle: angle // Rotate with the object
+    });
+}
+
+function attachLabelToObject(fabricObject, label) {
+    // Store original setCoords method
+    const originalSetCoords = fabricObject.setCoords;
+    
+    // Override setCoords to update label position whenever object changes
+    fabricObject.setCoords = function() {
+        if (originalSetCoords) originalSetCoords.call(this);
+        if (this.userLabel) {
+            updateUserLabelPosition(this, this.userLabel);
+            this.userLabel.setCoords();
+        }
+    };
 }
 
 function showStatus(message, type = 'info') {
@@ -1185,6 +1436,11 @@ async function deleteCanvasItem(fabricObject) {
             .eq('id', fabricObject.customId);
         
         if (error) throw error;
+        
+        // Remove user label if it exists
+        if (fabricObject.userLabel) {
+            canvas.remove(fabricObject.userLabel);
+        }
         
         canvas.remove(fabricObject);
         showStatus('Item deleted', 'success');
