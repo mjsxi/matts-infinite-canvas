@@ -18,10 +18,11 @@ let canvasCenterPoint = { x: 0, y: 0 };
 
 // Image styling variables - easy to customize
 const IMAGE_STYLING = {
-    shadowColor: 'rgba(0, 0, 0, 0.5)',
-    shadowBlur: 20,
+    shadowColor: 'rgba(0, 0, 0, 0.25)',
+    shadowBlur: 28,
     shadowOffsetX: 0,
-    shadowOffsetY: 8
+    shadowOffsetY: 8,
+    borderRadius: 20 // Rounded corners radius in pixels
 };
 
 // Admin password (change this!)
@@ -487,7 +488,10 @@ function addImageToCanvas(imageUrl) {
             left: canvasCenterPoint.x,
             top: canvasCenterPoint.y,
             originX: 'center',
-            originY: 'center'
+            originY: 'center',
+            lockUniScaling: true, // Maintain aspect ratio when scaling
+            lockScalingFlip: true, // Prevent flipping
+            centeredScaling: true // Scale from center
         });
         
         // Set the dimensions after creation to ensure proper scaling
@@ -759,7 +763,10 @@ async function addItemToCanvas(item) {
                     top: item.y,
                     originX: 'center',
                     originY: 'center',
-                    angle: item.rotation
+                    angle: item.rotation,
+                    lockUniScaling: true, // Maintain aspect ratio when scaling
+                    lockScalingFlip: true, // Prevent flipping
+                    centeredScaling: true // Scale from center
                 });
                 
                 // Use scaleX and scaleY to maintain aspect ratio instead of width/height
@@ -1065,6 +1072,26 @@ function applyImageStyling(fabricImg) {
             offsetY: IMAGE_STYLING.shadowOffsetY
         })
     });
+    
+    // Apply rounded corners using clipPath that matches image dimensions exactly
+    if (IMAGE_STYLING.borderRadius > 0) {
+        // Use the image's natural width and height (before any scaling)
+        const imageWidth = fabricImg.width;
+        const imageHeight = fabricImg.height;
+        
+        const clipPath = new fabric.Rect({
+            width: imageWidth,
+            height: imageHeight,
+            rx: IMAGE_STYLING.borderRadius,
+            ry: IMAGE_STYLING.borderRadius,
+            originX: 'center',
+            originY: 'center'
+        });
+        
+        fabricImg.set({
+            clipPath: clipPath
+        });
+    }
     
     console.log('Image styling applied successfully');
 }
