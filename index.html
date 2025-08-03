@@ -1,10 +1,88 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Matt's Infinite Canvas</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Fabric.js for canvas functionality -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
+    <!-- Supabase -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/supabase/2.39.3/supabase.min.js"></script>
 </head>
 <body>
-    <h1>Canvas Coming Soon!</h1>
-    <p>Setting up the infinite canvas...</p>
+    <!-- Admin Login Modal -->
+    <div id="adminModal" class="modal hidden">
+        <div class="modal-content">
+            <h3>Admin Login</h3>
+            <input type="password" id="adminPassword" placeholder="Enter admin password">
+            <div class="modal-buttons">
+                <button onclick="checkAdminPassword()">Login</button>
+                <button onclick="closeAdminModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Canvas Container -->
+    <div id="canvasContainer">
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <!-- Toolbar -->
+    <div id="toolbar">
+        <div class="toolbar-section">
+            <button id="addImageBtn" class="tool-btn">📷 Add Image</button>
+            <button id="addTextBtn" class="tool-btn">📝 Add Text</button>
+            <button id="adminBtn" class="tool-btn admin-btn">⚙️ Admin</button>
+        </div>
+        
+        <div class="toolbar-section" id="adminTools" style="display: none;">
+            <button id="setCenterBtn" class="tool-btn admin-tool">📍 Set Center</button>
+            <button id="clearCanvasBtn" class="tool-btn admin-tool danger">🗑️ Clear All</button>
+        </div>
+        
+        <div class="toolbar-section">
+            <span id="userInfo">👤 Guest</span>
+            <span id="onlineCount">👥 1 online</span>
+        </div>
+    </div>
+
+    <!-- User Setup Modal -->
+    <div id="userModal" class="modal">
+        <div class="modal-content">
+            <h3>Welcome to the Canvas!</h3>
+            <p>Choose a nickname to get started:</p>
+            <input type="text" id="userNickname" placeholder="Enter your nickname" maxlength="20">
+            <div class="modal-buttons">
+                <button onclick="setUserNickname()">Join Canvas</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Text Input Modal -->
+    <div id="textModal" class="modal hidden">
+        <div class="modal-content">
+            <h3>Add Text</h3>
+            <textarea id="textInput" placeholder="Enter your text here..." rows="4"></textarea>
+            <div class="modal-buttons">
+                <button onclick="addTextToCanvas()">Add Text</button>
+                <button onclick="closeTextModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- File Input (Hidden) -->
+    <input type="file" id="fileInput" accept="image/*,video/*" style="display: none;">
+
+    <!-- Loading Indicator -->
+    <div id="loadingIndicator" class="loading hidden">
+        <div class="spinner"></div>
+        <p>Loading...</p>
+    </div>
+
+    <!-- Status Messages -->
+    <div id="statusMessage" class="status-message hidden"></div>
+
+    <script src="script.js"></script>
 </body>
 </html>
