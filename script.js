@@ -679,7 +679,7 @@ function checkAdminPassword() {
         closeAdminModal();
         toggleAdminMode();
         updateUserInfo();
-        showStatus('Admin mode activated (24h session)', 'success');
+        // showStatus('Admin mode activated (24h session)', 'success');
     } else {
         showStatus('Invalid password', 'error');
     }
@@ -691,7 +691,7 @@ function logoutAdmin() {
     adminSessionExpiry = null;
     toggleAdminMode();
     updateUserInfo();
-    showStatus('Admin logout successful', 'success');
+    // showStatus('Admin logout successful', 'success');
 }
 
 function closeAdminModal() {
@@ -733,7 +733,7 @@ function toggleSetCenter() {
     if (isSettingCenter) {
         btn.textContent = '✖️ Cancel';
         btn.style.background = 'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)';
-        showStatus('Click anywhere to set center point', 'success');
+        // showStatus('Click anywhere to set center point', 'success');
     } else {
         btn.textContent = '📍 Set Center';
         btn.style.background = 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)';
@@ -763,7 +763,7 @@ async function setCenterPoint(event) {
         canvasCenterPoint = { x: point.x, y: point.y };
         
         showCenterIndicator(point.x, point.y);
-        showStatus('Center point updated!', 'success');
+        // showStatus('Center point updated!', 'success');
         toggleSetCenter();
     } catch (error) {
         console.error('Error setting center:', error);
@@ -1377,7 +1377,7 @@ async function clearCanvas() {
                 }
             });
             
-            showStatus('Canvas cleared', 'success');
+            // showStatus('Canvas cleared', 'success');
             
         } catch (error) {
             console.error('Error clearing canvas:', error);
@@ -1593,7 +1593,7 @@ function bringToFront() {
                 updateCanvasItem(obj);
             }
         });
-        showStatus('Brought to front', 'success');
+        // showStatus('Brought to front', 'success');
     }
 }
 
@@ -1614,7 +1614,7 @@ function sendToBack() {
                 updateCanvasItem(obj);
             }
         });
-        showStatus('Sent to back', 'success');
+        // showStatus('Sent to back', 'success');
     }
 }
 
@@ -1667,7 +1667,7 @@ function updateAllImageStyling() {
         }
     });
     canvas.requestRenderAll();
-    showStatus('Updated all image styling', 'success');
+    // showStatus('Updated all image styling', 'success');
 }
 
 function updateAllLabelZIndexes() {
@@ -1859,7 +1859,7 @@ async function deleteCanvasItem(fabricObject) {
         }
         
         canvas.remove(fabricObject);
-        showStatus('Item deleted', 'success');
+        // showStatus('Item deleted', 'success');
         
     } catch (error) {
         console.error('Error deleting item:', error);
