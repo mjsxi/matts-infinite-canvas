@@ -127,6 +127,9 @@ function initializeCanvas() {
         // Update object coordinates and handles after viewport changes
         updateObjectHandles();
         
+        // Update HTML iframe positions after zoom
+        updateHtmlElementPositions();
+        
         e.preventDefault();
         e.stopPropagation();
     });
@@ -216,6 +219,9 @@ function initializeCanvas() {
                 // Update object handles during touch panning
                 updateObjectHandles();
                 
+                // Update HTML iframe positions during touch panning
+                updateHtmlElementPositions();
+                
                 // Update start position for next movement
                 singleTouchStart = {
                     x: touch.clientX,
@@ -258,6 +264,9 @@ function initializeCanvas() {
                     y: center.y - rect.top
                 };
                 canvas.zoomToPoint(pointer, zoom);
+                
+                // Update HTML iframe positions after touch zoom
+                updateHtmlElementPositions();
                 
                 // Pan based on center movement
                 if (lastTouchCenter.x !== 0 && lastTouchCenter.y !== 0) {
@@ -313,6 +322,9 @@ function initializeCanvas() {
             vpt[4] += touchVelocity.x;
             vpt[5] += touchVelocity.y;
             canvas.requestRenderAll();
+            
+            // Update HTML iframe positions during inertia
+            updateHtmlElementPositions();
             
             // Update object handles during inertia
             updateObjectHandles();
@@ -503,13 +515,24 @@ function initializeCanvas() {
         toggleZIndexControls(false);
         toggleBorderRadiusControls(null);
         toggleTextControls(null);
-        // Make HTML objects non-selectable again when deselected
+        // Exit interaction mode for any HTML blocks when selection is cleared
         canvas.getObjects().forEach(obj => {
-            if (obj.itemType === 'html') {
-                obj.selectable = false;
-                obj.evented = false;
+            if (obj.itemType === 'html' && obj.interactionMode) {
+                exitHtmlInteractionMode(obj);
             }
         });
+    });
+    
+    // Handle canvas clicks to exit HTML interaction mode
+    canvas.on('mouse:down', function(e) {
+        // If clicking on empty canvas (no target), exit any HTML interaction modes
+        if (!e.target) {
+            canvas.getObjects().forEach(obj => {
+                if (obj.itemType === 'html' && obj.interactionMode) {
+                    exitHtmlInteractionMode(obj);
+                }
+            });
+        }
     });
     
     // Also check permissions when objects are modified
@@ -585,6 +608,8 @@ function initializeCanvas() {
                     updateUserLabelPosition(obj, obj.userLabel);
                 }
             });
+            // Also update HTML positions after mouse operations
+            updateHtmlElementPositions();
         }, 10);
     });
 
@@ -594,6 +619,10 @@ function initializeCanvas() {
             width: window.innerWidth,
             height: window.innerHeight
         });
+        // Update HTML positions after resize
+        setTimeout(() => {
+            updateHtmlElementPositions();
+        }, 50);
     });
 }
 
@@ -604,10 +633,6 @@ function updateObjectHandles() {
         if (obj.setCoords) {
             obj.setCoords();
         }
-        // Update HTML positions
-        if (obj.itemType === 'html') {
-            positionHtmlElement(obj);
-        }
     });
     
     // If there's an active object, update its controls
@@ -616,6 +641,54 @@ function updateObjectHandles() {
         activeObject.setCoords();
         canvas.requestRenderAll();
     }
+}
+
+// Update HTML iframe positions during zoom/pan operations
+function updateHtmlElementPositions() {
+    canvas.getObjects().forEach(obj => {
+        if (obj.itemType === 'html' && obj.iframeElement) {
+            positionHtmlElement(obj);
+        }
+    });
+}
+
+// Enter HTML interaction mode
+function enterHtmlInteractionMode(htmlObj) {
+    if (!htmlObj || htmlObj.itemType !== 'html') return;
+    
+    // Only allow if user owns the object or is admin
+    if (htmlObj.userId !== userId && !isAdmin) {
+        showStatus('You can only interact with your own HTML blocks', 'error');
+        return;
+    }
+    
+    htmlObj.interactionMode = true;
+    htmlObj.selectable = false;
+    htmlObj.evented = false;
+    htmlObj.stroke = '#4ade80'; // Green border for interaction mode
+    htmlObj.strokeDashArray = [4, 2]; // Shorter dashes
+    canvas.discardActiveObject(); // Deselect to hide transform controls
+    
+    // Update iframe pointer events
+    positionHtmlElement(htmlObj);
+    canvas.renderAll();
+    
+    showStatus('HTML interaction enabled - click outside to exit', 'success');
+}
+
+// Exit HTML interaction mode
+function exitHtmlInteractionMode(htmlObj) {
+    if (!htmlObj || htmlObj.itemType !== 'html') return;
+    
+    htmlObj.interactionMode = false;
+    htmlObj.stroke = '#667eea'; // Blue border for container mode
+    htmlObj.strokeDashArray = [8, 4]; // Normal dashes
+    
+    // Update iframe pointer events
+    positionHtmlElement(htmlObj);
+    canvas.renderAll();
+    
+    showStatus('Container mode enabled', 'success');
 }
 
 // Initialize Dot Grid
@@ -1230,7 +1303,7 @@ function addHtmlToCanvas() {
     iframeElement.style.borderRadius = '12px';
     iframeElement.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.2)';
     iframeElement.style.border = '2px solid #ddd';
-    iframeElement.style.pointerEvents = 'all'; // Always allow interaction
+    iframeElement.style.pointerEvents = 'none'; // Disabled by default, enabled in interaction mode
     
     // Create Fabric.js object to hold the iframe (with free resize - no aspect ratio lock)
     const htmlObj = new fabric.Rect({
@@ -1238,17 +1311,18 @@ function addHtmlToCanvas() {
         top: canvasCenterPoint.y,
         width: 400,
         height: 300,
-        fill: 'transparent', // Transparent background so iframe is fully interactive
-        stroke: 'transparent', // No visible border by default
-        strokeWidth: 0,
+        fill: 'rgba(240, 248, 255, 0.1)', // Light blue tint to indicate HTML content
+        stroke: '#667eea', // Blue border to match theme
+        strokeWidth: 2,
+        strokeDashArray: [8, 4], // Dashed border to indicate special content type
         rx: 12,
         ry: 12,
         originX: 'center',
         originY: 'center',
         lockUniScaling: false, // Allow free resizing
         uniformScaling: false, // Disable uniform scaling
-        selectable: false, // Make non-selectable by default
-        evented: false // Disable events on the HTML block itself
+        selectable: false, // Only selectable via label click
+        evented: false // Events handled by label
     });
     
     // Add custom properties
@@ -1263,6 +1337,8 @@ function addHtmlToCanvas() {
     
     // Store iframe element reference
     htmlObj.iframeElement = iframeElement;
+    htmlObj.interactionMode = false; // Start in container mode
+    
     
     canvas.add(htmlObj);
     canvas.setActiveObject(htmlObj);
@@ -1280,10 +1356,18 @@ function addHtmlToCanvas() {
 }
 
 function positionHtmlElement(htmlObj) {
-    if (!htmlObj.iframeElement) return;
+    if (!htmlObj.iframeElement || !canvas) return;
     
     const canvasEl = canvas.getElement();
+    if (!canvasEl) return;
+    
     const canvasRect = canvasEl.getBoundingClientRect();
+    // Skip if canvas hasn't been sized yet
+    if (canvasRect.width === 0 || canvasRect.height === 0) {
+        setTimeout(() => positionHtmlElement(htmlObj), 100);
+        return;
+    }
+    
     const zoom = canvas.getZoom();
     const vpt = canvas.viewportTransform;
     
@@ -1300,8 +1384,47 @@ function positionHtmlElement(htmlObj) {
     htmlObj.iframeElement.style.top = (objTop - objHeight/2) + 'px';
     htmlObj.iframeElement.style.width = objWidth + 'px';
     htmlObj.iframeElement.style.height = objHeight + 'px';
-    htmlObj.iframeElement.style.zIndex = '999';
-    htmlObj.iframeElement.style.pointerEvents = 'all'; // Always allow interaction with HTML content
+    
+    // Set z-index based on canvas object order
+    const objectIndex = canvas.getObjects().indexOf(htmlObj);
+    htmlObj.iframeElement.style.zIndex = (1000 + objectIndex).toString();
+    
+    // Set pointer events - always allow clicks but block iframe content interaction unless in interaction mode
+    if (htmlObj.interactionMode) {
+        htmlObj.iframeElement.style.pointerEvents = 'all';
+        // Hide overlay in interaction mode
+        if (htmlObj.clickOverlay) {
+            htmlObj.clickOverlay.style.display = 'none';
+        }
+    } else {
+        // Allow clicks but not iframe content interaction
+        htmlObj.iframeElement.style.pointerEvents = 'all';
+        // Add overlay to block iframe content but allow our click handler
+        if (!htmlObj.clickOverlay) {
+            const overlay = document.createElement('div');
+            overlay.style.position = 'absolute';
+            overlay.style.top = '0';
+            overlay.style.left = '0';
+            overlay.style.width = '100%';
+            overlay.style.height = '100%';
+            overlay.style.background = 'transparent';
+            overlay.style.zIndex = '10';
+            overlay.style.pointerEvents = 'all';
+            
+            htmlObj.iframeElement.style.position = 'relative';
+            htmlObj.iframeElement.appendChild(overlay);
+            htmlObj.clickOverlay = overlay;
+            
+            overlay.addEventListener('click', function(e) {
+                if (!htmlObj.interactionMode && (htmlObj.userId === userId || isAdmin)) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    enterHtmlInteractionMode(htmlObj);
+                }
+            });
+        }
+        htmlObj.clickOverlay.style.display = 'block';
+    }
     
     // Apply rotation transform
     htmlObj.iframeElement.style.transformOrigin = 'center center';
@@ -1310,6 +1433,15 @@ function positionHtmlElement(htmlObj) {
     // Add to document if not already added
     if (!document.body.contains(htmlObj.iframeElement)) {
         document.body.appendChild(htmlObj.iframeElement);
+        
+        // Add click handler to iframe for entering interaction mode
+        htmlObj.iframeElement.addEventListener('click', function(e) {
+            if (!htmlObj.interactionMode && (htmlObj.userId === userId || isAdmin)) {
+                e.preventDefault();
+                e.stopPropagation();
+                enterHtmlInteractionMode(htmlObj);
+            }
+        });
     }
 }
 
@@ -1476,6 +1608,11 @@ async function loadCanvasItems() {
         }
         
         console.log('Canvas items loading complete');
+        
+        // Position all HTML elements after canvas items are loaded
+        setTimeout(() => {
+            updateHtmlElementPositions();
+        }, 100);
         
         // Force update all image styling to ensure consistency
         setTimeout(() => {
@@ -1648,7 +1785,7 @@ async function addItemToCanvas(item) {
             iframeElement.style.borderRadius = '12px';
             iframeElement.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.2)';
             iframeElement.style.border = '2px solid #ddd';
-            iframeElement.style.pointerEvents = 'all'; // Always allow interaction
+            iframeElement.style.pointerEvents = 'none'; // Disabled by default, enabled in interaction mode
             
             // Create Fabric.js rectangle to represent HTML (with free resize)
             const htmlObj = new fabric.Rect({
@@ -1656,9 +1793,10 @@ async function addItemToCanvas(item) {
                 top: item.y,
                 width: item.width || 400,
                 height: item.height || 300,
-                fill: 'transparent', // Transparent background so iframe is fully interactive
-                stroke: 'transparent', // No visible border by default
-                strokeWidth: 0,
+                fill: 'rgba(240, 248, 255, 0.1)', // Light blue tint to indicate HTML content
+                stroke: '#667eea', // Blue border to match theme
+                strokeWidth: 2,
+                strokeDashArray: [8, 4], // Dashed border to indicate special content type
                 rx: 12,
                 ry: 12,
                 originX: 'center',
@@ -1666,8 +1804,8 @@ async function addItemToCanvas(item) {
                 angle: item.rotation,
                 lockUniScaling: false, // Allow free resizing
                 uniformScaling: false, // Disable uniform scaling
-                selectable: false, // Make non-selectable by default
-                evented: false // Disable events on the HTML block itself
+                selectable: false, // Only selectable via label click
+                evented: false // Events handled by label
             });
             
             // Add custom properties
@@ -1680,14 +1818,18 @@ async function addItemToCanvas(item) {
             htmlObj.originalHeight = item.original_height;
             htmlObj.aspectRatio = item.aspect_ratio;
             htmlObj.iframeElement = iframeElement;
+            htmlObj.interactionMode = false; // Start in container mode
+            
             
             canvas.add(htmlObj);
             
-            // Position iframe element
-            positionHtmlElement(htmlObj);
-            
             // Add user label
             addUserLabel(htmlObj);
+            
+            // Position iframe element after a short delay to ensure canvas is ready
+            setTimeout(() => {
+                positionHtmlElement(htmlObj);
+            }, 50);
             
             console.log('Loaded HTML object with customId:', htmlObj.customId);
             
@@ -1954,6 +2096,10 @@ function bringToFront() {
         canvas.getObjects().forEach((obj, index) => {
             if (obj.customId) {
                 updateCanvasItem(obj);
+                // Update HTML iframe position after z-index change
+                if (obj.itemType === 'html') {
+                    positionHtmlElement(obj);
+                }
             }
         });
         // showStatus('Brought to front', 'success');
@@ -1975,6 +2121,10 @@ function sendToBack() {
         canvas.getObjects().forEach((obj, index) => {
             if (obj.customId) {
                 updateCanvasItem(obj);
+                // Update HTML iframe position after z-index change
+                if (obj.itemType === 'html') {
+                    positionHtmlElement(obj);
+                }
             }
         });
         // showStatus('Sent to back', 'success');
@@ -2134,66 +2284,25 @@ function addUserLabel(fabricObject) {
     
     // Special handling for HTML object labels
     if (fabricObject.itemType === 'html') {
-        // Store initial positions for drag calculation
-        let isDragging = false;
-        let dragStartX, dragStartY;
-        let objectStartX, objectStartY;
-        
-        // Handle label mouse down - both selection and drag start
+        // Handle label click to select HTML container
         labelGroup.on('mousedown', function(e) {
             e.e.preventDefault();
             e.e.stopPropagation();
             
-            // Make the HTML object temporarily selectable and select it
-            fabricObject.selectable = true;
-            fabricObject.evented = true;
-            
-            
-            canvas.setActiveObject(fabricObject);
-            canvas.renderAll();
-            
-            // Start drag tracking
-            isDragging = true;
-            dragStartX = e.pointer.x;
-            dragStartY = e.pointer.y;
-            objectStartX = fabricObject.left;
-            objectStartY = fabricObject.top;
-            
-            // Add canvas event listeners for dragging
-            canvas.on('mouse:move', handleMouseMove);
-            canvas.on('mouse:up', handleMouseUp);
-        });
-        
-        // Handle dragging via canvas mouse events
-        const handleMouseMove = function(e) {
-            if (isDragging && fabricObject.selectable) {
-                const pointer = canvas.getPointer(e.e);
-                const deltaX = pointer.x - dragStartX;
-                const deltaY = pointer.y - dragStartY;
+            // Only allow selection if user owns the object or is admin
+            if (fabricObject.userId === userId || isAdmin) {
+                // Exit interaction mode if active
+                if (fabricObject.interactionMode) {
+                    exitHtmlInteractionMode(fabricObject);
+                }
                 
-                fabricObject.left = objectStartX + deltaX;
-                fabricObject.top = objectStartY + deltaY;
-                fabricObject.setCoords();
-                
-                // Update iframe position
-                positionHtmlElement(fabricObject);
-                
-                // Update label position
-                updateUserLabelPosition(fabricObject, labelGroup);
-                
+                // Select the HTML container
+                fabricObject.selectable = true;
+                fabricObject.evented = true;
+                canvas.setActiveObject(fabricObject);
                 canvas.renderAll();
             }
-        };
-        
-        const handleMouseUp = function() {
-            if (isDragging) {
-                isDragging = false;
-                updateCanvasItem(fabricObject);
-                canvas.off('mouse:move', handleMouseMove);
-                canvas.off('mouse:up', handleMouseUp);
-            }
-        };
-        
+        });
     }
 }
 
