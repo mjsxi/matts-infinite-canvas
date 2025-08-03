@@ -865,6 +865,50 @@ function clearAll() {
     }
 }
 
+// Z-Index Management
+function bringToFront() {
+    if (selectedItem) {
+        // Get all canvas items
+        const items = Array.from(canvas.querySelectorAll('.canvas-item'));
+        
+        // Find current z-index of selected item
+        const currentZIndex = parseInt(selectedItem.style.zIndex) || 1;
+        
+        // Find the highest z-index among all items
+        const maxZIndex = Math.max(...items.map(item => parseInt(item.style.zIndex) || 1));
+        
+        // Set selected item to front
+        selectedItem.style.zIndex = maxZIndex + 1;
+        
+        // Update database with new z-index
+        saveItemToDatabase(selectedItem);
+        
+        showStatus('Brought to front');
+    } else {
+        showStatus('Please select an item first');
+    }
+}
+
+function sendToBack() {
+    if (selectedItem) {
+        // Get all canvas items
+        const items = Array.from(canvas.querySelectorAll('.canvas-item'));
+        
+        // Find the lowest z-index among all items
+        const minZIndex = Math.min(...items.map(item => parseInt(item.style.zIndex) || 1));
+        
+        // Set selected item to back
+        selectedItem.style.zIndex = minZIndex - 1;
+        
+        // Update database with new z-index
+        saveItemToDatabase(selectedItem);
+        
+        showStatus('Sent to back');
+    } else {
+        showStatus('Please select an item first');
+    }
+}
+
 // Real-time Subscription
 function setupRealtimeSubscription() {
     if (realtimeChannel) {
@@ -942,7 +986,7 @@ async function saveItemToDatabase(item) {
         original_height: parseFloat(item.style.height) || 100,
         aspect_ratio: parseFloat(item.dataset.aspectRatio) || 1,
         rotation: parseFloat(item.dataset.rotation) || 0,
-        z_index: 1,
+        z_index: parseInt(item.style.zIndex) || 1,
         border_radius: parseFloat(item.style.getPropertyValue('--item-border-radius')) || 0,
         font_family: item.style.fontFamily || 'Sans-serif',
         font_size: parseInt(item.style.fontSize) || 24,
@@ -1107,6 +1151,11 @@ function createItemFromData(data) {
             item.dataset.rotation = data.rotation;
         }
         
+        // Apply z-index if it exists
+        if (data.z_index) {
+            item.style.zIndex = data.z_index;
+        }
+        
         // Apply text styling for text items
         if (itemType === 'text') {
             if (data.font_family) item.style.fontFamily = data.font_family;
@@ -1137,6 +1186,11 @@ function updateItemFromData(item, data) {
     } else {
         item.style.transform = '';
         item.dataset.rotation = '0';
+    }
+    
+    // Update z-index
+    if (data.z_index) {
+        item.style.zIndex = data.z_index;
     }
     
     // Update content based on type
