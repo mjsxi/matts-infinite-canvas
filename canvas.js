@@ -211,9 +211,30 @@ function handleWheel(e) {
 let touchStartDistance = 0;
 let touchStartCenter = { x: 0, y: 0 };
 let touchStartTransform = { x: 0, y: 0, scale: 1 };
+let touchStartPos = { x: 0, y: 0 };
+let isSingleTouchPanning = false;
 
 function handleTouchStart(e) {
-    if (e.touches.length >= 2) {
+    if (e.touches.length === 1) {
+        // Single finger - handle panning
+        e.preventDefault();
+        
+        const touch = e.touches[0];
+        touchStartPos = { x: touch.clientX, y: touch.clientY };
+        touchStartTransform = { ...canvasTransform };
+        isSingleTouchPanning = true;
+        
+        // Check if we're touching a canvas item
+        const element = document.elementFromPoint(touch.clientX, touch.clientY);
+        const canvasItem = element?.closest('.canvas-item');
+        
+        if (canvasItem && !isSettingCenter) {
+            // If touching an item, select it instead of panning
+            selectItem(canvasItem);
+            isSingleTouchPanning = false;
+        }
+    } else if (e.touches.length >= 2) {
+        // Multi-touch - handle pinch-to-zoom
         e.preventDefault();
         
         const touch1 = e.touches[0];
@@ -237,7 +258,20 @@ function handleTouchStart(e) {
 }
 
 function handleTouchMove(e) {
-    if (e.touches.length >= 2) {
+    if (e.touches.length === 1 && isSingleTouchPanning) {
+        // Single finger panning
+        e.preventDefault();
+        
+        const touch = e.touches[0];
+        const deltaX = touch.clientX - touchStartPos.x;
+        const deltaY = touch.clientY - touchStartPos.y;
+        
+        canvasTransform.x = touchStartTransform.x + deltaX;
+        canvasTransform.y = touchStartTransform.y + deltaY;
+        
+        updateCanvasTransform();
+    } else if (e.touches.length >= 2) {
+        // Multi-touch pinch-to-zoom
         e.preventDefault();
         
         const touch1 = e.touches[0];
@@ -279,7 +313,13 @@ function handleTouchMove(e) {
 }
 
 function handleTouchEnd(e) {
-    if (e.touches.length < 2) {
+    if (e.touches.length === 0) {
+        // All touches ended
+        touchStartDistance = 0;
+        touchStartCenter = { x: 0, y: 0 };
+        isSingleTouchPanning = false;
+    } else if (e.touches.length === 1) {
+        // Went from multi-touch to single touch
         touchStartDistance = 0;
         touchStartCenter = { x: 0, y: 0 };
     }
