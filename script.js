@@ -133,15 +133,18 @@ function initializeCanvas() {
     canvas.on('selection:created', function(e) {
         checkObjectPermissions(e.selected[0]);
         toggleZIndexControls(true);
+        toggleBorderRadiusControls(e.selected[0]);
     });
 
     canvas.on('selection:updated', function(e) {
         checkObjectPermissions(e.selected[0]);
         toggleZIndexControls(true);
+        toggleBorderRadiusControls(e.selected[0]);
     });
     
     canvas.on('selection:cleared', function() {
         toggleZIndexControls(false);
+        toggleBorderRadiusControls(null);
     });
     
     // Also check permissions when objects are modified
@@ -212,6 +215,7 @@ function bindEvents() {
     document.getElementById('fileInput').addEventListener('change', handleFileUpload);
     document.getElementById('bringToFrontBtn').addEventListener('click', bringToFront);
     document.getElementById('sendToBackBtn').addEventListener('click', sendToBack);
+    document.getElementById('borderRadiusInput').addEventListener('input', updateBorderRadius);
 }
 
 // User Management
@@ -506,6 +510,7 @@ function addImageToCanvas(imageUrl) {
         fabricImg.originalWidth = imgElement.width;
         fabricImg.originalHeight = imgElement.height;
         fabricImg.aspectRatio = aspectRatio;
+        fabricImg.borderRadius = IMAGE_STYLING.borderRadius; // Default border radius for new images
         
         // Add event listeners for image updates
         fabricImg.on('modified', function() {
@@ -623,7 +628,8 @@ async function saveCanvasItem(fabricObject, content) {
                 original_height: fabricObject.originalHeight || fabricObject.height,
                 aspect_ratio: fabricObject.aspectRatio || 1,
                 rotation: fabricObject.angle || 0,
-                z_index: canvas.getObjects().indexOf(fabricObject)
+                z_index: canvas.getObjects().indexOf(fabricObject),
+                border_radius: fabricObject.borderRadius || (fabricObject.itemType === 'image' ? IMAGE_STYLING.borderRadius : 0)
             })
             .select()
             .single();
@@ -667,7 +673,8 @@ async function updateCanvasItem(fabricObject) {
             aspect_ratio: fabricObject.aspectRatio || 1,
             rotation: fabricObject.angle || 0,
             z_index: canvas.getObjects().indexOf(fabricObject),
-            content: content
+            content: content,
+            border_radius: fabricObject.borderRadius || (fabricObject.itemType === 'image' ? IMAGE_STYLING.borderRadius : 0)
         };
         
         console.log('Updating item with data:', {
@@ -786,6 +793,7 @@ async function addItemToCanvas(item) {
                 fabricImg.originalWidth = item.original_width;
                 fabricImg.originalHeight = item.original_height;
                 fabricImg.aspectRatio = item.aspect_ratio;
+                fabricImg.borderRadius = item.border_radius || IMAGE_STYLING.borderRadius; // Load per-image border radius
                 
                 // Apply styling to image after properties are set
                 console.log('Applying styling to loaded image:', fabricImg.customId);
@@ -1031,6 +1039,38 @@ function toggleZIndexControls(show) {
     }
 }
 
+function toggleBorderRadiusControls(selectedObject) {
+    const borderRadiusControls = document.getElementById('borderRadiusControls');
+    const borderRadiusInput = document.getElementById('borderRadiusInput');
+    
+    if (selectedObject && selectedObject.itemType === 'image') {
+        // Show controls for images only
+        borderRadiusControls.style.display = 'flex';
+        // Set the input value to the current border radius
+        borderRadiusInput.value = selectedObject.borderRadius || 0;
+    } else {
+        // Hide controls for non-images or when nothing is selected
+        borderRadiusControls.style.display = 'none';
+    }
+}
+
+function updateBorderRadius() {
+    const activeObject = canvas.getActiveObject();
+    const borderRadiusInput = document.getElementById('borderRadiusInput');
+    
+    if (activeObject && activeObject.itemType === 'image') {
+        const newRadius = parseInt(borderRadiusInput.value) || 0;
+        activeObject.borderRadius = newRadius;
+        
+        // Re-apply styling with the new border radius
+        applyImageStyling(activeObject);
+        canvas.requestRenderAll();
+        
+        // Save the change to the database
+        updateCanvasItem(activeObject);
+    }
+}
+
 function bringToFront() {
     const activeObject = canvas.getActiveObject();
     if (activeObject) {
@@ -1074,7 +1114,8 @@ function applyImageStyling(fabricImg) {
     });
     
     // Apply rounded corners using clipPath that matches image dimensions exactly
-    if (IMAGE_STYLING.borderRadius > 0) {
+    const borderRadius = fabricImg.borderRadius || IMAGE_STYLING.borderRadius;
+    if (borderRadius > 0) {
         // Use the image's natural width and height (before any scaling)
         const imageWidth = fabricImg.width;
         const imageHeight = fabricImg.height;
@@ -1082,8 +1123,8 @@ function applyImageStyling(fabricImg) {
         const clipPath = new fabric.Rect({
             width: imageWidth,
             height: imageHeight,
-            rx: IMAGE_STYLING.borderRadius,
-            ry: IMAGE_STYLING.borderRadius,
+            rx: borderRadius,
+            ry: borderRadius,
             originX: 'center',
             originY: 'center'
         });
