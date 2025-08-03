@@ -234,6 +234,13 @@ body {
     transform-origin: 0 0;
     transition: transform 0.1s ease-out;
     pointer-events: none;
+    /* Mobile performance optimizations */
+    backface-visibility: hidden;
+    perspective: 1000px;
+    -webkit-transform-style: preserve-3d;
+    transform-style: preserve-3d;
+    /* Ensure smooth rendering on mobile */
+    will-change: transform;
 }
 
 .canvas.dragging {
@@ -250,6 +257,12 @@ body {
     border: 2px solid transparent;
     user-select: none;
     box-shadow: var(--canvas-item-shadow);
+    /* Mobile rendering optimizations */
+    backface-visibility: hidden;
+    -webkit-transform-style: preserve-3d;
+    transform-style: preserve-3d;
+    /* Prevent disappearing on mobile during transforms */
+    contain: layout style paint;
 }
 
 .canvas-item:hover {
@@ -301,6 +314,11 @@ body {
     word-wrap: break-word;
     outline: none;
     box-shadow: none; /* No shadow by default for text items */
+    cursor: pointer; /* Show pointer cursor when not editing */
+}
+
+.text-item[contenteditable="true"] {
+    cursor: text; /* Show text cursor when editing */
 }
 
 .text-item:hover {

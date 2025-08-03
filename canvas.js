@@ -95,8 +95,27 @@ function showCanvas() {
 
 // Canvas Management
 function updateCanvasTransform() {
-    const transform = `translate(${canvasTransform.x}px, ${canvasTransform.y}px) scale(${canvasTransform.scale})`;
+    // Clamp values to prevent extreme transforms that cause rendering issues on mobile
+    const clampedX = Math.max(-50000, Math.min(50000, canvasTransform.x));
+    const clampedY = Math.max(-50000, Math.min(50000, canvasTransform.y));
+    const clampedScale = Math.max(0.05, Math.min(5, canvasTransform.scale));
+    
+    // Update the clamped values back to the transform object
+    canvasTransform.x = clampedX;
+    canvasTransform.y = clampedY;
+    canvasTransform.scale = clampedScale;
+    
+    const transform = `translate(${clampedX}px, ${clampedY}px) scale(${clampedScale})`;
     canvas.style.transform = transform;
+    
+    // Force a layout recalculation on mobile to prevent disappearing items
+    if ('ontouchstart' in window) {
+        canvas.style.willChange = 'transform';
+        // Use requestAnimationFrame to ensure smooth updates
+        requestAnimationFrame(() => {
+            canvas.style.willChange = 'auto';
+        });
+    }
 }
 
 function screenToCanvas(screenX, screenY) {
@@ -104,6 +123,32 @@ function screenToCanvas(screenX, screenY) {
     const canvasX = (screenX - rect.left - canvasTransform.x) / canvasTransform.scale;
     const canvasY = (screenY - rect.top - canvasTransform.y) / canvasTransform.scale;
     return { x: canvasX, y: canvasY };
+}
+
+function forceCanvasRerender() {
+    // Force a rerender to fix disappearing items on mobile
+    if ('ontouchstart' in window) {
+        const items = canvas.querySelectorAll('.canvas-item');
+        items.forEach(item => {
+            // Trigger a style recalculation
+            item.style.transform = item.style.transform;
+        });
+        
+        // Force canvas reflow
+        canvas.offsetHeight; // Trigger reflow
+        
+        // Double-check that items are visible
+        requestAnimationFrame(() => {
+            items.forEach(item => {
+                if (item.offsetParent === null && item.style.display !== 'none') {
+                    // Item might have disappeared, force visibility
+                    item.style.visibility = 'hidden';
+                    item.offsetHeight; // Trigger reflow
+                    item.style.visibility = 'visible';
+                }
+            });
+        });
+    }
 }
 
 // Event Bindings
@@ -150,7 +195,9 @@ function handleMouseDown(e) {
         const item = e.target.closest('.canvas-item');
         selectItem(item);
         
-        if (!e.target.closest('.resize-handle')) {
+        // Don't start dragging if it's a text item in edit mode or if clicking resize handles
+        if (!e.target.closest('.resize-handle') && 
+            !(item.classList.contains('text-item') && item.contentEditable === 'true')) {
             startDragging(e, item);
         }
     }
@@ -160,8 +207,13 @@ function handleMouseMove(e) {
     if (isPanning) {
         const deltaX = e.clientX - dragStart.x;
         const deltaY = e.clientY - dragStart.y;
-        canvasTransform.x += deltaX;
-        canvasTransform.y += deltaY;
+        
+        // Apply bounds checking for pan operations
+        const newX = canvasTransform.x + deltaX;
+        const newY = canvasTransform.y + deltaY;
+        
+        canvasTransform.x = Math.max(-30000, Math.min(30000, newX));
+        canvasTransform.y = Math.max(-30000, Math.min(30000, newY));
         updateCanvasTransform();
         
         // Track panning velocity for inertia
@@ -317,8 +369,12 @@ function handleTouchMove(e) {
         const deltaX = touch.clientX - touchStartPos.x;
         const deltaY = touch.clientY - touchStartPos.y;
         
-        canvasTransform.x = touchStartTransform.x + deltaX;
-        canvasTransform.y = touchStartTransform.y + deltaY;
+        // Apply bounds checking for touch pan operations
+        const newX = touchStartTransform.x + deltaX;
+        const newY = touchStartTransform.y + deltaY;
+        
+        canvasTransform.x = Math.max(-30000, Math.min(30000, newX));
+        canvasTransform.y = Math.max(-30000, Math.min(30000, newY));
         
         updateCanvasTransform();
         
@@ -355,9 +411,16 @@ function handleTouchMove(e) {
         };
         
         if (touchStartDistance > 0) {
-            // Calculate scale
+            // Calculate scale with smoother scaling for better mobile performance
             const scaleChange = currentDistance / touchStartDistance;
             const newScale = Math.max(0.05, Math.min(5, touchStartTransform.scale * scaleChange));
+            
+            // Prevent extreme scale changes that can cause rendering issues
+            const maxScaleChange = 0.1; // Limit scale change per frame
+            const currentScaleChange = Math.abs(newScale - canvasTransform.scale);
+            if (currentScaleChange > maxScaleChange) {
+                return; // Skip this frame if scale change is too extreme
+            }
             
             // Calculate pan
             const panX = currentCenter.x - touchStartCenter.x;
@@ -369,11 +432,18 @@ function handleTouchMove(e) {
             const centerY = touchStartCenter.y - rect.top;
             
             const scaleRatio = newScale / touchStartTransform.scale;
-            canvasTransform.x = centerX - (centerX - touchStartTransform.x) * scaleRatio + panX;
-            canvasTransform.y = centerY - (centerY - touchStartTransform.y) * scaleRatio + panY;
+            const newX = centerX - (centerX - touchStartTransform.x) * scaleRatio + panX;
+            const newY = centerY - (centerY - touchStartTransform.y) * scaleRatio + panY;
+            
+            // Bounds checking to prevent extreme pan values
+            canvasTransform.x = Math.max(-30000, Math.min(30000, newX));
+            canvasTransform.y = Math.max(-30000, Math.min(30000, newY));
             canvasTransform.scale = newScale;
             
             updateCanvasTransform();
+            
+            // Force rerender on mobile after zoom to prevent disappearing items
+            setTimeout(() => forceCanvasRerender(), 100);
         }
     }
 }
@@ -404,6 +474,9 @@ function handleTouchEnd(e) {
         
         isSingleTouchPanning = false;
         panPositions = [];
+        
+        // Force rerender on mobile after touch operations to prevent disappearing items
+        setTimeout(() => forceCanvasRerender(), 150);
     } else if (e.touches.length === 1) {
         // Went from multi-touch to single touch
         touchStartDistance = 0;
@@ -900,7 +973,7 @@ function createTextItem(content = 'Click to edit text...', x = centerPoint.x, y 
     item.className = 'canvas-item text-item';
     item.style.left = x + 'px';
     item.style.top = y + 'px';
-    item.contentEditable = true;
+    item.contentEditable = false; // Start as non-editable
     item.textContent = content;
     
     // Set default text styling
@@ -926,15 +999,37 @@ function createTextItem(content = 'Click to edit text...', x = centerPoint.x, y 
     }
     item.dataset.type = 'text';
     
-    // Handle text editing
+    // Handle text editing with double-click
+    item.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        startTextEditing(item);
+    });
+    
+    // Handle single click for selection and dragging when not editing
+    item.addEventListener('mousedown', (e) => {
+        if (item.contentEditable === 'false' || item.contentEditable === false) {
+            // Allow the default mousedown handling in handleMouseDown to take over
+            // This will enable dragging for non-editable text items
+        } else {
+            // If in edit mode, prevent dragging
+            e.stopPropagation();
+        }
+    });
+    
+    // Handle text editing events when in edit mode
     item.addEventListener('focus', () => item.classList.add('editing'));
     item.addEventListener('blur', () => {
         item.classList.remove('editing');
+        item.contentEditable = false; // Disable editing when focus is lost
         saveItemToDatabase(item);
     });
     
     item.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            item.blur();
+        }
+        if (e.key === 'Escape') {
             e.preventDefault();
             item.blur();
         }
@@ -948,6 +1043,19 @@ function createTextItem(content = 'Click to edit text...', x = centerPoint.x, y 
     }
     
     return item;
+}
+
+function startTextEditing(item) {
+    if (item.classList.contains('text-item')) {
+        item.contentEditable = true;
+        item.focus();
+        // Select all text for easy editing
+        const range = document.createRange();
+        range.selectNodeContents(item);
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+    }
 }
 
 function addCode() {
