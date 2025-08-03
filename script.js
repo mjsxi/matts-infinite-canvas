@@ -63,16 +63,107 @@ function initializeCanvas() {
         preserveObjectStacking: true
     });
 
-    // Make canvas infinite by allowing panning
+    // Figma-style trackpad interactions
     canvas.on('mouse:wheel', function(opt) {
-        const delta = opt.e.deltaY;
-        let zoom = canvas.getZoom();
-        zoom *= 0.999 ** delta;
-        if (zoom > 20) zoom = 20;
-        if (zoom < 0.01) zoom = 0.01;
-        canvas.zoomToPoint({ x: opt.e.offsetX, y: opt.e.offsetY }, zoom);
-        opt.e.preventDefault();
-        opt.e.stopPropagation();
+        const e = opt.e;
+        
+        // Detect zoom gestures:
+        // - Ctrl/Cmd key held (common zoom modifier)
+        // - deltaZ exists (pinch gesture on some browsers)
+        // - deltaMode 1 (line mode, often indicates trackpad pinch)
+        // - Very small deltaX/deltaY values with precise deltaY (trackpad zoom)
+        const isZoomGesture = e.ctrlKey || e.metaKey || 
+                             Math.abs(e.deltaZ || 0) > 0 ||
+                             e.deltaMode === 1 ||
+                             (Math.abs(e.deltaX) < 4 && Math.abs(e.deltaY) > 0 && Math.abs(e.deltaY % 1) > 0);
+        
+        if (isZoomGesture) {
+            // Zoom behavior (pinch to zoom on trackpad, or Ctrl+scroll)
+            const delta = e.deltaY;
+            let zoom = canvas.getZoom();
+            
+            // More natural zoom speed for trackpad
+            const zoomFactor = e.ctrlKey || e.metaKey ? 0.999 : 0.995;
+            zoom *= zoomFactor ** delta;
+            
+            if (zoom > 20) zoom = 20;
+            if (zoom < 0.01) zoom = 0.01;
+            canvas.zoomToPoint({ x: e.offsetX, y: e.offsetY }, zoom);
+        } else {
+            // Pan behavior (2-finger scroll on trackpad)
+            const vpt = canvas.viewportTransform;
+            
+            // Scale pan speed for better control
+            const panSpeed = 1.0;
+            vpt[4] -= e.deltaX * panSpeed; // Horizontal pan
+            vpt[5] -= e.deltaY * panSpeed; // Vertical pan
+            canvas.requestRenderAll();
+        }
+        
+        e.preventDefault();
+        e.stopPropagation();
+    });
+
+    // Touch gesture support for mobile/tablet
+    let lastTouchDistance = 0;
+    let lastTouchCenter = { x: 0, y: 0 };
+    
+    canvas.on('touch:gesture', function(opt) {
+        const e = opt.e;
+        
+        if (e.touches && e.touches.length === 2) {
+            // Two-finger gesture
+            const touch1 = e.touches[0];
+            const touch2 = e.touches[1];
+            
+            // Calculate distance between touches (for zoom)
+            const distance = Math.sqrt(
+                Math.pow(touch2.clientX - touch1.clientX, 2) + 
+                Math.pow(touch2.clientY - touch1.clientY, 2)
+            );
+            
+            // Calculate center point between touches
+            const center = {
+                x: (touch1.clientX + touch2.clientX) / 2,
+                y: (touch1.clientY + touch2.clientY) / 2
+            };
+            
+            if (lastTouchDistance > 0) {
+                // Zoom based on distance change
+                const zoomDelta = distance / lastTouchDistance;
+                let zoom = canvas.getZoom() * zoomDelta;
+                
+                if (zoom > 20) zoom = 20;
+                if (zoom < 0.01) zoom = 0.01;
+                
+                const rect = canvas.getElement().getBoundingClientRect();
+                const pointer = {
+                    x: center.x - rect.left,
+                    y: center.y - rect.top
+                };
+                canvas.zoomToPoint(pointer, zoom);
+                
+                // Pan based on center movement
+                if (lastTouchCenter.x !== 0 && lastTouchCenter.y !== 0) {
+                    const vpt = canvas.viewportTransform;
+                    vpt[4] += (center.x - lastTouchCenter.x);
+                    vpt[5] += (center.y - lastTouchCenter.y);
+                    canvas.requestRenderAll();
+                }
+            }
+            
+            lastTouchDistance = distance;
+            lastTouchCenter = center;
+            
+            e.preventDefault();
+            e.stopPropagation();
+        }
+    });
+    
+    // Reset touch tracking on touch end
+    canvas.on('touch:drag', function() {
+        lastTouchDistance = 0;
+        lastTouchCenter = { x: 0, y: 0 };
     });
 
     // Pan on middle mouse button or when no object is selected
