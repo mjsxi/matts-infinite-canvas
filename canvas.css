@@ -426,11 +426,11 @@ body {
 
 /* Toolbar Variables */
 :root {
-    --toolbar-width: calc(100vw - 68px); /* Full width minus 34px margins on each side */
+    --toolbar-width: min(678px, calc(100vw - 68px));
     --toolbar-height: 48px;
     --toolbar-padding: 4px;
-    --toolbar-gap: 2px;
-    --toolbar-btn-width: calc((100% - (var(--toolbar-gap) * 7)) / 8);
+    --toolbar-gap: 1px;
+    --toolbar-btn-width: calc((var(--toolbar-width) - (var(--toolbar-padding) * 2) - (var(--toolbar-gap) * 7)) / 8);
     --toolbar-btn-height: calc(var(--toolbar-height) - (var(--toolbar-padding) * 2));
     --toolbar-btn-padding: 6px 10px;
     --toolbar-icon-size: 20px;
@@ -443,7 +443,7 @@ body {
     left: 50%;
     transform: translateX(-50%);
     display: flex;
-    width: min(700px, calc(100vw - 68px));
+    width: var(--toolbar-width);
     height: var(--toolbar-height);
     padding: var(--toolbar-padding);
     justify-content: center;
@@ -642,12 +642,13 @@ body {
         min-height: 100vh;
     }
     
-    .toolbar {
-        bottom: 4px;
-    }
-    
     .modal-content {
         padding: 20px;
         margin: 20px;
+    }
+    
+    /* Mobile toolbar positioning */
+    .toolbar {
+        bottom: 0px;
     }
 }
