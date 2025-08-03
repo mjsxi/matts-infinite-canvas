@@ -572,6 +572,7 @@ function startResize(e, direction) {
     
     // For images, maintain aspect ratio
     const isImage = selectedItem.classList.contains('image-item');
+    const isText = selectedItem.classList.contains('text-item');
     const aspectRatio = isImage ? parseFloat(selectedItem.dataset.aspectRatio) || (startWidth / startHeight) : (startWidth / startHeight);
     
     function handleResizeMove(e) {
@@ -634,8 +635,26 @@ function startResize(e, direction) {
                     newTop = startTop + (startHeight - newHeight);
                     break;
             }
+        } else if (isText) {
+            // For text items, only allow minimum width adjustment and let height size naturally
+            switch (direction) {
+                case 'e': // Right - adjust min-width
+                    const newMinWidth = Math.max(50, startWidth + deltaX);
+                    selectedItem.style.minWidth = newMinWidth + 'px';
+                    return; // Don't set explicit width/height
+                case 'w': // Left - adjust min-width and position
+                    const newMinWidthLeft = Math.max(50, startWidth - deltaX);
+                    selectedItem.style.minWidth = newMinWidthLeft + 'px';
+                    selectedItem.style.left = (startLeft + deltaX) + 'px';
+                    return; // Don't set explicit width/height
+                default:
+                    // For other directions, just move the item
+                    selectedItem.style.left = (startLeft + deltaX) + 'px';
+                    selectedItem.style.top = (startTop + deltaY) + 'px';
+                    return; // Don't set explicit width/height
+            }
         } else {
-            // For non-images (text, code), allow free resizing
+            // For non-images (code), allow free resizing
             switch (direction) {
                 case 'se': // Bottom-right
                     newWidth = Math.max(50, startWidth + deltaX);
@@ -674,11 +693,13 @@ function startResize(e, direction) {
             }
         }
         
-        // Apply new dimensions and position
-        selectedItem.style.width = newWidth + 'px';
-        selectedItem.style.height = newHeight + 'px';
-        selectedItem.style.left = newLeft + 'px';
-        selectedItem.style.top = newTop + 'px';
+        // Apply new dimensions and position (only for non-text items)
+        if (!isText) {
+            selectedItem.style.width = newWidth + 'px';
+            selectedItem.style.height = newHeight + 'px';
+            selectedItem.style.left = newLeft + 'px';
+            selectedItem.style.top = newTop + 'px';
+        }
     }
     
     function handleResizeEnd() {
@@ -1153,6 +1174,9 @@ function handleCenterUpdate(payload) {
 
 // Database Operations
 async function saveItemToDatabase(item) {
+    // For text items, we don't want to save width/height as they should size naturally
+    const isTextItem = item.dataset.type === 'text';
+    
     const itemData = {
         id: parseInt(item.dataset.id),
         x: parseFloat(item.style.left) || 0,
@@ -1160,10 +1184,10 @@ async function saveItemToDatabase(item) {
         item_type: item.dataset.type,
         content: getItemContent(item),
         user_id: 'admin', // Set user ID - you can customize this
-        width: parseFloat(item.style.width) || 100,
-        height: parseFloat(item.style.height) || 100,
-        original_width: parseFloat(item.style.width) || 100,
-        original_height: parseFloat(item.style.height) || 100,
+        width: isTextItem ? null : (parseFloat(item.style.width) || 100),
+        height: isTextItem ? null : (parseFloat(item.style.height) || 100),
+        original_width: isTextItem ? null : (parseFloat(item.style.width) || 100),
+        original_height: isTextItem ? null : (parseFloat(item.style.height) || 100),
         aspect_ratio: parseFloat(item.dataset.aspectRatio) || 1,
         rotation: parseFloat(item.dataset.rotation) || 0,
         z_index: parseInt(item.style.zIndex) || 1,
@@ -1173,8 +1197,21 @@ async function saveItemToDatabase(item) {
         font_weight: item.style.fontWeight || 'normal',
         text_color: item.style.color || '#333333',
         line_height: parseFloat(item.style.lineHeight) || 1.15,
-        html_content: item.dataset.type === 'code' ? getItemContent(item) : null
+        html_content: item.dataset.type === 'code' ? getItemContent(item) : null,
+        // For text items, save min-width instead of width
+        min_width: isTextItem ? (parseFloat(item.style.minWidth) || 100) : null
     };
+    
+    // Debug logging for text items
+    if (isTextItem) {
+        console.log('Saving text item:', {
+            id: itemData.id,
+            content: itemData.content,
+            min_width: itemData.min_width,
+            width: itemData.width,
+            height: itemData.height
+        });
+    }
     
     try {
         const { error } = await supabaseClient
@@ -1301,6 +1338,17 @@ function createItemFromData(data) {
     // Use item_type from database, fallback to type for compatibility
     const itemType = data.item_type || data.type;
     
+    // Debug logging for text items
+    if (itemType === 'text') {
+        console.log('Creating text item from data:', {
+            id: data.id,
+            content: data.content,
+            width: data.width,
+            height: data.height,
+            min_width: data.min_width
+        });
+    }
+    
     switch (itemType) {
         case 'image':
             item = createImageItem(data.content, data.x, data.y, data.width, data.height, true);
@@ -1343,6 +1391,16 @@ function createItemFromData(data) {
             if (data.font_weight) item.style.fontWeight = data.font_weight;
             if (data.text_color) item.style.color = data.text_color;
             if (data.line_height) item.style.lineHeight = data.line_height;
+            if (data.min_width) item.style.minWidth = data.min_width + 'px';
+            
+            // Debug: log the final state of the text item
+            console.log('Text item created with styles:', {
+                minWidth: item.style.minWidth,
+                width: item.style.width,
+                height: item.style.height,
+                fontSize: item.style.fontSize,
+                fontFamily: item.style.fontFamily
+            });
         }
         
         // Apply border radius as CSS variable
@@ -1356,8 +1414,12 @@ function updateItemFromData(item, data) {
     item.style.left = data.x + 'px';
     item.style.top = data.y + 'px';
     
-    if (data.width) item.style.width = data.width + 'px';
-    if (data.height) item.style.height = data.height + 'px';
+    // Only apply width/height to non-text items
+    const itemType = data.item_type || data.type;
+    if (itemType !== 'text') {
+        if (data.width) item.style.width = data.width + 'px';
+        if (data.height) item.style.height = data.height + 'px';
+    }
     
     // Update rotation
     if (data.rotation && data.rotation !== 0) {
@@ -1374,11 +1436,13 @@ function updateItemFromData(item, data) {
     }
     
     // Update content based on type
-    const itemType = data.item_type || data.type;
     switch (itemType) {
         case 'text':
             if (item.textContent !== data.content) {
                 item.textContent = data.content;
+            }
+            if (data.min_width) {
+                item.style.minWidth = data.min_width + 'px';
             }
             break;
         case 'image':
