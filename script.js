@@ -96,6 +96,17 @@ function initializeCanvas() {
     canvas.on('object:modified', function(e) {
         updateCanvasItem(e.target);
     });
+    
+    // Handle object scaling (resizing)
+    canvas.on('object:scaling', function(e) {
+        // Update in real-time while scaling
+        updateCanvasItem(e.target);
+    });
+    
+    canvas.on('object:scaled', function(e) {
+        // Update when scaling is finished
+        updateCanvasItem(e.target);
+    });
 
     // Handle object selection for permissions and z-index controls
     canvas.on('selection:created', function(e) {
@@ -604,8 +615,8 @@ async function updateCanvasItem(fabricObject) {
             .update({
                 x: fabricObject.left,
                 y: fabricObject.top,
-                width: fabricObject.width,
-                height: fabricObject.height,
+                width: fabricObject.width * (fabricObject.scaleX || 1),
+                height: fabricObject.height * (fabricObject.scaleY || 1),
                 rotation: fabricObject.angle || 0,
                 z_index: canvas.getObjects().indexOf(fabricObject),
                 content: content
