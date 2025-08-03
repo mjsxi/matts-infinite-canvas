@@ -3,157 +3,52 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Matt's Infinite Canvas</title>
-    <link rel="stylesheet" href="style.css">
-    <!-- Fabric.js for canvas functionality -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/671/index.min.js"></script>
-    <!-- Supabase -->
-     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <title>Infinite Canvas</title>
+    <link rel="stylesheet" href="canvas.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-    <!-- Admin Login Modal -->
-    <div id="adminModal" class="modal hidden">
+    <!-- Admin Login -->
+    <div id="adminLogin" class="admin-login">
+        <div class="login-form">
+            <h2>Admin Access</h2>
+            <input type="password" id="adminPassword" placeholder="Enter password">
+            <button onclick="login()">Login</button>
+        </div>
+    </div>
+
+    <!-- Main Canvas -->
+    <div id="canvasContainer" class="canvas-container hidden">
+        <div id="canvas" class="canvas">
+            <!-- Canvas items will be inserted here -->
+        </div>
+    </div>
+
+    <!-- Admin Toolbar -->
+    <div id="toolbar" class="toolbar hidden">
+        <button onclick="addImage()">📷 Image</button>
+        <button onclick="addText()">📝 Text</button>
+        <button onclick="addCode()">💻 Code</button>
+        <button onclick="setCenter()">📍 Set Center</button>
+        <button onclick="clearAll()">🗑️ Clear All</button>
+        <button onclick="logout()">🚪 Logout</button>
+    </div>
+
+    <!-- Code Modal -->
+    <div id="codeModal" class="modal hidden">
         <div class="modal-content">
-            <h3>Admin Login</h3>
-            <input type="password" id="adminPassword" placeholder="Enter admin password">
+            <h3>Add Code Block</h3>
+            <textarea id="codeInput" placeholder="Paste your HTML code here..."></textarea>
             <div class="modal-buttons">
-                <button onclick="checkAdminPassword()">Login</button>
-                <button onclick="closeAdminModal()">Cancel</button>
+                <button onclick="insertCode()">Insert</button>
+                <button onclick="closeModal('codeModal')">Cancel</button>
             </div>
         </div>
     </div>
 
-    <!-- Main Canvas Container -->
-    <div id="canvasContainer">
-        <canvas id="canvas"></canvas>
-    </div>
+    <!-- File Input -->
+    <input type="file" id="fileInput" accept="image/*" style="display: none;">
 
-    <!-- Toolbar -->
-    <div id="toolbar">
-        <div class="toolbar-section">
-            <button id="addImageBtn" class="tool-btn">📷 Add Image</button>
-            <button id="addTextBtn" class="tool-btn">📝 Add Text</button>
-            <button id="addIframeBtn" class="tool-btn">🌐 Add Code</button>
-            <button id="adminBtn" class="tool-btn admin-btn">⚙️ Admin</button>
-        </div>
-        
-        <div class="toolbar-section" id="adminTools" style="display: none;">
-            <button id="setCenterBtn" class="tool-btn admin-tool">📍 Set Center</button>
-            <button id="clearCanvasBtn" class="tool-btn admin-tool danger">🗑️ Clear All</button>
-        </div>
-        
-        <div class="toolbar-section" id="zIndexControls" style="display: none;">
-            <button id="bringToFrontBtn" class="tool-btn">⬆️ Bring to Front</button>
-            <button id="sendToBackBtn" class="tool-btn">⬇️ Send to Back</button>
-        </div>
-        
-        <div class="toolbar-section" id="borderRadiusControls" style="display: none;">
-            <label for="borderRadiusInput" class="control-label">🔄 Corner Radius:</label>
-            <input type="number" id="borderRadiusInput" min="0" max="100" value="0" class="radius-input">
-            <span class="unit-label">px</span>
-        </div>
-        
-        <div class="toolbar-section" id="textControls" style="display: none;">
-            <label for="fontFamilySelect" class="control-label">📝 Font:</label>
-            <select id="fontFamilySelect" class="text-control">
-                <option value="sans-serif">Sans-serif</option>
-                <option value="Arial">Arial</option>
-                <option value="Helvetica">Helvetica</option>
-                <option value="Times New Roman">Times New Roman</option>
-                <option value="Georgia">Georgia</option>
-                <option value="Verdana">Verdana</option>
-                <option value="Courier New">Courier New</option>
-                <option value="Impact">Impact</option>
-                <option value="Comic Sans MS">Comic Sans MS</option>
-            </select>
-            
-            <label for="fontSizeInput" class="control-label">📏 Size:</label>
-            <input type="number" id="fontSizeInput" min="8" max="200" value="24" class="text-control">
-            
-            <label for="fontWeightSelect" class="control-label">💪 Weight:</label>
-            <select id="fontWeightSelect" class="text-control">
-                <option value="normal">Normal</option>
-                <option value="bold">Bold</option>
-                <option value="lighter">Light</option>
-            </select>
-            
-            <label for="textColorInput" class="control-label">🎨 Color:</label>
-            <input type="color" id="textColorInput" value="#333333" class="text-control color-input">
-            
-            <label for="lineHeightInput" class="control-label">📐 Line Height:</label>
-            <input type="number" id="lineHeightInput" min="0.5" max="3" step="0.1" value="1.15" class="text-control">
-        </div>
-        
-        <div class="toolbar-section">
-            <span id="userInfo">👤 Guest</span>
-            <span id="onlineCount">👥 1 online</span>
-        </div>
-    </div>
-
-    <!-- User Setup Modal -->
-    <div id="userModal" class="modal hidden">
-        <div class="modal-content">
-            <h3>Welcome to the Canvas!</h3>
-            <p>Choose a nickname to get started:</p>
-            <input type="text" id="userNickname" placeholder="Enter your nickname" maxlength="20">
-            <div class="modal-buttons">
-                <button onclick="setUserNickname()">Join Canvas</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Text Input Modal -->
-    <div id="textModal" class="modal hidden">
-        <div class="modal-content">
-            <h3>Add Text</h3>
-            <textarea id="textInput" placeholder="Enter your text here..." rows="4"></textarea>
-            <div class="modal-buttons">
-                <button onclick="addTextToCanvas()">Add Text</button>
-                <button onclick="closeTextModal()">Cancel</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- HTML Input Modal -->
-    <div id="htmlModal" class="modal hidden">
-        <div class="modal-content" style="max-width: 600px;">
-            <h3>Add HTML Code Block</h3>
-            <p>Paste your complete HTML file (with embedded CSS and JS):</p>
-            <textarea id="htmlInput" placeholder="<!DOCTYPE html>
-<html>
-<head>
-    <style>
-        /* Your CSS here */
-    </style>
-</head>
-<body>
-    <!-- Your HTML here -->
-    <script>
-        // Your JavaScript here
-    </script>
-</body>
-</html>" rows="10" style="font-family: monospace; font-size: 12px; margin-bottom: 15px;"></textarea>
-            <label for="htmlTitleInput">Title (optional):</label>
-            <input type="text" id="htmlTitleInput" placeholder="My Interactive Demo">
-            <div class="modal-buttons">
-                <button onclick="addHtmlToCanvas()">Add HTML Block</button>
-                <button onclick="closeHtmlModal()">Cancel</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- File Input (Hidden) -->
-    <input type="file" id="fileInput" accept="image/*,video/*" style="display: none;">
-
-    <!-- Loading Indicator -->
-    <div id="loadingIndicator" class="loading hidden">
-        <div class="spinner"></div>
-        <p>Loading...</p>
-    </div>
-
-    <!-- Status Messages -->
-    <div id="statusMessage" class="status-message hidden"></div>
-
-    <script src="script.js"></script>
+    <script src="canvas.js"></script>
 </body>
 </html>
