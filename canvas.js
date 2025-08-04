@@ -224,13 +224,26 @@ function logout() {
 }
 
 function goToCenter() {
-    // Center the canvas on the center point
+    // Store current transform for animation
+    const startTransform = { ...canvasTransform };
     const containerRect = container.getBoundingClientRect();
-    canvasTransform.x = containerRect.width / 2 - centerPoint.x * canvasTransform.scale;
-    canvasTransform.y = containerRect.height / 2 - centerPoint.y * canvasTransform.scale;
+    const targetX = containerRect.width / 2 - centerPoint.x * canvasTransform.scale;
+    const targetY = containerRect.height / 2 - centerPoint.y * canvasTransform.scale;
+    
+    // Add transition for smooth animation
+    canvas.style.transition = 'transform 0.6s ease-out';
+    
+    // Animate to center
+    canvasTransform.x = targetX;
+    canvasTransform.y = targetY;
     updateCanvasTransform();
     
     showStatus('Centered on canvas');
+    
+    // Remove transition after animation completes
+    setTimeout(() => {
+        canvas.style.transition = '';
+    }, 600);
 }
 
 function goToAdminPage() {
