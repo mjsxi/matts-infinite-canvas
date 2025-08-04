@@ -102,7 +102,7 @@ function updateCanvasTransform() {
     // Clamp values to prevent extreme transforms that cause rendering issues on mobile
     const clampedX = Math.max(-50000, Math.min(50000, canvasTransform.x));
     const clampedY = Math.max(-50000, Math.min(50000, canvasTransform.y));
-    const clampedScale = Math.max(0.05, Math.min(5, canvasTransform.scale));
+    const clampedScale = Math.max(0.01, Math.min(10, canvasTransform.scale));
     
     // Update the clamped values back to the transform object
     canvasTransform.x = clampedX;
@@ -138,12 +138,26 @@ function forceCanvasRerender() {
         items.forEach(item => {
             // Trigger a style recalculation
             item.style.transform = item.style.transform;
+            
+            // Force visibility check and fix
+            if (item.offsetParent === null && item.style.display !== 'none') {
+                // Item might have disappeared, force visibility
+                item.style.visibility = 'hidden';
+                item.offsetHeight; // Trigger reflow
+                item.style.visibility = 'visible';
+            }
+            
+            // Additional mobile Safari fix - force a repaint
+            item.style.zIndex = item.style.zIndex;
         });
         
         // Force canvas reflow
         canvas.offsetHeight; // Trigger reflow
         
-        // Double-check that items are visible
+        // Additional mobile Safari optimization - force a repaint of the entire canvas
+        canvas.style.transform = canvas.style.transform;
+        
+        // Double-check that items are visible after a short delay
         requestAnimationFrame(() => {
             items.forEach(item => {
                 if (item.offsetParent === null && item.style.display !== 'none') {
@@ -386,8 +400,8 @@ function handleTouchMove(e) {
         const newX = touchStartTransform.x + deltaX;
         const newY = touchStartTransform.y + deltaY;
         
-        canvasTransform.x = Math.max(-30000, Math.min(30000, newX));
-        canvasTransform.y = Math.max(-30000, Math.min(30000, newY));
+        canvasTransform.x = Math.max(-50000, Math.min(50000, newX));
+        canvasTransform.y = Math.max(-50000, Math.min(50000, newY));
         
         throttledUpdateCanvasTransform();
         
@@ -425,14 +439,14 @@ function handleTouchMove(e) {
         if (touchStartDistance > 0) {
             // Calculate scale with smoother scaling for better mobile performance
             const scaleChange = currentDistance / touchStartDistance;
-            const newScale = Math.max(0.05, Math.min(5, touchStartTransform.scale * scaleChange));
+            const newScale = Math.max(0.01, Math.min(10, touchStartTransform.scale * scaleChange));
             
-            // Prevent extreme scale changes that can cause rendering issues
-            const maxScaleChange = 0.1; // Limit scale change per frame
-            const currentScaleChange = Math.abs(newScale - canvasTransform.scale);
-            if (currentScaleChange > maxScaleChange) {
-                return; // Skip this frame if scale change is too extreme
-            }
+            // Remove the frame skipping logic that was causing issues
+            // const maxScaleChange = 0.1; // Limit scale change per frame
+            // const currentScaleChange = Math.abs(newScale - canvasTransform.scale);
+            // if (currentScaleChange > maxScaleChange) {
+            //     return; // Skip this frame if scale change is too extreme
+            // }
             
             // Calculate pan
             const panX = currentCenter.x - touchStartCenter.x;
@@ -447,16 +461,17 @@ function handleTouchMove(e) {
             const newX = centerX - (centerX - touchStartTransform.x) * scaleRatio + panX;
             const newY = centerY - (centerY - touchStartTransform.y) * scaleRatio + panY;
             
-            // Bounds checking to prevent extreme pan values
-            canvasTransform.x = Math.max(-30000, Math.min(30000, newX));
-            canvasTransform.y = Math.max(-30000, Math.min(30000, newY));
+            // Bounds checking to prevent extreme pan values - increased bounds
+            canvasTransform.x = Math.max(-50000, Math.min(50000, newX));
+            canvasTransform.y = Math.max(-50000, Math.min(50000, newY));
             canvasTransform.scale = newScale;
             
-            throttledUpdateCanvasTransform();
+            // Use immediate update instead of throttled for better responsiveness
+            updateCanvasTransform();
             
-            // Reduce aggressive rerender calls - only after significant scale changes
-            if (Math.abs(newScale - touchStartTransform.scale) > 0.3) {
-                setTimeout(() => forceCanvasRerender(), 200);
+            // Force rerender more frequently during zoom to prevent disappearing items
+            if (Math.abs(newScale - touchStartTransform.scale) > 0.1) {
+                forceCanvasRerender();
             }
         }
     }
@@ -489,12 +504,18 @@ function handleTouchEnd(e) {
         isSingleTouchPanning = false;
         panPositions = [];
         
-        // Reduce aggressive rerender calls - only when needed
-        setTimeout(() => forceCanvasRerender(), 300);
+        // Force immediate rerender to fix any disappearing items
+        forceCanvasRerender();
+        
+        // Additional mobile Safari fix - force another rerender after a short delay
+        setTimeout(() => forceCanvasRerender(), 100);
     } else if (e.touches.length === 1) {
         // Went from multi-touch to single touch
         touchStartDistance = 0;
         touchStartCenter = { x: 0, y: 0 };
+        
+        // Force rerender when transitioning from pinch to single touch
+        forceCanvasRerender();
     }
 }
 

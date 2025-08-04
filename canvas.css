@@ -701,4 +701,39 @@ body {
         margin-top: env(safe-area-inset-top);
         margin-bottom: env(safe-area-inset-bottom);
     }
+    
+    /* Mobile Safari optimizations for pinch-to-zoom */
+    .canvas {
+        /* Force hardware acceleration for better mobile performance */
+        -webkit-transform: translateZ(0);
+        transform: translateZ(0);
+        /* Prevent Safari from optimizing away elements during transforms */
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
+        /* Ensure proper layer creation */
+        will-change: transform;
+    }
+    
+    .canvas-item {
+        /* Force hardware acceleration for canvas items */
+        -webkit-transform: translateZ(0);
+        transform: translateZ(0);
+        /* Prevent Safari from hiding items during transforms */
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
+        /* Ensure items stay visible during pinch gestures */
+        will-change: transform;
+        /* Force Safari to create a new layer for each item */
+        -webkit-transform-style: preserve-3d;
+        transform-style: preserve-3d;
+    }
+    
+    /* Additional mobile Safari fixes */
+    .canvas-container {
+        /* Prevent Safari from optimizing the container */
+        -webkit-transform: translateZ(0);
+        transform: translateZ(0);
+        /* Force proper rendering during pinch gestures */
+        will-change: transform;
+    }
 }
