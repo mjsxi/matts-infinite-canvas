@@ -26,6 +26,7 @@ let lastMousePos = { x: 0, y: 0 };
 // Drawing state
 let currentDrawing = null;
 let drawingPath = [];
+let drawingPreview = null;
 
 // Inertia scrolling variables
 let panVelocity = { x: 0, y: 0 };
@@ -129,6 +130,13 @@ function screenToCanvas(screenX, screenY) {
     return { x: canvasX, y: canvasY };
 }
 
+function canvasToScreen(canvasX, canvasY) {
+    const rect = container.getBoundingClientRect();
+    const screenX = (canvasX * canvasTransform.scale) + canvasTransform.x + rect.left;
+    const screenY = (canvasY * canvasTransform.scale) + canvasTransform.y + rect.top;
+    return { x: screenX, y: screenY };
+}
+
 // Event Bindings
 function bindEvents() {
     // Mouse events
@@ -167,6 +175,7 @@ function handleMouseDown(e) {
             const canvasPos = screenToCanvas(e.clientX, e.clientY);
             drawingPath = [{ x: canvasPos.x, y: canvasPos.y }];
             console.log('Initial drawing point:', canvasPos);
+            createDrawingPreview();
             clearSelection();
             return;
         }
@@ -198,6 +207,7 @@ function handleMouseMove(e) {
     if (isDrawing) {
         const canvasPos = screenToCanvas(e.clientX, e.clientY);
         drawingPath.push({ x: canvasPos.x, y: canvasPos.y });
+        updateDrawingPreview();
         console.log('Drawing point:', canvasPos, 'Total points:', drawingPath.length);
         // Don't update transform while drawing
         return;
@@ -273,6 +283,8 @@ function handleMouseUp(e) {
             console.log('Not enough points to create drawing:', drawingPath.length);
         }
         
+        // Clean up
+        removeDrawingPreview();
         drawingPath = [];
         return;
     }
@@ -1228,6 +1240,7 @@ function toggleDrawMode() {
         drawBtn.style.backgroundColor = '';
         hideDrawToolbar();
         container.style.cursor = '';
+        removeDrawingPreview();
         console.log('Draw mode disabled');
     }
 }
@@ -1239,6 +1252,65 @@ function showDrawToolbar() {
 
 function hideDrawToolbar() {
     drawToolbar.classList.add('hidden');
+}
+
+function createDrawingPreview() {
+    // Remove existing preview
+    removeDrawingPreview();
+    
+    // Create preview SVG overlay
+    drawingPreview = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    drawingPreview.style.position = 'fixed';
+    drawingPreview.style.top = '0';
+    drawingPreview.style.left = '0';
+    drawingPreview.style.width = '100%';
+    drawingPreview.style.height = '100%';
+    drawingPreview.style.pointerEvents = 'none';
+    drawingPreview.style.zIndex = '10001';
+    drawingPreview.id = 'drawingPreview';
+    
+    document.body.appendChild(drawingPreview);
+}
+
+function updateDrawingPreview() {
+    if (!drawingPreview || drawingPath.length < 2) return;
+    
+    // Clear existing path
+    drawingPreview.innerHTML = '';
+    
+    // Get current stroke settings
+    const strokeColor = document.getElementById('strokeColor').value;
+    const strokeThickness = parseFloat(document.getElementById('strokeThickness').value);
+    
+    // Create path data in screen coordinates
+    let pathData = '';
+    for (let i = 0; i < drawingPath.length; i++) {
+        const screenPos = canvasToScreen(drawingPath[i].x, drawingPath[i].y);
+        if (i === 0) {
+            pathData = `M ${screenPos.x} ${screenPos.y}`;
+        } else {
+            pathData += ` L ${screenPos.x} ${screenPos.y}`;
+        }
+    }
+    
+    // Create path element
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', pathData);
+    path.setAttribute('stroke', strokeColor);
+    path.setAttribute('stroke-width', strokeThickness);
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke-linecap', 'round');
+    path.setAttribute('stroke-linejoin', 'round');
+    path.setAttribute('opacity', '0.8');
+    
+    drawingPreview.appendChild(path);
+}
+
+function removeDrawingPreview() {
+    if (drawingPreview) {
+        drawingPreview.remove();
+        drawingPreview = null;
+    }
 }
 
 function createDrawingItem(pathData, strokeColor, strokeThickness, x, y, width, height, fromDatabase = false, viewBoxData = null) {
