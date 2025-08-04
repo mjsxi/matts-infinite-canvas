@@ -96,7 +96,7 @@
     --handle-offset: -6px;
     --toolbar-padding: var(--spacing-md);
     --modal-padding: var(--spacing-3xl);
-    --input-padding: var(--spacing-md);
+    --input-padding: var(--spacing-xl);
     
     /* Canvas */
     --canvas-size: 20000px;
@@ -180,8 +180,7 @@ body {
     background: rgba(0, 0, 0, 0.75);
     backdrop-filter: blur(10px);
     padding: var(--spacing-2xl);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-xl);
+    border-radius: 40px;
     text-align: center;
     min-width: 300px;
 }
@@ -209,8 +208,8 @@ body {
 .login-form button {
     width: 100%;
     padding: var(--input-padding);
-    background: var(--gradient-primary);
-    color: var(--color-white);
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
     border: none;
     border-radius: 1000px;
     font-size: var(--font-size-md);
