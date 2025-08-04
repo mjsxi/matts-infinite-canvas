@@ -24,6 +24,7 @@ let lastMousePos = { x: 0, y: 0 };
 let pendingTransformUpdate = false;
 let lastTouchMoveTime = 0;
 let pinchDebounceTimer = null;
+let isMobileSafari = false;
 
 // Inertia scrolling variables
 let panVelocity = { x: 0, y: 0 };
@@ -42,6 +43,11 @@ document.addEventListener('DOMContentLoaded', function() {
     canvas = document.getElementById('canvas');
     container = document.getElementById('canvasContainer');
     toolbar = document.getElementById('toolbar');
+    
+    // Detect mobile Safari
+    isMobileSafari = /iPad|iPhone|iPod/.test(navigator.userAgent) && 
+                     /Safari/.test(navigator.userAgent) && 
+                     !/Chrome/.test(navigator.userAgent);
     
     checkAuth();
     bindEvents();
@@ -113,6 +119,23 @@ function updateCanvasTransform() {
     const transform = `translate(${clampedX}px, ${clampedY}px) scale(${clampedScale})`;
     canvas.style.transform = transform;
     
+    // CRITICAL: For mobile Safari, ensure items are always visible after transform
+    if (isMobileSafari) {
+        // Force a check to ensure all items are still visible
+        requestAnimationFrame(() => {
+            const items = canvas.querySelectorAll('.canvas-item');
+            items.forEach(item => {
+                // If item has disappeared, force it back
+                if (item.offsetParent === null && item.style.display !== 'none') {
+                    console.log('Item disappeared, forcing visibility:', item);
+                    item.style.visibility = 'hidden';
+                    item.offsetHeight; // Force reflow
+                    item.style.visibility = 'visible';
+                }
+            });
+        });
+    }
+    
     // Reset pending update flag
     pendingTransformUpdate = false;
 }
@@ -139,19 +162,36 @@ function forceCanvasRerender() {
         items.forEach(item => {
             // Trigger a style recalculation
             item.style.transform = item.style.transform;
+            
+            // Force hardware acceleration and prevent Safari from hiding items
+            item.style.webkitTransform = item.style.transform;
+            item.style.webkitBackfaceVisibility = 'hidden';
+            item.style.backfaceVisibility = 'hidden';
         });
         
         // Force canvas reflow
         canvas.offsetHeight; // Trigger reflow
+        
+        // Force canvas hardware acceleration
+        canvas.style.webkitTransform = canvas.style.transform;
+        canvas.style.webkitBackfaceVisibility = 'hidden';
+        canvas.style.backfaceVisibility = 'hidden';
         
         // Double-check that items are visible
         requestAnimationFrame(() => {
             items.forEach(item => {
                 if (item.offsetParent === null && item.style.display !== 'none') {
                     // Item might have disappeared, force visibility
+                    console.log('Item disappeared in rerender, forcing visibility:', item);
                     item.style.visibility = 'hidden';
                     item.offsetHeight; // Trigger reflow
                     item.style.visibility = 'visible';
+                    
+                    // Force the item to be visible by temporarily changing its position
+                    const originalLeft = item.style.left;
+                    const originalTop = item.style.top;
+                    item.style.left = originalLeft;
+                    item.style.top = originalTop;
                 }
             });
         });
@@ -167,9 +207,22 @@ function bindEvents() {
     container.addEventListener('wheel', handleWheel, { passive: false });
     
     // Touch events for mobile/tablet
-    container.addEventListener('touchstart', handleTouchStart, { passive: false });
-    container.addEventListener('touchmove', handleTouchMove, { passive: false });
-    container.addEventListener('touchend', handleTouchEnd, { passive: false });
+    if (isMobileSafari) {
+        // Mobile Safari specific touch handling
+        container.addEventListener('touchstart', handleTouchStart, { passive: false });
+        container.addEventListener('touchmove', handleTouchMove, { passive: false });
+        container.addEventListener('touchend', handleTouchEnd, { passive: false });
+        
+        // Additional touch event listeners for better mobile Safari support
+        container.addEventListener('gesturestart', handleGestureStart, { passive: false });
+        container.addEventListener('gesturechange', handleGestureChange, { passive: false });
+        container.addEventListener('gestureend', handleGestureEnd, { passive: false });
+    } else {
+        // Standard touch handling for other browsers
+        container.addEventListener('touchstart', handleTouchStart, { passive: false });
+        container.addEventListener('touchmove', handleTouchMove, { passive: false });
+        container.addEventListener('touchend', handleTouchEnd, { passive: false });
+    }
     
     // File input
     document.getElementById('fileInput').addEventListener('change', handleFileSelect);
@@ -405,8 +458,8 @@ function handleTouchMove(e) {
         if (panPositions.length > 5) {
             panPositions.shift();
         }
-    } else if (e.touches.length >= 2) {
-        // Multi-touch pinch-to-zoom
+    } else if (e.touches.length >= 2 && !isMobileSafari) {
+        // Multi-touch pinch-to-zoom (only for non-mobile Safari)
         e.preventDefault();
         
         // Clear any pending debounce timer
@@ -1668,3 +1721,50 @@ document.addEventListener('keydown', function(e) {
         login();
     }
 });
+
+function handleGestureStart(e) {
+    if (isMobileSafari) {
+        e.preventDefault();
+        // Store initial gesture state
+        touchStartTransform = { ...canvasTransform };
+    }
+}
+
+function handleGestureChange(e) {
+    if (isMobileSafari) {
+        e.preventDefault();
+        
+        // Use Safari's native gesture scale
+        const newScale = Math.max(0.1, Math.min(3, touchStartTransform.scale * e.scale));
+        
+        // Calculate new position
+        const rect = container.getBoundingClientRect();
+        const centerX = e.clientX - rect.left;
+        const centerY = e.clientY - rect.top;
+        
+        const scaleRatio = newScale / touchStartTransform.scale;
+        const newX = centerX - (centerX - touchStartTransform.x) * scaleRatio;
+        const newY = centerY - (centerY - touchStartTransform.y) * scaleRatio;
+        
+        // Apply bounds checking
+        canvasTransform.x = Math.max(-30000, Math.min(30000, newX));
+        canvasTransform.y = Math.max(-30000, Math.min(30000, newY));
+        canvasTransform.scale = newScale;
+        
+        // CRITICAL: Force immediate update and rerender to prevent disappearing items
+        updateCanvasTransform();
+        
+        // Force a rerender immediately to ensure items stay visible
+        requestAnimationFrame(() => {
+            forceCanvasRerender();
+        });
+    }
+}
+
+function handleGestureEnd(e) {
+    if (isMobileSafari) {
+        e.preventDefault();
+        // Force rerender after gesture ends
+        setTimeout(() => forceCanvasRerender(), 50);
+    }
+}
