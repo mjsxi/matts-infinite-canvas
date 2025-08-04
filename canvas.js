@@ -579,7 +579,12 @@ function stopDragging() {
         isDragging = false;
         selectedItem.classList.remove('dragging');
         canvas.classList.remove('dragging');
-        saveItemToDatabase(selectedItem);
+        
+        // Small delay to ensure any pending real-time updates don't interfere
+        setTimeout(() => {
+            saveItemToDatabase(selectedItem);
+        }, 50);
+        
         delete selectedItem.dragOffset;
     }
 }
@@ -1219,6 +1224,8 @@ function handleRealtimeInsert(payload) {
     const existingItem = canvas.querySelector(`[data-id="${payload.new.id}"]`);
     if (!existingItem) {
         console.log('Real-time insert:', payload.new);
+        // Mark as coming from real-time for entrance animation
+        payload.new.fromRealtime = true;
         createItemFromData(payload.new);
         showStatus('New item added by another user');
     } else {
@@ -1228,7 +1235,7 @@ function handleRealtimeInsert(payload) {
 
 function handleRealtimeUpdate(payload) {
     const existingItem = canvas.querySelector(`[data-id="${payload.new.id}"]`);
-    if (existingItem && existingItem !== selectedItem) {
+    if (existingItem && existingItem !== selectedItem && !isDragging) {
         updateItemFromData(existingItem, payload.new);
         showStatus('Item updated by another user');
     }
@@ -1237,7 +1244,16 @@ function handleRealtimeUpdate(payload) {
 function handleRealtimeDelete(payload) {
     const existingItem = canvas.querySelector(`[data-id="${payload.old.id}"]`);
     if (existingItem && existingItem !== selectedItem) {
-        existingItem.remove();
+        // Add exit animation
+        existingItem.style.transition = 'opacity var(--transition-normal), transform var(--transition-normal)';
+        existingItem.style.opacity = '0';
+        existingItem.style.transform = existingItem.style.transform + ' scale(0.8)';
+        
+        // Remove after animation
+        setTimeout(() => {
+            existingItem.remove();
+        }, 300);
+        
         showStatus('Item deleted by another user');
     }
 }
@@ -1480,10 +1496,38 @@ function createItemFromData(data) {
         // Apply border radius as CSS variable
         const borderRadius = data.border_radius || 0;
         item.style.setProperty('--item-border-radius', borderRadius + 'px');
+        
+        // Add entrance animation for new items from other users
+        if (data.fromRealtime) {
+            item.style.opacity = '0';
+            item.style.transform = item.style.transform + ' scale(0.8)';
+            
+            // Animate in
+            requestAnimationFrame(() => {
+                item.style.transition = 'opacity var(--transition-normal), transform var(--transition-normal)';
+                item.style.opacity = '1';
+                item.style.transform = item.style.transform.replace(' scale(0.8)', '');
+                
+                // Clean up transition after animation
+                setTimeout(() => {
+                    item.style.transition = '';
+                }, 300);
+            });
+        }
     }
 }
 
 function updateItemFromData(item, data) {
+    // Add animation class for smooth transitions
+    item.classList.add('remote-update');
+    
+    // Store current values for comparison
+    const currentLeft = parseFloat(item.style.left) || 0;
+    const currentTop = parseFloat(item.style.top) || 0;
+    const currentWidth = parseFloat(item.style.width) || 0;
+    const currentHeight = parseFloat(item.style.height) || 0;
+    const currentRotation = parseFloat(item.dataset.rotation) || 0;
+    
     // Update position and dimensions
     item.style.left = data.x + 'px';
     item.style.top = data.y + 'px';
@@ -1529,6 +1573,24 @@ function updateItemFromData(item, data) {
             }
             break;
     }
+    
+    // Show a subtle indicator for significant changes
+    const positionChanged = Math.abs(data.x - currentLeft) > 5 || Math.abs(data.y - currentTop) > 5;
+    const sizeChanged = Math.abs(data.width - currentWidth) > 5 || Math.abs(data.height - currentHeight) > 5;
+    const rotationChanged = Math.abs(data.rotation - currentRotation) > 5;
+    
+    if (positionChanged || sizeChanged || rotationChanged) {
+        // Add a brief highlight effect
+        item.style.boxShadow = '0 0 20px rgba(102, 126, 234, 0.3)';
+        setTimeout(() => {
+            item.style.boxShadow = '';
+        }, 500);
+    }
+    
+    // Remove animation class after transition completes
+    setTimeout(() => {
+        item.classList.remove('remote-update');
+    }, 300); // Match the transition duration
 }
 
 function getItemContent(item) {

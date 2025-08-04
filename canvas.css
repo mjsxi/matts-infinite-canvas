@@ -254,7 +254,7 @@ body {
     cursor: pointer;
     pointer-events: all;
     transform-origin: center center;
-    transition: all var(--transition-normal);
+    transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
     border: 2px solid transparent;
     user-select: none;
     box-shadow: var(--canvas-item-shadow);
@@ -262,6 +262,11 @@ body {
     backface-visibility: hidden;
     -webkit-transform-style: preserve-3d;
     transform-style: preserve-3d;
+}
+
+/* Animation for real-time updates from other users */
+.canvas-item.remote-update {
+    transition: left var(--transition-normal), top var(--transition-normal), width var(--transition-normal), height var(--transition-normal), transform var(--transition-normal);
 }
 
 .canvas-item:hover {
@@ -277,7 +282,7 @@ body {
 
 .canvas-item.dragging {
     z-index: 10000;
-    transition: none;
+    transition: none !important;
     cursor: grabbing;
 }
 
