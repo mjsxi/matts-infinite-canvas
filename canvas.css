@@ -555,7 +555,7 @@ body {
     height: var(--toolbar-height);
     padding: var(--toolbar-padding);
     justify-content: center;
-    align-items: flex-start;
+    align-items: center;
     gap: var(--toolbar-gap);
     flex-shrink: 0;
     border-radius: 1000px;
@@ -856,6 +856,26 @@ body {
     .toolbar {
         bottom: calc(0px + env(safe-area-inset-bottom));
         box-shadow: none !important;
+        left: 34px;
+        right: 34px;
+        transform: none;
+        padding: 3px;
+        align-items: center; /* Center buttons vertically */
+        justify-content: center; /* Center buttons horizontally */
+    }
+    
+    /* Mobile toolbar buttons - grow to fill available width */
+    .toolbar-btn {
+        flex: 1;
+        padding: 6px;
+        min-width: 0; /* Allow buttons to shrink if needed */
+    }
+    
+    .admin-buttons {
+        gap: 1px;
+        flex: 1;
+        justify-content: stretch;
+        width: 100%;
     }
     
     .text-toolbar {
