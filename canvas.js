@@ -510,6 +510,12 @@ function clearSelection() {
             selectedItem.classList.remove('interactive');
         }
         
+        // Reset text items to non-editing mode when deselected
+        if (selectedItem.classList.contains('text-item')) {
+            selectedItem.classList.remove('editing');
+            selectedItem.contentEditable = false;
+        }
+        
         hideResizeHandles();
         selectedItem = null;
     }
