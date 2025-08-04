@@ -23,8 +23,6 @@ let lastMousePos = { x: 0, y: 0 };
 // Mobile optimization variables
 let pendingTransformUpdate = false;
 let lastTouchMoveTime = 0;
-let pinchDebounceTimer = null;
-let isMobileSafari = false;
 
 // Inertia scrolling variables
 let panVelocity = { x: 0, y: 0 };
@@ -43,36 +41,6 @@ document.addEventListener('DOMContentLoaded', function() {
     canvas = document.getElementById('canvas');
     container = document.getElementById('canvasContainer');
     toolbar = document.getElementById('toolbar');
-    
-    // Detect mobile Safari
-    isMobileSafari = /iPad|iPhone|iPod/.test(navigator.userAgent) && 
-                     /Safari/.test(navigator.userAgent) && 
-                     !/Chrome/.test(navigator.userAgent);
-    
-    // Force hardware acceleration initialization for mobile Safari
-    if (isMobileSafari) {
-        // Force Safari to initialize hardware acceleration layers
-        canvas.style.webkitTransform = 'translateZ(0)';
-        canvas.style.transform = 'translateZ(0)';
-        canvas.style.webkitBackfaceVisibility = 'hidden';
-        canvas.style.backfaceVisibility = 'hidden';
-        canvas.style.willChange = 'transform';
-        
-        // Force a repaint to initialize layers
-        canvas.offsetHeight;
-        
-        // Pre-initialize all canvas items with hardware acceleration
-        setTimeout(() => {
-            const items = canvas.querySelectorAll('.canvas-item');
-            items.forEach(item => {
-                item.style.webkitTransform = 'translateZ(0)';
-                item.style.transform = 'translateZ(0)';
-                item.style.webkitBackfaceVisibility = 'hidden';
-                item.style.backfaceVisibility = 'hidden';
-                item.style.willChange = 'transform';
-            });
-        }, 100);
-    }
     
     checkAuth();
     bindEvents();
@@ -132,10 +100,9 @@ function showCanvas() {
 // Canvas Management
 function updateCanvasTransform() {
     // Clamp values to prevent extreme transforms that cause rendering issues on mobile
-    const maxPan = 50000; // Increased bounds to prevent jumping
-    const clampedX = Math.max(-maxPan, Math.min(maxPan, canvasTransform.x));
-    const clampedY = Math.max(-maxPan, Math.min(maxPan, canvasTransform.y));
-    const clampedScale = Math.max(0.1, Math.min(3, canvasTransform.scale));
+    const clampedX = Math.max(-50000, Math.min(50000, canvasTransform.x));
+    const clampedY = Math.max(-50000, Math.min(50000, canvasTransform.y));
+    const clampedScale = Math.max(0.05, Math.min(5, canvasTransform.scale));
     
     // Update the clamped values back to the transform object
     canvasTransform.x = clampedX;
@@ -144,39 +111,6 @@ function updateCanvasTransform() {
     
     const transform = `translate(${clampedX}px, ${clampedY}px) scale(${clampedScale})`;
     canvas.style.transform = transform;
-    
-    // CRITICAL: For mobile Safari, ensure items are always visible after transform
-    if (isMobileSafari) {
-        // Force hardware acceleration on every transform
-        canvas.style.webkitTransform = transform;
-        canvas.style.willChange = 'transform';
-        
-        // Force a check to ensure all items are still visible
-        requestAnimationFrame(() => {
-            const items = canvas.querySelectorAll('.canvas-item');
-            items.forEach(item => {
-                // Ensure each item has hardware acceleration
-                item.style.webkitTransform = item.style.transform;
-                item.style.willChange = 'transform';
-                
-                // If item has disappeared, force it back
-                if (item.offsetParent === null && item.style.display !== 'none') {
-                    console.log('Item disappeared, forcing visibility:', item);
-                    
-                    // Force hardware acceleration and visibility
-                    item.style.webkitTransform = 'translateZ(0)';
-                    item.style.transform = 'translateZ(0)';
-                    item.style.visibility = 'hidden';
-                    item.offsetHeight; // Force reflow
-                    item.style.visibility = 'visible';
-                    
-                    // Restore the item's original transform
-                    const originalTransform = item.style.transform;
-                    item.style.webkitTransform = originalTransform;
-                }
-            });
-        });
-    }
     
     // Reset pending update flag
     pendingTransformUpdate = false;
@@ -204,36 +138,19 @@ function forceCanvasRerender() {
         items.forEach(item => {
             // Trigger a style recalculation
             item.style.transform = item.style.transform;
-            
-            // Force hardware acceleration and prevent Safari from hiding items
-            item.style.webkitTransform = item.style.transform;
-            item.style.webkitBackfaceVisibility = 'hidden';
-            item.style.backfaceVisibility = 'hidden';
         });
         
         // Force canvas reflow
         canvas.offsetHeight; // Trigger reflow
-        
-        // Force canvas hardware acceleration
-        canvas.style.webkitTransform = canvas.style.transform;
-        canvas.style.webkitBackfaceVisibility = 'hidden';
-        canvas.style.backfaceVisibility = 'hidden';
         
         // Double-check that items are visible
         requestAnimationFrame(() => {
             items.forEach(item => {
                 if (item.offsetParent === null && item.style.display !== 'none') {
                     // Item might have disappeared, force visibility
-                    console.log('Item disappeared in rerender, forcing visibility:', item);
                     item.style.visibility = 'hidden';
                     item.offsetHeight; // Trigger reflow
                     item.style.visibility = 'visible';
-                    
-                    // Force the item to be visible by temporarily changing its position
-                    const originalLeft = item.style.left;
-                    const originalTop = item.style.top;
-                    item.style.left = originalLeft;
-                    item.style.top = originalTop;
                 }
             });
         });
@@ -249,22 +166,9 @@ function bindEvents() {
     container.addEventListener('wheel', handleWheel, { passive: false });
     
     // Touch events for mobile/tablet
-    if (isMobileSafari) {
-        // Mobile Safari specific touch handling
-        container.addEventListener('touchstart', handleTouchStart, { passive: false });
-        container.addEventListener('touchmove', handleTouchMove, { passive: false });
-        container.addEventListener('touchend', handleTouchEnd, { passive: false });
-        
-        // Additional touch event listeners for better mobile Safari support
-        container.addEventListener('gesturestart', handleGestureStart, { passive: false });
-        container.addEventListener('gesturechange', handleGestureChange, { passive: false });
-        container.addEventListener('gestureend', handleGestureEnd, { passive: false });
-    } else {
-        // Standard touch handling for other browsers
-        container.addEventListener('touchstart', handleTouchStart, { passive: false });
-        container.addEventListener('touchmove', handleTouchMove, { passive: false });
-        container.addEventListener('touchend', handleTouchEnd, { passive: false });
-    }
+    container.addEventListener('touchstart', handleTouchStart, { passive: false });
+    container.addEventListener('touchmove', handleTouchMove, { passive: false });
+    container.addEventListener('touchend', handleTouchEnd, { passive: false });
     
     // File input
     document.getElementById('fileInput').addEventListener('change', handleFileSelect);
@@ -393,20 +297,10 @@ function handleWheel(e) {
         const zoomFactor = e.ctrlKey || e.metaKey ? 0.99 : 0.985; // More responsive for trackpad
         const newScale = Math.max(0.05, Math.min(5, canvasTransform.scale * (zoomFactor ** delta)));
         
-        // FIXED: Use the same stable transform calculation
+        // Zoom towards mouse/cursor position
         const scaleRatio = newScale / canvasTransform.scale;
-        
-        // Calculate the offset from the mouse position
-        const offsetX = mouseX - canvasTransform.x;
-        const offsetY = mouseY - canvasTransform.y;
-        
-        // Apply the scale change to the offset
-        const scaledOffsetX = offsetX * scaleRatio;
-        const scaledOffsetY = offsetY * scaleRatio;
-        
-        // Calculate new position relative to the mouse
-        canvasTransform.x = mouseX - scaledOffsetX;
-        canvasTransform.y = mouseY - scaledOffsetY;
+        canvasTransform.x = mouseX - (mouseX - canvasTransform.x) * scaleRatio;
+        canvasTransform.y = mouseY - (mouseY - canvasTransform.y) * scaleRatio;
         canvasTransform.scale = newScale;
     } else {
         // Two-finger scroll (pan)
@@ -492,9 +386,8 @@ function handleTouchMove(e) {
         const newX = touchStartTransform.x + deltaX;
         const newY = touchStartTransform.y + deltaY;
         
-        const maxPan = 50000; // Increased bounds to prevent jumping
-        canvasTransform.x = Math.max(-maxPan, Math.min(maxPan, newX));
-        canvasTransform.y = Math.max(-maxPan, Math.min(maxPan, newY));
+        canvasTransform.x = Math.max(-30000, Math.min(30000, newX));
+        canvasTransform.y = Math.max(-30000, Math.min(30000, newY));
         
         throttledUpdateCanvasTransform();
         
@@ -511,14 +404,9 @@ function handleTouchMove(e) {
         if (panPositions.length > 5) {
             panPositions.shift();
         }
-    } else if (e.touches.length >= 2 && !isMobileSafari) {
-        // Multi-touch pinch-to-zoom (only for non-mobile Safari)
+    } else if (e.touches.length >= 2) {
+        // Multi-touch pinch-to-zoom
         e.preventDefault();
-        
-        // Clear any pending debounce timer
-        if (pinchDebounceTimer) {
-            clearTimeout(pinchDebounceTimer);
-        }
         
         const touch1 = e.touches[0];
         const touch2 = e.touches[1];
@@ -537,10 +425,10 @@ function handleTouchMove(e) {
         if (touchStartDistance > 0) {
             // Calculate scale with smoother scaling for better mobile performance
             const scaleChange = currentDistance / touchStartDistance;
-            const newScale = Math.max(0.1, Math.min(3, touchStartTransform.scale * scaleChange));
+            const newScale = Math.max(0.05, Math.min(5, touchStartTransform.scale * scaleChange));
             
-            // More conservative scale change limits for fast gestures
-            const maxScaleChange = 0.1; // Reduced for faster gestures
+            // Prevent extreme scale changes that can cause rendering issues
+            const maxScaleChange = 0.1; // Limit scale change per frame
             const currentScaleChange = Math.abs(newScale - canvasTransform.scale);
             if (currentScaleChange > maxScaleChange) {
                 return; // Skip this frame if scale change is too extreme
@@ -550,41 +438,26 @@ function handleTouchMove(e) {
             const panX = currentCenter.x - touchStartCenter.x;
             const panY = currentCenter.y - touchStartCenter.y;
             
-            // Use a simpler zoom calculation that doesn't rely on complex transform math
+            // Apply zoom towards gesture center
+            const rect = container.getBoundingClientRect();
+            const centerX = touchStartCenter.x - rect.left;
+            const centerY = touchStartCenter.y - rect.top;
+            
             const scaleRatio = newScale / touchStartTransform.scale;
-            
-            // FIXED: Use the same stable transform calculation
-            // Calculate the offset from the gesture center
-            const offsetX = currentCenter.x - touchStartCenter.x;
-            const offsetY = currentCenter.y - touchStartCenter.y;
-            
-            // Apply the scale change to the offset
-            const scaledOffsetX = offsetX * scaleRatio;
-            const scaledOffsetY = offsetY * scaleRatio;
-            
-            // Calculate new position relative to the original transform
-            const newX = touchStartTransform.x + scaledOffsetX;
-            const newY = touchStartTransform.y + scaledOffsetY;
+            const newX = centerX - (centerX - touchStartTransform.x) * scaleRatio + panX;
+            const newY = centerY - (centerY - touchStartTransform.y) * scaleRatio + panY;
             
             // Bounds checking to prevent extreme pan values
-            const maxPan = 50000; // Increased bounds to prevent jumping
-            canvasTransform.x = Math.max(-maxPan, Math.min(maxPan, newX));
-            canvasTransform.y = Math.max(-maxPan, Math.min(maxPan, newY));
+            canvasTransform.x = Math.max(-30000, Math.min(30000, newX));
+            canvasTransform.y = Math.max(-30000, Math.min(30000, newY));
             canvasTransform.scale = newScale;
             
-            // Use immediate update for pinch gestures to prevent lag
-            updateCanvasTransform();
+            throttledUpdateCanvasTransform();
             
-            // Force rerender for extreme zoom levels to prevent disappearing items
-            if (newScale < 0.3 || newScale > 2.5) {
-                forceCanvasRerender();
+            // Reduce aggressive rerender calls - only after significant scale changes
+            if (Math.abs(newScale - touchStartTransform.scale) > 0.3) {
+                setTimeout(() => forceCanvasRerender(), 200);
             }
-            
-            // Debounce rapid pinch gestures to prevent Safari from losing track
-            pinchDebounceTimer = setTimeout(() => {
-                forceCanvasRerender();
-                pinchDebounceTimer = null;
-            }, 50);
         }
     }
 }
@@ -594,12 +467,6 @@ function handleTouchEnd(e) {
         // All touches ended
         touchStartDistance = 0;
         touchStartCenter = { x: 0, y: 0 };
-        
-        // Clear any pending pinch debounce timer
-        if (pinchDebounceTimer) {
-            clearTimeout(pinchDebounceTimer);
-            pinchDebounceTimer = null;
-        }
         
         // Handle inertia for single touch panning
         if (isSingleTouchPanning && panPositions.length >= 2) {
@@ -622,8 +489,8 @@ function handleTouchEnd(e) {
         isSingleTouchPanning = false;
         panPositions = [];
         
-        // Force rerender when touch ends
-        setTimeout(() => forceCanvasRerender(), 100);
+        // Reduce aggressive rerender calls - only when needed
+        setTimeout(() => forceCanvasRerender(), 300);
     } else if (e.touches.length === 1) {
         // Went from multi-touch to single touch
         touchStartDistance = 0;
@@ -1102,18 +969,6 @@ function createImageItem(src, x = centerPoint.x, y = centerPoint.y, width = 200,
     item.appendChild(img);
     canvas.appendChild(item);
     
-    // For mobile Safari, ensure hardware acceleration is initialized
-    if (isMobileSafari) {
-        item.style.webkitTransform = 'translateZ(0)';
-        item.style.transform = 'translateZ(0)';
-        item.style.webkitBackfaceVisibility = 'hidden';
-        item.style.backfaceVisibility = 'hidden';
-        item.style.willChange = 'transform';
-        
-        // Force a repaint to initialize the layer
-        item.offsetHeight;
-    }
-    
     if (!fromDatabase) {
         selectItem(item);
         // Save immediately with initial dimensions
@@ -1196,18 +1051,6 @@ function createTextItem(content = 'Click to edit text...', x = centerPoint.x, y 
     
     canvas.appendChild(item);
     
-    // For mobile Safari, ensure hardware acceleration is initialized
-    if (isMobileSafari) {
-        item.style.webkitTransform = 'translateZ(0)';
-        item.style.transform = 'translateZ(0)';
-        item.style.webkitBackfaceVisibility = 'hidden';
-        item.style.backfaceVisibility = 'hidden';
-        item.style.willChange = 'transform';
-        
-        // Force a repaint to initialize the layer
-        item.offsetHeight;
-    }
-    
     if (!fromDatabase) {
         selectItem(item);
         saveItemToDatabase(item);
@@ -1277,18 +1120,6 @@ function createCodeItem(htmlContent, x = centerPoint.x, y = centerPoint.y, width
     });
     
     canvas.appendChild(item);
-    
-    // For mobile Safari, ensure hardware acceleration is initialized
-    if (isMobileSafari) {
-        item.style.webkitTransform = 'translateZ(0)';
-        item.style.transform = 'translateZ(0)';
-        item.style.webkitBackfaceVisibility = 'hidden';
-        item.style.backfaceVisibility = 'hidden';
-        item.style.willChange = 'transform';
-        
-        // Force a repaint to initialize the layer
-        item.offsetHeight;
-    }
     
     if (!fromDatabase) {
         selectItem(item);
@@ -1812,73 +1643,3 @@ document.addEventListener('keydown', function(e) {
         login();
     }
 });
-
-function handleGestureStart(e) {
-    if (isMobileSafari) {
-        e.preventDefault();
-        // Store initial gesture state
-        touchStartTransform = { ...canvasTransform };
-        
-        // Force hardware acceleration initialization before gesture starts
-        canvas.style.webkitTransform = canvas.style.transform;
-        canvas.style.willChange = 'transform';
-        
-        // Ensure all items have hardware acceleration
-        const items = canvas.querySelectorAll('.canvas-item');
-        items.forEach(item => {
-            item.style.webkitTransform = item.style.transform;
-            item.style.willChange = 'transform';
-        });
-    }
-}
-
-function handleGestureChange(e) {
-    if (isMobileSafari) {
-        e.preventDefault();
-        
-        // Use Safari's native gesture scale
-        const newScale = Math.max(0.1, Math.min(3, touchStartTransform.scale * e.scale));
-        
-        // Calculate new position with better bounds checking
-        const rect = container.getBoundingClientRect();
-        const centerX = e.clientX - rect.left;
-        const centerY = e.clientY - rect.top;
-        
-        // FIXED: Use a more stable transform calculation that doesn't cause jumping
-        const scaleRatio = newScale / touchStartTransform.scale;
-        
-        // Calculate the offset from the gesture center
-        const offsetX = centerX - touchStartCenter.x;
-        const offsetY = centerY - touchStartCenter.y;
-        
-        // Apply the scale change to the offset
-        const scaledOffsetX = offsetX * scaleRatio;
-        const scaledOffsetY = offsetY * scaleRatio;
-        
-        // Calculate new position relative to the original transform
-        const newX = touchStartTransform.x + scaledOffsetX;
-        const newY = touchStartTransform.y + scaledOffsetY;
-        
-        // Apply bounds checking with better limits
-        const maxPan = 50000; // Increased bounds to prevent jumping
-        canvasTransform.x = Math.max(-maxPan, Math.min(maxPan, newX));
-        canvasTransform.y = Math.max(-maxPan, Math.min(maxPan, newY));
-        canvasTransform.scale = newScale;
-        
-        // CRITICAL: Force immediate update and rerender to prevent disappearing items
-        updateCanvasTransform();
-        
-        // Force a rerender immediately to ensure items stay visible
-        requestAnimationFrame(() => {
-            forceCanvasRerender();
-        });
-    }
-}
-
-function handleGestureEnd(e) {
-    if (isMobileSafari) {
-        e.preventDefault();
-        // Force rerender after gesture ends
-        setTimeout(() => forceCanvasRerender(), 50);
-    }
-}
