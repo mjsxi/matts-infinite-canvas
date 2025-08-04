@@ -465,6 +465,10 @@ function handleKeyDown(e) {
         } else {
             clearSelection();
         }
+    } else if (e.key === 'z' && e.ctrlKey) {
+        // Ctrl+Z to manually sync z-indexes to database
+        e.preventDefault();
+        syncZIndexesToDatabase();
     }
 }
 
@@ -841,10 +845,9 @@ function createImageItem(src, x = centerPoint.x, y = centerPoint.y, width = 200,
     // Set z-index to be on top for new items
     if (!fromDatabase) {
         item.dataset.id = ++itemCounter;
-        // Get the highest z-index and add 1
+        // Get the next available z-index (number of items + 1)
         const items = Array.from(canvas.querySelectorAll('.canvas-item'));
-        const maxZIndex = items.length > 0 ? Math.max(...items.map(item => parseInt(item.style.zIndex) || 1)) : 1;
-        item.style.zIndex = maxZIndex + 1;
+        item.style.zIndex = items.length + 1;
     }
     item.dataset.type = 'image';
     
@@ -919,10 +922,9 @@ function createTextItem(content = 'Click to edit text...', x = centerPoint.x, y 
     // Set z-index to be on top for new items
     if (!fromDatabase) {
         item.dataset.id = ++itemCounter;
-        // Get the highest z-index and add 1
+        // Get the next available z-index (number of items + 1)
         const items = Array.from(canvas.querySelectorAll('.canvas-item'));
-        const maxZIndex = items.length > 0 ? Math.max(...items.map(item => parseInt(item.style.zIndex) || 1)) : 1;
-        item.style.zIndex = maxZIndex + 1;
+        item.style.zIndex = items.length + 1;
     }
     item.dataset.type = 'text';
     
@@ -978,10 +980,9 @@ function createCodeItem(htmlContent, x = centerPoint.x, y = centerPoint.y, width
     // Set z-index to be on top for new items
     if (!fromDatabase) {
         item.dataset.id = ++itemCounter;
-        // Get the highest z-index and add 1
+        // Get the next available z-index (number of items + 1)
         const items = Array.from(canvas.querySelectorAll('.canvas-item'));
-        const maxZIndex = items.length > 0 ? Math.max(...items.map(item => parseInt(item.style.zIndex) || 1)) : 1;
-        item.style.zIndex = maxZIndex + 1;
+        item.style.zIndex = items.length + 1;
     }
     item.dataset.type = 'code';
     
@@ -1012,6 +1013,8 @@ function deleteItem(item) {
         deleteItemFromDatabase(item);
         item.remove();
         clearSelection();
+        // Normalize z-indexes after deletion
+        normalizeZIndexes();
     }
 }
 
@@ -1072,23 +1075,53 @@ function clearAll() {
     }
 }
 
-// Z-Index Management
+// Z-Index Management - No Duplicates System
+function getSortedItems() {
+    const items = Array.from(canvas.querySelectorAll('.canvas-item'));
+    return items.sort((a, b) => {
+        const zA = parseInt(a.style.zIndex) || 1;
+        const zB = parseInt(b.style.zIndex) || 1;
+        return zA - zB;
+    });
+}
+
+function normalizeZIndexes() {
+    const items = getSortedItems();
+    console.log('Normalizing z-indexes for', items.length, 'items');
+    
+    items.forEach((item, index) => {
+        const newZIndex = index + 1;
+        const currentZIndex = parseInt(item.style.zIndex) || 1;
+        if (currentZIndex !== newZIndex) {
+            console.log(`Updating item ${item.dataset.id}: z-index ${currentZIndex} → ${newZIndex}`);
+            item.style.zIndex = newZIndex;
+            // Only save to database if the item has a valid ID (not just created)
+            if (item.dataset.id) {
+                saveItemToDatabase(item);
+            }
+        }
+    });
+    
+    console.log('Z-index normalization complete');
+}
+
 function bringToFront() {
     if (selectedItem) {
-        // Get all canvas items
-        const items = Array.from(canvas.querySelectorAll('.canvas-item'));
-        
-        // Find current z-index of selected item
+        const items = getSortedItems();
         const currentZIndex = parseInt(selectedItem.style.zIndex) || 1;
+        const maxZIndex = items.length;
         
-        // Find the highest z-index among all items
-        const maxZIndex = Math.max(...items.map(item => parseInt(item.style.zIndex) || 1));
+        // If already at front, do nothing
+        if (currentZIndex === maxZIndex) {
+            showStatus('Item is already at the front');
+            return;
+        }
         
         // Set selected item to front
         selectedItem.style.zIndex = maxZIndex + 1;
         
-        // Update database with new z-index
-        saveItemToDatabase(selectedItem);
+        // Normalize all other items to have continuous z-indexes
+        normalizeZIndexes();
         
         showStatus('Brought to front');
     } else {
@@ -1098,22 +1131,38 @@ function bringToFront() {
 
 function sendToBack() {
     if (selectedItem) {
-        // Get all canvas items
-        const items = Array.from(canvas.querySelectorAll('.canvas-item'));
+        const items = getSortedItems();
+        const currentZIndex = parseInt(selectedItem.style.zIndex) || 1;
         
-        // Find the lowest z-index among all items
-        const minZIndex = Math.min(...items.map(item => parseInt(item.style.zIndex) || 1));
+        // If already at back, do nothing
+        if (currentZIndex === 1) {
+            showStatus('Item is already at the back');
+            return;
+        }
         
         // Set selected item to back
-        selectedItem.style.zIndex = minZIndex - 1;
+        selectedItem.style.zIndex = 0;
         
-        // Update database with new z-index
-        saveItemToDatabase(selectedItem);
+        // Normalize all other items to have continuous z-indexes
+        normalizeZIndexes();
         
         showStatus('Sent to back');
     } else {
         showStatus('Please select an item first');
     }
+}
+
+// Manual z-index sync function for debugging
+function syncZIndexesToDatabase() {
+    console.log('Manually syncing z-indexes to database...');
+    const items = Array.from(canvas.querySelectorAll('.canvas-item'));
+    items.forEach(item => {
+        if (item.dataset.id) {
+            console.log(`Syncing item ${item.dataset.id} with z-index ${item.style.zIndex}`);
+            saveItemToDatabase(item);
+        }
+    });
+    showStatus('Z-indexes synced to database');
 }
 
 // Real-time Subscription
@@ -1321,6 +1370,10 @@ async function loadCanvasData() {
                 createItemFromData(itemData);
             });
             itemCounter = maxId;
+            
+            // Normalize z-indexes after loading all items
+            normalizeZIndexes();
+            
             showStatus(`Loaded ${items.length} items from database`);
         } else {
             console.log('No items found in database');

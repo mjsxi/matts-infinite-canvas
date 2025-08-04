@@ -272,11 +272,11 @@ body {
 .canvas-item.selected {
     border-color: var(--canvas-item-border-selected);
     box-shadow: var(--canvas-item-shadow-selected);
-    z-index: var(--z-index-toolbar);
+    z-index: 9999;
 }
 
 .canvas-item.dragging {
-    z-index: calc(var(--z-index-toolbar) + 1);
+    z-index: 10000;
     transition: none;
     cursor: grabbing;
 }
@@ -414,7 +414,7 @@ body {
     bottom: var(--handle-offset);
     pointer-events: none;
     border: 2px solid var(--handle-color);
-    z-index: 1001;
+    z-index: 10001;
 }
 
 .resize-handle {
@@ -427,7 +427,7 @@ body {
     pointer-events: all;
     transform: translate(-50%, -50%);
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
-    z-index: 1002;
+    z-index: 10002;
 }
 
 .resize-handle:hover {
@@ -456,7 +456,7 @@ body {
     pointer-events: all;
     transform: translate(-50%, -50%);
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
-    z-index: 1002;
+    z-index: 10002;
     top: calc(0px - var(--rotation-handle-distance));
     left: 50%;
     cursor: alias;
