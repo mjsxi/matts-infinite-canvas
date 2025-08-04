@@ -619,15 +619,27 @@ function startResize(e, direction) {
     const itemRect = selectedItem.getBoundingClientRect();
     const canvasRect = canvas.getBoundingClientRect();
     
+    // Determine item types early
+    const isImage = selectedItem.classList.contains('image-item');
+    const isText = selectedItem.classList.contains('text-item');
+    
     // Get current item dimensions in canvas coordinates
-    const startWidth = parseFloat(selectedItem.style.width) || itemRect.width / canvasTransform.scale;
-    const startHeight = parseFloat(selectedItem.style.height) || itemRect.height / canvasTransform.scale;
+    let startWidth, startHeight;
+    
+    if (isText) {
+        // For text items, use the current rendered width/height as starting point
+        // This allows free resizing from whatever the current size is
+        startWidth = itemRect.width / canvasTransform.scale;
+        startHeight = itemRect.height / canvasTransform.scale;
+    } else {
+        // For non-text items, use explicit styles or fall back to rendered size
+        startWidth = parseFloat(selectedItem.style.width) || itemRect.width / canvasTransform.scale;
+        startHeight = parseFloat(selectedItem.style.height) || itemRect.height / canvasTransform.scale;
+    }
     const startLeft = parseFloat(selectedItem.style.left);
     const startTop = parseFloat(selectedItem.style.top);
     
     // For images, maintain aspect ratio
-    const isImage = selectedItem.classList.contains('image-item');
-    const isText = selectedItem.classList.contains('text-item');
     const aspectRatio = isImage ? parseFloat(selectedItem.dataset.aspectRatio) || (startWidth / startHeight) : (startWidth / startHeight);
     
     function handleResizeMove(e) {
@@ -691,22 +703,46 @@ function startResize(e, direction) {
                     break;
             }
         } else if (isText) {
-            // For text items, only allow minimum width adjustment and let height size naturally
+            // For text items, allow free width and height adjustment
             switch (direction) {
-                case 'e': // Right - adjust min-width
-                    const newMinWidth = Math.max(50, startWidth + deltaX);
-                    selectedItem.style.minWidth = newMinWidth + 'px';
-                    return; // Don't set explicit width/height
-                case 'w': // Left - adjust min-width and position
-                    const newMinWidthLeft = Math.max(50, startWidth - deltaX);
-                    selectedItem.style.minWidth = newMinWidthLeft + 'px';
-                    selectedItem.style.left = (startLeft + deltaX) + 'px';
-                    return; // Don't set explicit width/height
-                default:
-                    // For other directions, just move the item
-                    selectedItem.style.left = (startLeft + deltaX) + 'px';
-                    selectedItem.style.top = (startTop + deltaY) + 'px';
-                    return; // Don't set explicit width/height
+                case 'e': // Right - adjust width only
+                    newWidth = startWidth + deltaX;
+                    newHeight = startHeight;
+                    break;
+                case 'w': // Left - adjust width and position
+                    newWidth = startWidth - deltaX;
+                    newHeight = startHeight;
+                    newLeft = startLeft + deltaX;
+                    break;
+                case 'n': // Top - adjust height and position
+                    newWidth = startWidth;
+                    newHeight = startHeight - deltaY;
+                    newTop = startTop + deltaY;
+                    break;
+                case 's': // Bottom - adjust height
+                    newWidth = startWidth;
+                    newHeight = startHeight + deltaY;
+                    break;
+                case 'se': // Bottom-right - adjust both width and height
+                    newWidth = startWidth + deltaX;
+                    newHeight = startHeight + deltaY;
+                    break;
+                case 'sw': // Bottom-left - adjust both width and height
+                    newWidth = startWidth - deltaX;
+                    newHeight = startHeight + deltaY;
+                    newLeft = startLeft + deltaX;
+                    break;
+                case 'ne': // Top-right - adjust both width and height
+                    newWidth = startWidth + deltaX;
+                    newHeight = startHeight - deltaY;
+                    newTop = startTop + deltaY;
+                    break;
+                case 'nw': // Top-left - adjust both width and height
+                    newWidth = startWidth - deltaX;
+                    newHeight = startHeight - deltaY;
+                    newLeft = startLeft + deltaX;
+                    newTop = startTop + deltaY;
+                    break;
             }
         } else {
             // For non-images (code), allow free resizing
@@ -748,12 +784,18 @@ function startResize(e, direction) {
             }
         }
         
-        // Apply new dimensions and position (only for non-text items)
-        if (!isText) {
-            selectedItem.style.width = newWidth + 'px';
-            selectedItem.style.height = newHeight + 'px';
-            selectedItem.style.left = newLeft + 'px';
-            selectedItem.style.top = newTop + 'px';
+        // Apply new dimensions and position
+        selectedItem.style.width = newWidth + 'px';
+        selectedItem.style.height = newHeight + 'px';
+        selectedItem.style.left = newLeft + 'px';
+        selectedItem.style.top = newTop + 'px';
+        
+        // For text items, remove any min/max constraints since we're setting explicit dimensions
+        if (isText) {
+            selectedItem.style.minWidth = '';
+            selectedItem.style.minHeight = '';
+            selectedItem.style.maxWidth = '';
+            selectedItem.style.maxHeight = '';
         }
     }
     
@@ -943,7 +985,7 @@ function addText() {
     createTextItem('Double-click to edit text...', centerPoint.x, centerPoint.y);
 }
 
-function createTextItem(content = 'Double-click to edit text...', x = centerPoint.x, y = centerPoint.y, fromDatabase = false) {
+function createTextItem(content = 'Double-click to edit text...', x = centerPoint.x, y = centerPoint.y, width = null, height = null, fromDatabase = false) {
     const item = document.createElement('div');
     item.className = 'canvas-item text-item';
     item.style.left = x + 'px';
@@ -957,9 +999,16 @@ function createTextItem(content = 'Double-click to edit text...', x = centerPoin
     item.style.fontWeight = '400';
     item.style.color = '#333333';
     item.style.lineHeight = '1.15';
-    item.style.minWidth = '100px';
-    item.style.minHeight = '30px';
     item.style.padding = '8px';
+    
+    // Set dimensions if provided (from database)
+    if (width && width > 0) {
+        item.style.width = width + 'px';
+    }
+    
+    if (height && height > 0) {
+        item.style.height = height + 'px';
+    }
     
     // Set default border radius as CSS variable
     item.style.setProperty('--item-border-radius', '0px');
@@ -1301,8 +1350,11 @@ function handleCenterUpdate(payload) {
 
 // Database Operations
 async function saveItemToDatabase(item) {
-    // For text items, we don't want to save width/height as they should size naturally
     const isTextItem = item.dataset.type === 'text';
+    
+    // For text items, save width/height if they have been explicitly set
+    const hasExplicitWidth = isTextItem && item.style.width && item.style.width !== '';
+    const hasExplicitHeight = isTextItem && item.style.height && item.style.height !== '';
     
     const itemData = {
         id: parseInt(item.dataset.id),
@@ -1311,8 +1363,8 @@ async function saveItemToDatabase(item) {
         item_type: item.dataset.type,
         content: getItemContent(item),
         user_id: 'admin', // Set user ID - you can customize this
-        width: isTextItem ? null : (parseFloat(item.style.width) || 100),
-        height: isTextItem ? null : (parseFloat(item.style.height) || 100),
+        width: hasExplicitWidth ? (parseFloat(item.style.width) || null) : (isTextItem ? null : (parseFloat(item.style.width) || 100)),
+        height: hasExplicitHeight ? (parseFloat(item.style.height) || null) : (isTextItem ? null : (parseFloat(item.style.height) || 100)),
         original_width: isTextItem ? null : (parseFloat(item.style.width) || 100),
         original_height: isTextItem ? null : (parseFloat(item.style.height) || 100),
         aspect_ratio: parseFloat(item.dataset.aspectRatio) || 1,
@@ -1481,7 +1533,7 @@ function createItemFromData(data) {
             item = createImageItem(data.content, data.x, data.y, data.width, data.height, true);
             break;
         case 'text':
-            item = createTextItem(data.content, data.x, data.y, true);
+            item = createTextItem(data.content, data.x, data.y, data.width, data.height, true);
             break;
         case 'code':
             // Use html_content if available, fallback to content
@@ -1567,9 +1619,22 @@ function updateItemFromData(item, data) {
     item.style.left = data.x + 'px';
     item.style.top = data.y + 'px';
     
-    // Only apply width/height to non-text items
+    // Apply width/height - for text items, only if explicitly set in database
     const itemType = data.item_type || data.type;
-    if (itemType !== 'text') {
+    if (itemType === 'text') {
+        // For text items, apply width/height only if they exist in database (explicit sizing)
+        if (data.width && data.width > 0) {
+            item.style.width = data.width + 'px';
+            item.style.minWidth = '';
+            item.style.maxWidth = '';
+        }
+        if (data.height && data.height > 0) {
+            item.style.height = data.height + 'px';
+            item.style.minHeight = '';
+            item.style.maxHeight = '';
+        }
+    } else {
+        // For non-text items, apply dimensions normally
         if (data.width) item.style.width = data.width + 'px';
         if (data.height) item.style.height = data.height + 'px';
     }

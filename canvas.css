@@ -313,12 +313,14 @@ body {
     font-size: var(--font-size-md);
     line-height: 1.5;
     color: var(--color-text-primary);
-    min-width: 100px;
-    max-width: 400px;
     word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    hyphens: auto;
     outline: none;
     box-shadow: none; /* No shadow by default for text items */
     cursor: pointer; /* Show pointer cursor when not editing */
+    overflow: hidden; /* Prevent text from overflowing the container */
 }
 
 .text-item[contenteditable="true"] {
