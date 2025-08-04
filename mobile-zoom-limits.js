@@ -11,11 +11,8 @@
     }
     
     if (!isMobileDevice()) {
-        console.log('Not a mobile device - mobile zoom limits skipped');
         return; // Exit if not mobile
     }
-    
-    console.log('Mobile device detected - applying zoom limits');
     
     // Mobile zoom limits
     const MOBILE_MIN_SCALE = 0.25; // this is for how far you can zoom out
@@ -118,12 +115,6 @@
                 const requestedScale = touchStartTransform.scale * scaleChange;
                 const newScale = Math.max(MOBILE_MIN_SCALE, Math.min(MOBILE_MAX_SCALE, requestedScale));
                 
-                // Debug logging to verify limits are working
-                if (requestedScale !== newScale) {
-                    console.log(`Zoom limited: requested ${requestedScale.toFixed(3)}x, clamped to ${newScale.toFixed(3)}x`);
-                } else {
-                    console.log(`Zoom allowed: ${newScale.toFixed(3)}x (within limits)`);
-                }
                 
                 const panX = currentCenter.x - touchStartCenter.x;
                 const panY = currentCenter.y - touchStartCenter.y;
@@ -185,7 +176,6 @@
             };
         }
         
-        console.log(`Mobile zoom limits applied: ${MOBILE_MIN_SCALE}x - ${MOBILE_MAX_SCALE}x`);
     }
     
     // Initialize when DOM is ready
