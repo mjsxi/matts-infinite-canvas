@@ -49,6 +49,31 @@ document.addEventListener('DOMContentLoaded', function() {
                      /Safari/.test(navigator.userAgent) && 
                      !/Chrome/.test(navigator.userAgent);
     
+    // Force hardware acceleration initialization for mobile Safari
+    if (isMobileSafari) {
+        // Force Safari to initialize hardware acceleration layers
+        canvas.style.webkitTransform = 'translateZ(0)';
+        canvas.style.transform = 'translateZ(0)';
+        canvas.style.webkitBackfaceVisibility = 'hidden';
+        canvas.style.backfaceVisibility = 'hidden';
+        canvas.style.willChange = 'transform';
+        
+        // Force a repaint to initialize layers
+        canvas.offsetHeight;
+        
+        // Pre-initialize all canvas items with hardware acceleration
+        setTimeout(() => {
+            const items = canvas.querySelectorAll('.canvas-item');
+            items.forEach(item => {
+                item.style.webkitTransform = 'translateZ(0)';
+                item.style.transform = 'translateZ(0)';
+                item.style.webkitBackfaceVisibility = 'hidden';
+                item.style.backfaceVisibility = 'hidden';
+                item.style.willChange = 'transform';
+            });
+        }, 100);
+    }
+    
     checkAuth();
     bindEvents();
 });
@@ -121,16 +146,32 @@ function updateCanvasTransform() {
     
     // CRITICAL: For mobile Safari, ensure items are always visible after transform
     if (isMobileSafari) {
+        // Force hardware acceleration on every transform
+        canvas.style.webkitTransform = transform;
+        canvas.style.willChange = 'transform';
+        
         // Force a check to ensure all items are still visible
         requestAnimationFrame(() => {
             const items = canvas.querySelectorAll('.canvas-item');
             items.forEach(item => {
+                // Ensure each item has hardware acceleration
+                item.style.webkitTransform = item.style.transform;
+                item.style.willChange = 'transform';
+                
                 // If item has disappeared, force it back
                 if (item.offsetParent === null && item.style.display !== 'none') {
                     console.log('Item disappeared, forcing visibility:', item);
+                    
+                    // Force hardware acceleration and visibility
+                    item.style.webkitTransform = 'translateZ(0)';
+                    item.style.transform = 'translateZ(0)';
                     item.style.visibility = 'hidden';
                     item.offsetHeight; // Force reflow
                     item.style.visibility = 'visible';
+                    
+                    // Restore the item's original transform
+                    const originalTransform = item.style.transform;
+                    item.style.webkitTransform = originalTransform;
                 }
             });
         });
@@ -1047,6 +1088,18 @@ function createImageItem(src, x = centerPoint.x, y = centerPoint.y, width = 200,
     item.appendChild(img);
     canvas.appendChild(item);
     
+    // For mobile Safari, ensure hardware acceleration is initialized
+    if (isMobileSafari) {
+        item.style.webkitTransform = 'translateZ(0)';
+        item.style.transform = 'translateZ(0)';
+        item.style.webkitBackfaceVisibility = 'hidden';
+        item.style.backfaceVisibility = 'hidden';
+        item.style.willChange = 'transform';
+        
+        // Force a repaint to initialize the layer
+        item.offsetHeight;
+    }
+    
     if (!fromDatabase) {
         selectItem(item);
         // Save immediately with initial dimensions
@@ -1129,6 +1182,18 @@ function createTextItem(content = 'Click to edit text...', x = centerPoint.x, y 
     
     canvas.appendChild(item);
     
+    // For mobile Safari, ensure hardware acceleration is initialized
+    if (isMobileSafari) {
+        item.style.webkitTransform = 'translateZ(0)';
+        item.style.transform = 'translateZ(0)';
+        item.style.webkitBackfaceVisibility = 'hidden';
+        item.style.backfaceVisibility = 'hidden';
+        item.style.willChange = 'transform';
+        
+        // Force a repaint to initialize the layer
+        item.offsetHeight;
+    }
+    
     if (!fromDatabase) {
         selectItem(item);
         saveItemToDatabase(item);
@@ -1198,6 +1263,18 @@ function createCodeItem(htmlContent, x = centerPoint.x, y = centerPoint.y, width
     });
     
     canvas.appendChild(item);
+    
+    // For mobile Safari, ensure hardware acceleration is initialized
+    if (isMobileSafari) {
+        item.style.webkitTransform = 'translateZ(0)';
+        item.style.transform = 'translateZ(0)';
+        item.style.webkitBackfaceVisibility = 'hidden';
+        item.style.backfaceVisibility = 'hidden';
+        item.style.willChange = 'transform';
+        
+        // Force a repaint to initialize the layer
+        item.offsetHeight;
+    }
     
     if (!fromDatabase) {
         selectItem(item);
@@ -1727,6 +1804,17 @@ function handleGestureStart(e) {
         e.preventDefault();
         // Store initial gesture state
         touchStartTransform = { ...canvasTransform };
+        
+        // Force hardware acceleration initialization before gesture starts
+        canvas.style.webkitTransform = canvas.style.transform;
+        canvas.style.willChange = 'transform';
+        
+        // Ensure all items have hardware acceleration
+        const items = canvas.querySelectorAll('.canvas-item');
+        items.forEach(item => {
+            item.style.webkitTransform = item.style.transform;
+            item.style.willChange = 'transform';
+        });
     }
 }
 
