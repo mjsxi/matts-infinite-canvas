@@ -368,6 +368,16 @@ body {
     pointer-events: all;
 }
 
+/* Video controls disabled globally for clean appearance */
+.video-item video {
+    pointer-events: none; /* Disable all video interactions */
+}
+
+/* Allow video interaction only when selected (for potential future features) */
+.video-item.selected video {
+    pointer-events: auto;
+}
+
 /* Text Items */
 .text-item {
     padding: var(--spacing-lg) var(--spacing-xl);

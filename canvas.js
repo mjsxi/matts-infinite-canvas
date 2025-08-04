@@ -1135,11 +1135,13 @@ function createVideoItem(src, x = centerPoint.x, y = centerPoint.y, width = 400,
     
     const video = document.createElement('video');
     video.src = src;
-    video.controls = true;
+    video.controls = false; // Disable controls to prevent iOS native controls
     video.muted = true; // Muted by default for autoplay compatibility
     video.autoplay = true; // Autoplay when loaded
     video.loop = true; // Loop continuously
     video.playsInline = true; // Required for iOS autoplay
+    video.disablePictureInPicture = true; // Disable PiP on iOS
+    video.disableRemotePlayback = true; // Disable AirPlay on iOS
     video.style.width = '100%';
     video.style.height = '100%';
     video.style.objectFit = 'cover';
