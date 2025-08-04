@@ -20,6 +20,10 @@ let isResizing = false;
 let dragStart = { x: 0, y: 0 };
 let lastMousePos = { x: 0, y: 0 };
 
+// Mobile optimization variables
+let pendingTransformUpdate = false;
+let lastTouchMoveTime = 0;
+
 // Inertia scrolling variables
 let panVelocity = { x: 0, y: 0 };
 let lastPanTime = 0;
@@ -108,13 +112,15 @@ function updateCanvasTransform() {
     const transform = `translate(${clampedX}px, ${clampedY}px) scale(${clampedScale})`;
     canvas.style.transform = transform;
     
-    // Force a layout recalculation on mobile to prevent disappearing items
-    if ('ontouchstart' in window) {
-        canvas.style.willChange = 'transform';
-        // Use requestAnimationFrame to ensure smooth updates
-        requestAnimationFrame(() => {
-            canvas.style.willChange = 'auto';
-        });
+    // Reset pending update flag
+    pendingTransformUpdate = false;
+}
+
+function throttledUpdateCanvasTransform() {
+    // Throttle updates for smooth mobile performance
+    if (!pendingTransformUpdate) {
+        pendingTransformUpdate = true;
+        requestAnimationFrame(updateCanvasTransform);
     }
 }
 
@@ -362,8 +368,15 @@ function handleTouchStart(e) {
 
 function handleTouchMove(e) {
     if (e.touches.length === 1 && isSingleTouchPanning) {
-        // Single finger panning
+        // Single finger panning with frame rate limiting
         e.preventDefault();
+        
+        const now = Date.now();
+        // Limit touch move updates to 60fps (16.67ms)
+        if (now - lastTouchMoveTime < 16) {
+            return;
+        }
+        lastTouchMoveTime = now;
         
         const touch = e.touches[0];
         const deltaX = touch.clientX - touchStartPos.x;
@@ -376,10 +389,9 @@ function handleTouchMove(e) {
         canvasTransform.x = Math.max(-30000, Math.min(30000, newX));
         canvasTransform.y = Math.max(-30000, Math.min(30000, newY));
         
-        updateCanvasTransform();
+        throttledUpdateCanvasTransform();
         
-        // Track velocity for touch inertia
-        const now = Date.now();
+        // Track velocity for touch inertia (reuse now variable)
         const timeDelta = now - lastPanTime;
         if (timeDelta > 0) {
             panVelocity.x = deltaX / timeDelta;
@@ -440,10 +452,12 @@ function handleTouchMove(e) {
             canvasTransform.y = Math.max(-30000, Math.min(30000, newY));
             canvasTransform.scale = newScale;
             
-            updateCanvasTransform();
+            throttledUpdateCanvasTransform();
             
-            // Force rerender on mobile after zoom to prevent disappearing items
-            setTimeout(() => forceCanvasRerender(), 100);
+            // Reduce aggressive rerender calls - only after significant scale changes
+            if (Math.abs(newScale - touchStartTransform.scale) > 0.3) {
+                setTimeout(() => forceCanvasRerender(), 200);
+            }
         }
     }
 }
@@ -475,8 +489,8 @@ function handleTouchEnd(e) {
         isSingleTouchPanning = false;
         panPositions = [];
         
-        // Force rerender on mobile after touch operations to prevent disappearing items
-        setTimeout(() => forceCanvasRerender(), 150);
+        // Reduce aggressive rerender calls - only when needed
+        setTimeout(() => forceCanvasRerender(), 300);
     } else if (e.touches.length === 1) {
         // Went from multi-touch to single touch
         touchStartDistance = 0;
