@@ -23,6 +23,7 @@ let lastMousePos = { x: 0, y: 0 };
 // Mobile optimization variables
 let pendingTransformUpdate = false;
 let lastTouchMoveTime = 0;
+let pinchDebounceTimer = null;
 
 // Inertia scrolling variables
 let panVelocity = { x: 0, y: 0 };
@@ -102,7 +103,7 @@ function updateCanvasTransform() {
     // Clamp values to prevent extreme transforms that cause rendering issues on mobile
     const clampedX = Math.max(-30000, Math.min(30000, canvasTransform.x));
     const clampedY = Math.max(-30000, Math.min(30000, canvasTransform.y));
-    const clampedScale = Math.max(0.05, Math.min(5, canvasTransform.scale));
+    const clampedScale = Math.max(0.1, Math.min(3, canvasTransform.scale));
     
     // Update the clamped values back to the transform object
     canvasTransform.x = clampedX;
@@ -408,6 +409,11 @@ function handleTouchMove(e) {
         // Multi-touch pinch-to-zoom
         e.preventDefault();
         
+        // Clear any pending debounce timer
+        if (pinchDebounceTimer) {
+            clearTimeout(pinchDebounceTimer);
+        }
+        
         const touch1 = e.touches[0];
         const touch2 = e.touches[1];
         
@@ -425,10 +431,10 @@ function handleTouchMove(e) {
         if (touchStartDistance > 0) {
             // Calculate scale with smoother scaling for better mobile performance
             const scaleChange = currentDistance / touchStartDistance;
-            const newScale = Math.max(0.05, Math.min(5, touchStartTransform.scale * scaleChange));
+            const newScale = Math.max(0.1, Math.min(3, touchStartTransform.scale * scaleChange));
             
-            // Prevent extreme scale changes that can cause rendering issues
-            const maxScaleChange = 0.2; // Increased limit for better responsiveness
+            // More conservative scale change limits for fast gestures
+            const maxScaleChange = 0.1; // Reduced for faster gestures
             const currentScaleChange = Math.abs(newScale - canvasTransform.scale);
             if (currentScaleChange > maxScaleChange) {
                 return; // Skip this frame if scale change is too extreme
@@ -458,7 +464,19 @@ function handleTouchMove(e) {
             canvasTransform.y = Math.max(-30000, Math.min(30000, newY));
             canvasTransform.scale = newScale;
             
-            throttledUpdateCanvasTransform();
+            // Use immediate update for pinch gestures to prevent lag
+            updateCanvasTransform();
+            
+            // Force rerender for extreme zoom levels to prevent disappearing items
+            if (newScale < 0.3 || newScale > 2.5) {
+                forceCanvasRerender();
+            }
+            
+            // Debounce rapid pinch gestures to prevent Safari from losing track
+            pinchDebounceTimer = setTimeout(() => {
+                forceCanvasRerender();
+                pinchDebounceTimer = null;
+            }, 50);
         }
     }
 }
@@ -468,6 +486,12 @@ function handleTouchEnd(e) {
         // All touches ended
         touchStartDistance = 0;
         touchStartCenter = { x: 0, y: 0 };
+        
+        // Clear any pending pinch debounce timer
+        if (pinchDebounceTimer) {
+            clearTimeout(pinchDebounceTimer);
+            pinchDebounceTimer = null;
+        }
         
         // Handle inertia for single touch panning
         if (isSingleTouchPanning && panPositions.length >= 2) {
