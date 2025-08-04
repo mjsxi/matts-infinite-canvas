@@ -262,8 +262,7 @@ body {
     backface-visibility: hidden;
     -webkit-transform-style: preserve-3d;
     transform-style: preserve-3d;
-    /* Prevent disappearing on mobile during transforms */
-    contain: layout style paint;
+    /* Removed contain property as it's too aggressive for Safari during pinch gestures */
 }
 
 .canvas-item:hover {

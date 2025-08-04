@@ -100,8 +100,8 @@ function showCanvas() {
 // Canvas Management
 function updateCanvasTransform() {
     // Clamp values to prevent extreme transforms that cause rendering issues on mobile
-    const clampedX = Math.max(-50000, Math.min(50000, canvasTransform.x));
-    const clampedY = Math.max(-50000, Math.min(50000, canvasTransform.y));
+    const clampedX = Math.max(-100000, Math.min(100000, canvasTransform.x));
+    const clampedY = Math.max(-100000, Math.min(100000, canvasTransform.y));
     const clampedScale = Math.max(0.01, Math.min(10, canvasTransform.scale));
     
     // Update the clamped values back to the transform object
@@ -149,6 +149,12 @@ function forceCanvasRerender() {
             
             // Additional mobile Safari fix - force a repaint
             item.style.zIndex = item.style.zIndex;
+            
+            // Safari-specific: Force position recalculation
+            const currentLeft = item.style.left;
+            const currentTop = item.style.top;
+            item.style.left = currentLeft;
+            item.style.top = currentTop;
         });
         
         // Force canvas reflow
@@ -156,6 +162,9 @@ function forceCanvasRerender() {
         
         // Additional mobile Safari optimization - force a repaint of the entire canvas
         canvas.style.transform = canvas.style.transform;
+        
+        // Force container repaint
+        container.offsetHeight;
         
         // Double-check that items are visible after a short delay
         requestAnimationFrame(() => {
@@ -166,6 +175,12 @@ function forceCanvasRerender() {
                     item.offsetHeight; // Trigger reflow
                     item.style.visibility = 'visible';
                 }
+                
+                // Additional Safari fix: Force a repaint by temporarily changing and restoring styles
+                const originalTransform = item.style.transform;
+                item.style.transform = originalTransform + ' translateZ(0)';
+                item.offsetHeight; // Trigger reflow
+                item.style.transform = originalTransform;
             });
         });
     }
@@ -377,6 +392,14 @@ function handleTouchStart(e) {
         
         // Store initial transform
         touchStartTransform = { ...canvasTransform };
+        
+        // Safari-specific fix: Force a repaint before starting pinch gesture
+        if ('ontouchstart' in window) {
+            requestAnimationFrame(() => {
+                canvas.style.transform = canvas.style.transform;
+                forceCanvasRerender();
+            });
+        }
     }
 }
 
@@ -452,26 +475,42 @@ function handleTouchMove(e) {
             const panX = currentCenter.x - touchStartCenter.x;
             const panY = currentCenter.y - touchStartCenter.y;
             
-            // Apply zoom towards gesture center
+            // Improved zoom calculation with better Safari compatibility
             const rect = container.getBoundingClientRect();
             const centerX = touchStartCenter.x - rect.left;
             const centerY = touchStartCenter.y - rect.top;
             
+            // Use a more Safari-friendly zoom calculation
             const scaleRatio = newScale / touchStartTransform.scale;
-            const newX = centerX - (centerX - touchStartTransform.x) * scaleRatio + panX;
-            const newY = centerY - (centerY - touchStartTransform.y) * scaleRatio + panY;
             
-            // Bounds checking to prevent extreme pan values - increased bounds
-            canvasTransform.x = Math.max(-50000, Math.min(50000, newX));
-            canvasTransform.y = Math.max(-50000, Math.min(50000, newY));
+            // Calculate new position with better bounds checking
+            let newX = centerX - (centerX - touchStartTransform.x) * scaleRatio + panX;
+            let newY = centerY - (centerY - touchStartTransform.y) * scaleRatio + panY;
+            
+            // Additional bounds checking to prevent items from going too far
+            const maxPan = 100000; // Increased bounds
+            newX = Math.max(-maxPan, Math.min(maxPan, newX));
+            newY = Math.max(-maxPan, Math.min(maxPan, newY));
+            
+            // Apply the transform
+            canvasTransform.x = newX;
+            canvasTransform.y = newY;
             canvasTransform.scale = newScale;
             
             // Use immediate update instead of throttled for better responsiveness
             updateCanvasTransform();
             
             // Force rerender more frequently during zoom to prevent disappearing items
-            if (Math.abs(newScale - touchStartTransform.scale) > 0.1) {
+            if (Math.abs(newScale - touchStartTransform.scale) > 0.05) {
                 forceCanvasRerender();
+            }
+            
+            // Additional Safari-specific fix - force a repaint after scale changes
+            if (Math.abs(newScale - touchStartTransform.scale) > 0.2) {
+                requestAnimationFrame(() => {
+                    canvas.style.transform = canvas.style.transform;
+                    forceCanvasRerender();
+                });
             }
         }
     }
