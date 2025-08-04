@@ -299,6 +299,12 @@ body {
     box-shadow: var(--canvas-item-shadow-hover);
 }
 
+/* Disable hover effects when not authenticated */
+.guest .canvas-item:hover {
+    border-color: transparent !important;
+    box-shadow: var(--canvas-item-shadow) !important;
+}
+
 .canvas-item.selected {
     border-color: var(--canvas-item-border-selected);
     box-shadow: var(--canvas-item-shadow-selected);
@@ -357,6 +363,12 @@ body {
     box-shadow: var(--canvas-item-shadow-hover);
 }
 
+/* Disable text item hover when not authenticated */
+.guest .text-item:hover {
+    border-color: var(--canvas-item-border-transparent) !important;
+    box-shadow: none !important;
+}
+
 .text-item.editing {
     border-color: var(--canvas-item-border-selected);
     box-shadow: var(--canvas-item-shadow-selected);
@@ -388,6 +400,12 @@ body {
 .drawing-item:hover {
     border-color: var(--canvas-item-border-hover);
     box-shadow: var(--canvas-item-shadow-hover);
+}
+
+/* Disable drawing item hover when not authenticated */
+.guest .drawing-item:hover {
+    border-color: var(--canvas-item-border-transparent) !important;
+    box-shadow: none !important;
 }
 
 .drawing-item.selected {
@@ -640,12 +658,22 @@ body {
 
 /* Toolbar when logged out (only login button visible) */
 .toolbar:has(.admin-buttons.hidden) {
-    max-width: 72px;
+    width: 72px;
+    padding: 3px 4px; /* 3px top/bottom, 4px left/right */
+}
+
+.toolbar:has(.admin-buttons.hidden) .login-btn {
+    width: calc(72px - 8px); /* 72px container - 8px total padding (4px each side) */
 }
 
 /* Fallback for browsers without :has() support */
 .toolbar.logged-out {
-    max-width: 72px;
+    width: 72px;
+    padding: 3px 4px; /* 3px top/bottom, 4px left/right */
+}
+
+.toolbar.logged-out .login-btn {
+    width: calc(72px - 8px); /* 72px container - 8px total padding (4px each side) */
 }
 
 /* Text Toolbar */

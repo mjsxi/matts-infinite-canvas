@@ -64,6 +64,17 @@ function checkAuth() {
         isAuthenticated = false;
         showCanvas(false); // Show canvas in guest mode
     }
+    updateAuthBodyClass();
+}
+
+function updateAuthBodyClass() {
+    if (isAuthenticated) {
+        document.body.classList.add('authenticated');
+        document.body.classList.remove('guest');
+    } else {
+        document.body.classList.add('guest');
+        document.body.classList.remove('authenticated');
+    }
 }
 
 function login() {
@@ -71,6 +82,7 @@ function login() {
     if (password === ADMIN_PASSWORD) {
         isAuthenticated = true;
         localStorage.setItem('canvas_admin_auth', 'true');
+        updateAuthBodyClass();
         showCanvas(true); // Show canvas in admin mode
     } else {
         alert('Invalid password');
@@ -80,6 +92,7 @@ function login() {
 function logout() {
     isAuthenticated = false;
     localStorage.removeItem('canvas_admin_auth');
+    updateAuthBodyClass();
     
     // Clean up real-time subscription
     if (realtimeChannel) {
