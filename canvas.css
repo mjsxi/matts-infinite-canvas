@@ -77,10 +77,6 @@
     --canvas-size: 20000px;
     --canvas-bg: var(--color-white);
     
-    /* Viewport Heights - Mobile Safari compatible */
-    --viewport-height: 100vh; /* Fallback */
-    --viewport-height: 100dvh; /* Dynamic viewport height for mobile */
-    
     /* Canvas Item Shadows */
     --canvas-item-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
     --canvas-item-shadow-hover: 0 4px 10px rgba(0, 0, 0, 0.08);
@@ -101,7 +97,7 @@
 
 html {
     height: 100%;
-    height: var(--viewport-height);
+    height: 100dvh; /* Dynamic viewport height for mobile */
     min-height: 100vh; /* Fallback */
     /* Prevent iOS Safari from bouncing */
     overflow: hidden;
@@ -114,7 +110,7 @@ body {
     background: var(--color-secondary);
     overflow: hidden;
     height: 100%;
-    height: var(--viewport-height);
+    height: 100dvh; /* Dynamic viewport height for mobile */
     min-height: 100vh; /* Fallback */
     margin: 0;
     padding: 0;
@@ -140,7 +136,7 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    height: var(--viewport-height);
+    height: 100dvh; /* Dynamic viewport height for mobile */
     background: var(--gradient-login);
     display: flex;
     align-items: center;
@@ -206,7 +202,7 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    height: var(--viewport-height);
+    height: 100dvh; /* Dynamic viewport height for mobile */
     min-height: 100vh; /* Fallback */
     overflow: hidden;
     cursor: grab;
@@ -571,8 +567,7 @@ body {
     padding: var(--modal-padding);
     max-width: 500px;
     width: 90%;
-    max-height: 80vh; /* Fallback for older browsers */
-    max-height: 80dvh; /* Use dynamic viewport height for mobile */
+    max-height: 80vh;
     overflow: auto;
 }
 
