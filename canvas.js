@@ -9,8 +9,9 @@ const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // Global State
 let isAuthenticated = false;
-let canvas, container, toolbar;
+let canvas, container, toolbar, textToolbar;
 let selectedItem = null;
+let selectedTextItem = null;
 let canvasTransform = { x: -9500, y: -9500, scale: 1 }; // Start centered in 20000x20000 canvas
 let centerPoint = { x: 10000, y: 10000 }; // Default center
 let isSettingCenter = false;
@@ -37,9 +38,11 @@ document.addEventListener('DOMContentLoaded', function() {
     canvas = document.getElementById('canvas');
     container = document.getElementById('canvasContainer');
     toolbar = document.getElementById('toolbar');
+    textToolbar = document.getElementById('textToolbar');
     
     checkAuth();
     bindEvents();
+    bindTextToolbarEvents();
 });
 
 // Authentication
@@ -499,6 +502,12 @@ function selectItem(item) {
     selectedItem = item;
     item.classList.add('selected');
     showResizeHandles(item);
+    
+    // Show text toolbar if this is a text item and user is admin
+    if (item.classList.contains('text-item') && isAuthenticated) {
+        selectedTextItem = item;
+        showTextToolbar(item);
+    }
 }
 
 function clearSelection() {
@@ -519,6 +528,10 @@ function clearSelection() {
         hideResizeHandles();
         selectedItem = null;
     }
+    
+    // Hide text toolbar
+    hideTextToolbar();
+    selectedTextItem = null;
 }
 
 function showResizeHandles(item) {
@@ -941,7 +954,7 @@ function createTextItem(content = 'Double-click to edit text...', x = centerPoin
     // Set default text styling
     item.style.fontFamily = 'Sans-serif';
     item.style.fontSize = '24px';
-    item.style.fontWeight = 'normal';
+    item.style.fontWeight = '400';
     item.style.color = '#333333';
     item.style.lineHeight = '1.15';
     item.style.minWidth = '100px';
@@ -1581,6 +1594,17 @@ function updateItemFromData(item, data) {
             if (item.textContent !== data.content) {
                 item.textContent = data.content;
             }
+            // Update text styling properties
+            if (data.font_family) item.style.fontFamily = data.font_family;
+            if (data.font_size) item.style.fontSize = data.font_size + 'px';
+            if (data.font_weight) item.style.fontWeight = data.font_weight;
+            if (data.text_color) item.style.color = data.text_color;
+            if (data.line_height) item.style.lineHeight = data.line_height;
+            
+            // Update text toolbar if this item is currently selected
+            if (selectedTextItem === item && isAuthenticated) {
+                showTextToolbar(item);
+            }
             break;
         case 'image':
             const img = item.querySelector('img');
@@ -1679,3 +1703,146 @@ document.addEventListener('keydown', function(e) {
         login();
     }
 });
+
+// Text Toolbar Functions
+let textUpdateTimeout = null;
+
+function showTextToolbar(textItem) {
+    if (!isAuthenticated || !textItem.classList.contains('text-item')) return;
+    
+    // Populate toolbar with current text properties
+    const fontFamily = textItem.style.fontFamily || 'Sans-serif';
+    const fontSize = parseInt(textItem.style.fontSize) || 24;
+    const fontWeight = textItem.style.fontWeight || 'normal';
+    const textColor = textItem.style.color || '#333333';
+    const lineHeight = parseFloat(textItem.style.lineHeight) || 1.15;
+    
+    // Set font family - handle both quoted and unquoted values
+    const cleanFontFamily = fontFamily.replace(/['"]/g, '');
+    const fontFamilySelect = document.getElementById('fontFamily');
+    
+    // Check if current font family exists in dropdown options
+    let foundMatch = false;
+    for (let option of fontFamilySelect.options) {
+        if (option.value === cleanFontFamily) {
+            fontFamilySelect.value = cleanFontFamily;
+            foundMatch = true;
+            break;
+        }
+    }
+    
+    // If no match found, add current font family as first option and select it
+    if (!foundMatch) {
+        const newOption = document.createElement('option');
+        newOption.value = cleanFontFamily;
+        newOption.textContent = cleanFontFamily;
+        fontFamilySelect.insertBefore(newOption, fontFamilySelect.firstChild);
+        fontFamilySelect.value = cleanFontFamily;
+    }
+    
+    document.getElementById('fontSize').value = fontSize;
+    
+    // Set font weight - convert text values to numeric
+    const numericWeight = convertFontWeightToNumeric(fontWeight);
+    document.getElementById('fontWeight').value = numericWeight;
+    
+    document.getElementById('textColor').value = rgbToHex(textColor);
+    document.getElementById('lineHeight').value = lineHeight;
+    
+    // Show toolbar
+    textToolbar.classList.remove('hidden');
+}
+
+function debouncedSaveTextItem() {
+    if (textUpdateTimeout) {
+        clearTimeout(textUpdateTimeout);
+    }
+    textUpdateTimeout = setTimeout(() => {
+        if (selectedTextItem) {
+            saveItemToDatabase(selectedTextItem);
+        }
+    }, 300);
+}
+
+function hideTextToolbar() {
+    textToolbar.classList.add('hidden');
+}
+
+function bindTextToolbarEvents() {
+    // Font family change
+    document.getElementById('fontFamily').addEventListener('change', (e) => {
+        if (selectedTextItem) {
+            selectedTextItem.style.fontFamily = e.target.value;
+            saveItemToDatabase(selectedTextItem);
+        }
+    });
+    
+    // Font size change
+    document.getElementById('fontSize').addEventListener('input', (e) => {
+        if (selectedTextItem) {
+            selectedTextItem.style.fontSize = e.target.value + 'px';
+            debouncedSaveTextItem();
+        }
+    });
+    
+    // Font weight change
+    document.getElementById('fontWeight').addEventListener('change', (e) => {
+        if (selectedTextItem) {
+            selectedTextItem.style.fontWeight = e.target.value;
+            saveItemToDatabase(selectedTextItem);
+        }
+    });
+    
+    // Text color change
+    document.getElementById('textColor').addEventListener('input', (e) => {
+        if (selectedTextItem) {
+            selectedTextItem.style.color = e.target.value;
+            saveItemToDatabase(selectedTextItem);
+        }
+    });
+    
+    // Line height change
+    document.getElementById('lineHeight').addEventListener('input', (e) => {
+        if (selectedTextItem) {
+            selectedTextItem.style.lineHeight = e.target.value;
+            debouncedSaveTextItem();
+        }
+    });
+}
+
+// Utility function to convert rgb color to hex
+function rgbToHex(rgb) {
+    if (rgb.startsWith('#')) return rgb;
+    
+    const result = rgb.match(/\d+/g);
+    if (!result || result.length < 3) return '#333333';
+    
+    return '#' + result.slice(0, 3).map(x => {
+        const hex = parseInt(x).toString(16);
+        return hex.length === 1 ? '0' + hex : hex;
+    }).join('');
+}
+
+// Utility function to convert font weight to numeric values
+function convertFontWeightToNumeric(weight) {
+    const weightMap = {
+        'normal': '400',
+        'bold': '700',
+        'lighter': '300',
+        'bolder': '700',
+        'thin': '100',
+        'light': '300',
+        'medium': '500',
+        'semi-bold': '600',
+        'extra-bold': '800',
+        'black': '900'
+    };
+    
+    // If it's already numeric, return as string
+    if (!isNaN(weight)) {
+        return weight.toString();
+    }
+    
+    // Convert text values to numeric
+    return weightMap[weight.toLowerCase()] || '400';
+}

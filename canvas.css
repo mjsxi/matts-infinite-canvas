@@ -565,6 +565,79 @@ body {
     gap: var(--toolbar-gap);
 }
 
+/* Text Toolbar */
+.text-toolbar {
+    position: fixed;
+    bottom: calc(var(--spacing-xl) + env(safe-area-inset-bottom) + 60px + 8px); /* 8px above main toolbar */
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    padding: var(--spacing-sm);
+    justify-content: center;
+    align-items: center;
+    gap: var(--spacing-xs);
+    border-radius: var(--radius-lg);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(50px);
+    z-index: calc(var(--z-index-toolbar) + 1);
+    box-shadow: var(--canvas-item-shadow);
+    opacity: 0;
+    pointer-events: none;
+    transition: all var(--transition-normal);
+}
+
+.text-toolbar:not(.hidden) {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.text-toolbar-group {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+.text-control {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--radius-sm);
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--color-white);
+    font-size: var(--font-size-sm);
+    transition: all var(--transition-fast);
+    outline: none;
+}
+
+.text-control:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.text-control:focus {
+    background: rgba(255, 255, 255, 0.25);
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+.text-control option {
+    background: var(--color-text-primary);
+    color: var(--color-white);
+}
+
+.number-input {
+    width: 60px;
+    text-align: center;
+}
+
+.color-input {
+    width: 40px;
+    height: 32px;
+    padding: 2px;
+    cursor: pointer;
+}
+
+
 /* Modal */
 .modal {
     position: fixed;
@@ -710,6 +783,29 @@ body {
     .toolbar {
         bottom: calc(0px + env(safe-area-inset-bottom));
         box-shadow: rgba(0, 0, 0, 0.0);
+    }
+    
+    .text-toolbar {
+        bottom: calc(0px + env(safe-area-inset-bottom) + 60px + 8px);
+        left: 10px;
+        right: 10px;
+        transform: none;
+        flex-wrap: wrap;
+        justify-content: space-between;
+    }
+    
+    .text-control {
+        flex: 1;
+        min-width: 60px;
+        margin: 2px;
+    }
+    
+    .number-input {
+        min-width: 45px;
+    }
+    
+    .text-control select {
+        min-width: 80px;
     }
     
     /* Ensure login form accounts for safe areas */

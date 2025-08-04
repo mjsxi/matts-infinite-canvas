@@ -25,6 +25,40 @@
         </div>
     </div>
 
+    <!-- Text Editing Toolbar -->
+    <div id="textToolbar" class="text-toolbar hidden">
+        <div class="text-toolbar-group">
+            <select id="fontFamily" class="text-control">
+                <option value="Sans-serif">Sans-serif</option>
+                <option value="Serif">Serif</option>
+                <option value="Monospace">Monospace</option>
+                <option value="Arial">Arial</option>
+                <option value="Helvetica">Helvetica</option>
+                <option value="Times New Roman">Times New Roman</option>
+                <option value="Georgia">Georgia</option>
+                <option value="Courier New">Courier New</option>
+            </select>
+            
+            <input type="number" id="fontSize" class="text-control number-input" min="8" max="200" step="1" value="24">
+            
+            <select id="fontWeight" class="text-control">
+                <option value="100">100 - Thin</option>
+                <option value="200">200 - Extra Light</option>
+                <option value="300">300 - Light</option>
+                <option value="400" selected>400 - Normal</option>
+                <option value="500">500 - Medium</option>
+                <option value="600">600 - Semi Bold</option>
+                <option value="700">700 - Bold</option>
+                <option value="800">800 - Extra Bold</option>
+                <option value="900">900 - Black</option>
+            </select>
+            
+            <input type="color" id="textColor" class="text-control color-input" value="#333333">
+            
+            <input type="number" id="lineHeight" class="text-control number-input" min="0.5" max="3" step="0.05" value="1.15">
+        </div>
+    </div>
+
     <!-- Toolbar -->
     <div id="toolbar" class="toolbar">
         <!-- Login button - always visible for guests -->
