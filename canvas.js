@@ -1986,6 +1986,32 @@ function updateItemFromData(item, data) {
                 iframe.srcdoc = data.content;
             }
             break;
+        case 'drawing':
+            const path = item.querySelector('path');
+            if (path) {
+                // Update path data
+                if (path.getAttribute('d') !== data.content) {
+                    path.setAttribute('d', data.content);
+                }
+                // Update stroke color
+                if (data.stroke_color && path.getAttribute('stroke') !== data.stroke_color) {
+                    path.setAttribute('stroke', data.stroke_color);
+                }
+                // Update stroke thickness
+                if (data.stroke_thickness && path.getAttribute('stroke-width') !== data.stroke_thickness.toString()) {
+                    path.setAttribute('stroke-width', data.stroke_thickness);
+                }
+            }
+            
+            // Update drawing toolbar if this item is currently selected
+            if (selectedItem === item && isAuthenticated && item.classList.contains('drawing-item')) {
+                showDrawToolbar();
+                if (path) {
+                    document.getElementById('strokeColor').value = path.getAttribute('stroke') || '#333333';
+                    document.getElementById('strokeThickness').value = path.getAttribute('stroke-width') || '4';
+                }
+            }
+            break;
     }
     
     // Show a subtle indicator for significant changes
@@ -2187,6 +2213,20 @@ function bindTextToolbarEvents() {
     });
 }
 
+// Drawing toolbar debounced save
+let drawingUpdateTimeout = null;
+
+function debouncedSaveDrawingItem() {
+    if (drawingUpdateTimeout) {
+        clearTimeout(drawingUpdateTimeout);
+    }
+    drawingUpdateTimeout = setTimeout(() => {
+        if (selectedItem && selectedItem.dataset.type === 'drawing') {
+            saveItemToDatabase(selectedItem);
+        }
+    }, 300);
+}
+
 function bindDrawToolbarEvents() {
     // Stroke color change
     document.getElementById('strokeColor').addEventListener('input', (e) => {
@@ -2194,7 +2234,7 @@ function bindDrawToolbarEvents() {
             const path = selectedItem.querySelector('path');
             if (path) {
                 path.setAttribute('stroke', e.target.value);
-                saveItemToDatabase(selectedItem);
+                debouncedSaveDrawingItem();
             }
         }
     });
@@ -2205,7 +2245,7 @@ function bindDrawToolbarEvents() {
             const path = selectedItem.querySelector('path');
             if (path) {
                 path.setAttribute('stroke-width', e.target.value);
-                saveItemToDatabase(selectedItem);
+                debouncedSaveDrawingItem();
             }
         }
     });
