@@ -233,12 +233,19 @@ function goToCenter() {
     // Add transition for smooth animation
     canvas.style.transition = 'transform 0.6s ease-out';
     
-    // Animate to center
-    canvasTransform.x = targetX;
-    canvasTransform.y = targetY;
+    // Reset to default zoom level (scale = 1)
+    canvasTransform.scale = 1;
+    
+    // Recalculate position with new scale
+    const finalX = containerRect.width / 2 - centerPoint.x * canvasTransform.scale;
+    const finalY = containerRect.height / 2 - centerPoint.y * canvasTransform.scale;
+    
+    // Animate to center with default zoom
+    canvasTransform.x = finalX;
+    canvasTransform.y = finalY;
     updateCanvasTransform();
     
-    showStatus('Centered on canvas');
+    showStatus('Centered and zoomed to default view');
     
     // Remove transition after animation completes
     setTimeout(() => {
