@@ -156,6 +156,24 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Authentication
 function checkAuth() {
+    // Check for admin parameter (from admin.html redirect)
+    const urlParams = new URLSearchParams(window.location.search);
+    const adminParam = urlParams.get('admin');
+    if (adminParam === 'true') {
+        // Auto-login from admin page
+        isAuthenticated = true;
+        localStorage.setItem('canvas_admin_auth', 'true');
+        
+        // Redirect to root page (removing the parameter from URL)
+        window.history.replaceState({}, '', '/');
+        
+        updateAuthBodyClass();
+        showCanvas(true); // Show canvas in admin mode
+        showStatus('Logged in via admin page');
+        return;
+    }
+    
+    // Fall back to localStorage authentication
     const auth = localStorage.getItem('canvas_admin_auth');
     if (auth === 'true') {
         isAuthenticated = true;
@@ -201,7 +219,12 @@ function logout() {
         realtimeChannel = null;
     }
     
-    location.reload();
+    // Redirect to admin login page
+    window.location.href = '/admin.html';
+}
+
+function goToAdminPage() {
+    window.location.href = '/admin.html';
 }
 
 function showLoginModal() {

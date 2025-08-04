@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Admin Login - Infinite Canvas</title>
+    <link rel="stylesheet" href="canvas.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <!-- Admin Login -->
+    <div class="admin-login">
+        <div class="login-form">
+            <h2>Admin Access</h2>
+            <input type="password" id="adminPassword" placeholder="Enter password">
+            <button onclick="login()">Login</button>
+        </div>
+    </div>
+
+    <script>
+        // Admin password (same as in canvas.js)
+        const ADMIN_PASSWORD = 'canvas123';
+        
+        function login() {
+            const password = document.getElementById('adminPassword').value;
+            if (password === ADMIN_PASSWORD) {
+                // Set authentication in localStorage
+                localStorage.setItem('canvas_admin_auth', 'true');
+                
+                // Redirect to main canvas with admin parameter
+                window.location.href = '/index.html?admin=true';
+            } else {
+                alert('Invalid password');
+            }
+        }
+        
+        // Handle Enter key
+        document.addEventListener('keydown', function(e) {
+            if (e.target.id === 'adminPassword' && e.key === 'Enter') {
+                login();
+            }
+        });
+        
+        // Check if already authenticated
+        if (localStorage.getItem('canvas_admin_auth') === 'true') {
+            // Already logged in, redirect to main canvas
+            window.location.href = '/index.html?admin=true';
+        }
+    </script>
+</body>
+</html> 
