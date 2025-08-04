@@ -163,7 +163,8 @@ body {
     width: 100%;
     height: 100%;
     height: 100dvh; /* Dynamic viewport height for mobile */
-    background: var(--gradient-login);
+    background: rgba(255, 255, 255, 0.5);
+    backdrop-filter: blur(10px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -176,8 +177,9 @@ body {
 }
 
 .login-form {
-    background: var(--color-white);
-    padding: var(--spacing-4xl);
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(10px);
+    padding: var(--spacing-2xl);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-xl);
     text-align: center;
@@ -186,16 +188,16 @@ body {
 
 .login-form h2 {
     margin-bottom: var(--spacing-xl);
-    color: var(--color-text-primary);
+    color: #fff;
 }
 
 .login-form input {
     width: 100%;
     padding: var(--input-padding);
     border: 2px solid var(--color-border);
-    border-radius: var(--radius-md);
+    border-radius: 1000px;
     font-size: var(--font-size-md);
-    margin-bottom: var(--spacing-xl);
+    margin-bottom: var(--spacing-lg);
     outline: none;
     transition: border-color var(--transition-normal);
 }
@@ -210,7 +212,7 @@ body {
     background: var(--gradient-primary);
     color: var(--color-white);
     border: none;
-    border-radius: var(--radius-md);
+    border-radius: 1000px;
     font-size: var(--font-size-md);
     font-weight: var(--font-weight-semibold);
     cursor: pointer;

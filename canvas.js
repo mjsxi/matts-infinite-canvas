@@ -183,6 +183,7 @@ function login() {
         isAuthenticated = true;
         localStorage.setItem('canvas_admin_auth', 'true');
         updateAuthBodyClass();
+        closeLoginModal();
         showCanvas(true); // Show canvas in admin mode
     } else {
         alert('Invalid password');
@@ -204,7 +205,38 @@ function logout() {
 }
 
 function showLoginModal() {
-    document.getElementById('adminLogin').classList.remove('hidden');
+    const loginModal = document.getElementById('adminLogin');
+    loginModal.classList.remove('hidden');
+    
+    // Add click event listener to close modal when clicking outside
+    const handleOutsideClick = (e) => {
+        if (e.target === loginModal) {
+            closeLoginModal();
+        }
+    };
+    
+    // Add the event listener
+    loginModal.addEventListener('click', handleOutsideClick);
+    
+    // Store the handler so we can remove it later
+    loginModal.outsideClickHandler = handleOutsideClick;
+}
+
+function closeLoginModal() {
+    const loginModal = document.getElementById('adminLogin');
+    loginModal.classList.add('hidden');
+    
+    // Remove the event listener
+    if (loginModal.outsideClickHandler) {
+        loginModal.removeEventListener('click', loginModal.outsideClickHandler);
+        loginModal.outsideClickHandler = null;
+    }
+    
+    // Clear the password field
+    const passwordInput = document.getElementById('adminPassword');
+    if (passwordInput) {
+        passwordInput.value = '';
+    }
 }
 
 function showCanvas(isAdmin = false) {
@@ -2654,6 +2686,13 @@ function cleanupEventListeners() {
     
     if (strokeColor) strokeColor.removeEventListener('input', handleStrokeColorChange);
     if (strokeThickness) strokeThickness.removeEventListener('input', handleStrokeThicknessChange);
+    
+    // Remove login modal listener
+    const loginModal = document.getElementById('adminLogin');
+    if (loginModal && loginModal.outsideClickHandler) {
+        loginModal.removeEventListener('click', loginModal.outsideClickHandler);
+        loginModal.outsideClickHandler = null;
+    }
 }
 
 // Add window beforeunload listener to cleanup
