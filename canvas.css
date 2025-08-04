@@ -805,8 +805,8 @@ body {
     border-radius: 6px 20px 20px 6px;
 }
 
-/* Login button styling - standalone rounded button */
-.toolbar-btn.login-btn {
+/* Center button styling - standalone rounded button */
+.toolbar-btn.center-btn {
     border-radius: 20px;
 }
 
@@ -816,13 +816,13 @@ body {
     gap: var(--toolbar-gap);
 }
 
-/* Toolbar when logged out (only login button visible) */
+/* Toolbar when logged out (only center button visible) */
 .toolbar:has(.admin-buttons.hidden) {
     width: 72px;
     padding: 3px 4px; /* 3px top/bottom, 4px left/right */
 }
 
-.toolbar:has(.admin-buttons.hidden) .login-btn {
+.toolbar:has(.admin-buttons.hidden) .center-btn {
     width: calc(72px - 8px); /* 72px container - 8px total padding (4px each side) */
 }
 
@@ -832,7 +832,7 @@ body {
     padding: 3px 4px; /* 3px top/bottom, 4px left/right */
 }
 
-.toolbar.logged-out .login-btn {
+.toolbar.logged-out .center-btn {
     width: calc(72px - 8px); /* 72px container - 8px total padding (4px each side) */
 }
 

@@ -223,6 +223,16 @@ function logout() {
     window.location.href = '/admin.html';
 }
 
+function goToCenter() {
+    // Center the canvas on the center point
+    const containerRect = container.getBoundingClientRect();
+    canvasTransform.x = containerRect.width / 2 - centerPoint.x * canvasTransform.scale;
+    canvasTransform.y = containerRect.height / 2 - centerPoint.y * canvasTransform.scale;
+    updateCanvasTransform();
+    
+    showStatus('Centered on canvas');
+}
+
 function goToAdminPage() {
     window.location.href = '/admin.html';
 }
@@ -269,14 +279,14 @@ function showCanvas(isAdmin = false) {
     
     // Show/hide admin buttons based on authentication status
     const adminButtons = document.getElementById('adminButtons');
-    const loginBtn = document.getElementById('loginBtn');
+    const centerBtn = document.getElementById('centerBtn');
     
     if (isAdmin) {
         adminButtons.classList.remove('hidden');
-        loginBtn.classList.add('hidden');
+        centerBtn.classList.add('hidden');
     } else {
         adminButtons.classList.add('hidden');
-        loginBtn.classList.remove('hidden');
+        centerBtn.classList.remove('hidden');
     }
     
     loadCanvasData().then(() => {
