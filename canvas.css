@@ -638,6 +638,16 @@ body {
     gap: var(--toolbar-gap);
 }
 
+/* Toolbar when logged out (only login button visible) */
+.toolbar:has(.admin-buttons.hidden) {
+    max-width: 72px;
+}
+
+/* Fallback for browsers without :has() support */
+.toolbar.logged-out {
+    max-width: 72px;
+}
+
 /* Text Toolbar */
 .text-toolbar {
     position: fixed;
@@ -862,6 +872,15 @@ body {
         padding: 3px;
         align-items: center; /* Center buttons vertically */
         justify-content: center; /* Center buttons horizontally */
+    }
+    
+    /* Mobile toolbar when logged out */
+    .toolbar:has(.admin-buttons.hidden),
+    .toolbar.logged-out {
+        max-width: 72px;
+        left: 50%;
+        right: auto;
+        transform: translateX(-50%);
     }
     
     /* Mobile toolbar buttons - grow to fill available width */
