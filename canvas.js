@@ -503,6 +503,11 @@ function selectItem(item) {
     item.classList.add('selected');
     showResizeHandles(item);
     
+    // Show move up/down buttons when item is selected (admin only)
+    if (isAuthenticated) {
+        showMoveButtons();
+    }
+    
     // Show text toolbar if this is a text item and user is admin
     if (item.classList.contains('text-item') && isAuthenticated) {
         selectedTextItem = item;
@@ -528,6 +533,9 @@ function clearSelection() {
         hideResizeHandles();
         selectedItem = null;
     }
+    
+    // Hide move up/down buttons when no item is selected
+    hideMoveButtons();
     
     // Hide text toolbar
     hideTextToolbar();
@@ -994,7 +1002,7 @@ function createTextItem(content = 'Double-click to edit text...', x = centerPoin
     item.textContent = content;
     
     // Set default text styling
-    item.style.fontFamily = 'Sans-serif';
+    item.style.fontFamily = 'Antarctica';
     item.style.fontSize = '24px';
     item.style.fontWeight = '400';
     item.style.color = '#333333';
@@ -1371,7 +1379,7 @@ async function saveItemToDatabase(item) {
         rotation: parseFloat(item.dataset.rotation) || 0,
         z_index: parseInt(item.style.zIndex) || 1,
         border_radius: parseFloat(item.style.getPropertyValue('--item-border-radius')) || 0,
-        font_family: item.style.fontFamily || 'Sans-serif',
+        font_family: item.style.fontFamily || 'Antarctica',
         font_size: parseInt(item.style.fontSize) || 24,
         font_weight: item.style.fontWeight || 'normal',
         text_color: item.style.color || '#333333',
@@ -1776,7 +1784,7 @@ function showTextToolbar(textItem) {
     if (!isAuthenticated || !textItem.classList.contains('text-item')) return;
     
     // Populate toolbar with current text properties
-    const fontFamily = textItem.style.fontFamily || 'Sans-serif';
+    const fontFamily = textItem.style.fontFamily || 'Antarctica';
     const fontSize = parseInt(textItem.style.fontSize) || 24;
     const fontWeight = textItem.style.fontWeight || 'normal';
     const textColor = textItem.style.color || '#333333';
@@ -1910,4 +1918,23 @@ function convertFontWeightToNumeric(weight) {
     
     // Convert text values to numeric
     return weightMap[weight.toLowerCase()] || '400';
+}
+
+// Smooth animation functions for move buttons
+function showMoveButtons() {
+    const bringToFrontBtn = document.getElementById('bringToFrontBtn');
+    const sendToBackBtn = document.getElementById('sendToBackBtn');
+    
+    // Remove hidden class to start animation
+    bringToFrontBtn.classList.remove('hidden');
+    sendToBackBtn.classList.remove('hidden');
+}
+
+function hideMoveButtons() {
+    const bringToFrontBtn = document.getElementById('bringToFrontBtn');
+    const sendToBackBtn = document.getElementById('sendToBackBtn');
+    
+    // Add hidden class to trigger animation
+    bringToFrontBtn.classList.add('hidden');
+    sendToBackBtn.classList.add('hidden');
 }

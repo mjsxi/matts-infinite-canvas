@@ -29,14 +29,10 @@
     <div id="textToolbar" class="text-toolbar hidden">
         <div class="text-toolbar-group">
             <select id="fontFamily" class="text-control">
-                <option value="Sans-serif">Sans-serif</option>
-                <option value="Serif">Serif</option>
-                <option value="Monospace">Monospace</option>
-                <option value="Arial">Arial</option>
-                <option value="Helvetica">Helvetica</option>
-                <option value="Times New Roman">Times New Roman</option>
-                <option value="Georgia">Georgia</option>
-                <option value="Courier New">Courier New</option>
+                <option value="Antarctica" selected>Antarctica</option>
+                <option value="Alpaga">Alpaga</option>
+                <option value="Atacama">Atacama</option>
+                <option value="Atacama Italic">Atacama Italic</option>
             </select>
             
             <input type="number" id="fontSize" class="text-control number-input" min="8" max="200" step="1" value="24">
@@ -80,14 +76,11 @@
             <button onclick="setCenter()" class="toolbar-btn middle-btn">
                 <img src="icons/pin.svg" alt="Set Center">
             </button>
-            <button onclick="bringToFront()" class="toolbar-btn middle-btn">
+            <button id="bringToFrontBtn" onclick="bringToFront()" class="toolbar-btn middle-btn animate-in-out hidden">
                 <img src="icons/move-up.svg" alt="Bring to Front">
             </button>
-            <button onclick="sendToBack()" class="toolbar-btn middle-btn">
+            <button id="sendToBackBtn" onclick="sendToBack()" class="toolbar-btn middle-btn animate-in-out hidden">
                 <img src="icons/move-down.svg" alt="Send to Back">
-            </button>
-            <button onclick="clearAll()" class="toolbar-btn middle-btn">
-                <img src="icons/clear.svg" alt="Clear All">
             </button>
             <button onclick="logout()" class="toolbar-btn last-btn">
                 <img src="icons/logout.svg" alt="Logout">

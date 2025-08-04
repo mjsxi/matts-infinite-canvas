@@ -1,3 +1,28 @@
+/* Custom Fonts */
+@font-face {
+    font-family: 'Alpaga';
+    src: url('fonts/Alpaga-VAR-VF.ttf') format('truetype');
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Antarctica';
+    src: url('fonts/Antarctica-VAR-VF.ttf') format('truetype');
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Atacama';
+    src: url('fonts/Atacama-VAR-VF.ttf') format('truetype');
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Atacama Italic';
+    src: url('fonts/Atacama-Italic-VAR-VF.ttf') format('truetype');
+    font-display: swap;
+}
+
 /* CSS Variables */
 :root {
     /* Colors */
@@ -525,6 +550,23 @@ body {
     cursor: pointer;
     transition: all var(--transition-normal);
     color: var(--color-white);
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Animated toolbar buttons */
+.toolbar-btn.animate-in-out {
+    transition: opacity var(--transition-normal), transform var(--transition-normal), width var(--transition-normal), margin var(--transition-normal);
+}
+
+.toolbar-btn.animate-in-out.hidden {
+    opacity: 0;
+    transform: translateY(-10px);
+    width: 0;
+    margin: 0;
+    padding: 0;
+    border: none;
+    overflow: hidden;
 }
 
 .toolbar-btn:hover {
