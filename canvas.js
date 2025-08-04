@@ -44,6 +44,12 @@ document.addEventListener('DOMContentLoaded', function() {
     
     checkAuth();
     bindEvents();
+    
+    // Start periodic visibility check for mobile Safari
+    if (/iPad|iPhone|iPod/.test(navigator.userAgent) && /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent)) {
+        console.log('Mobile Safari detected - starting periodic visibility checks');
+        setInterval(checkItemVisibility, 2000); // Check every 2 seconds
+    }
 });
 
 // Authentication
@@ -112,6 +118,16 @@ function updateCanvasTransform() {
     const transform = `translate(${clampedX}px, ${clampedY}px) scale(${clampedScale})`;
     canvas.style.transform = transform;
     
+    // DEBUG: Log transform changes on mobile Safari
+    if (/iPad|iPhone|iPod/.test(navigator.userAgent) && /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent)) {
+        console.log('Transform Update:', {
+            x: clampedX,
+            y: clampedY,
+            scale: clampedScale,
+            transform: transform
+        });
+    }
+    
     // Reset pending update flag
     pendingTransformUpdate = false;
 }
@@ -135,6 +151,22 @@ function forceCanvasRerender() {
     // Force a rerender to fix disappearing items on mobile
     if ('ontouchstart' in window) {
         const items = canvas.querySelectorAll('.canvas-item');
+        
+        // DEBUG: Log item count and visibility before rerender
+        if (/iPad|iPhone|iPod/.test(navigator.userAgent) && /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent)) {
+            console.log('Force Rerender - Items before:', items.length);
+            items.forEach((item, index) => {
+                console.log(`Item ${index}:`, {
+                    visible: item.offsetParent !== null,
+                    display: item.style.display,
+                    visibility: item.style.visibility,
+                    transform: item.style.transform,
+                    left: item.style.left,
+                    top: item.style.top
+                });
+            });
+        }
+        
         items.forEach(item => {
             // Trigger a style recalculation
             item.style.transform = item.style.transform;
@@ -145,15 +177,69 @@ function forceCanvasRerender() {
         
         // Double-check that items are visible
         requestAnimationFrame(() => {
-            items.forEach(item => {
+            items.forEach((item, index) => {
                 if (item.offsetParent === null && item.style.display !== 'none') {
                     // Item might have disappeared, force visibility
+                    console.log(`Item ${index} disappeared, forcing visibility:`, item);
                     item.style.visibility = 'hidden';
                     item.offsetHeight; // Trigger reflow
                     item.style.visibility = 'visible';
                 }
             });
+            
+            // DEBUG: Log item count and visibility after rerender
+            if (/iPad|iPhone|iPod/.test(navigator.userAgent) && /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent)) {
+                console.log('Force Rerender - Items after:', items.length);
+                items.forEach((item, index) => {
+                    console.log(`Item ${index} after:`, {
+                        visible: item.offsetParent !== null,
+                        display: item.style.display,
+                        visibility: item.style.visibility
+                    });
+                });
+            }
         });
+    }
+}
+
+// Add a function to check item visibility
+function checkItemVisibility() {
+    const items = canvas.querySelectorAll('.canvas-item');
+    const visibleItems = Array.from(items).filter(item => item.offsetParent !== null);
+    const hiddenItems = Array.from(items).filter(item => item.offsetParent === null && item.style.display !== 'none');
+    
+    console.log('Item Visibility Check:', {
+        total: items.length,
+        visible: visibleItems.length,
+        hidden: hiddenItems.length,
+        canvasTransform: canvasTransform,
+        canvasStyle: canvas.style.transform
+    });
+    
+    if (hiddenItems.length > 0) {
+        console.log('Hidden items found:', hiddenItems);
+    }
+    
+    // If all items are hidden, log a warning
+    if (visibleItems.length === 0 && items.length > 0) {
+        console.warn('ALL ITEMS HAVE DISAPPEARED!');
+    }
+}
+
+// Check visibility every 500ms during pinch gestures
+let visibilityCheckInterval = null;
+
+function startVisibilityCheck() {
+    if (visibilityCheckInterval) {
+        clearInterval(visibilityCheckInterval);
+    }
+    visibilityCheckInterval = setInterval(checkItemVisibility, 500);
+}
+
+function stopVisibilityCheck() {
+    if (visibilityCheckInterval) {
+        clearInterval(visibilityCheckInterval);
+        visibilityCheckInterval = null;
     }
 }
 
@@ -320,6 +406,8 @@ let touchStartPos = { x: 0, y: 0 };
 let isSingleTouchPanning = false;
 
 function handleTouchStart(e) {
+    console.log('Touch Start:', e.touches.length, 'touches');
+    
     if (e.touches.length === 1) {
         // Single finger - handle panning
         e.preventDefault();
@@ -345,6 +433,13 @@ function handleTouchStart(e) {
     } else if (e.touches.length >= 2) {
         // Multi-touch - handle pinch-to-zoom
         e.preventDefault();
+        console.log('Multi-touch detected - starting pinch gesture');
+        
+        // DEBUG: Start visibility checking for mobile Safari
+        if (/iPad|iPhone|iPod/.test(navigator.userAgent) && /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent)) {
+            console.log('Pinch gesture started');
+            startVisibilityCheck();
+        }
         
         const touch1 = e.touches[0];
         const touch2 = e.touches[1];
@@ -407,6 +502,7 @@ function handleTouchMove(e) {
     } else if (e.touches.length >= 2) {
         // Multi-touch pinch-to-zoom
         e.preventDefault();
+        console.log('Pinch move detected');
         
         const touch1 = e.touches[0];
         const touch2 = e.touches[1];
@@ -452,6 +548,19 @@ function handleTouchMove(e) {
             canvasTransform.y = Math.max(-30000, Math.min(30000, newY));
             canvasTransform.scale = newScale;
             
+            // DEBUG: Log pinch gesture details on mobile Safari
+            if (/iPad|iPhone|iPod/.test(navigator.userAgent) && /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent)) {
+                console.log('Pinch Gesture:', {
+                    scaleChange,
+                    newScale,
+                    currentScaleChange,
+                    newX,
+                    newY,
+                    touchStartDistance,
+                    currentDistance
+                });
+            }
+            
             throttledUpdateCanvasTransform();
             
             // Reduce aggressive rerender calls - only after significant scale changes
@@ -467,6 +576,12 @@ function handleTouchEnd(e) {
         // All touches ended
         touchStartDistance = 0;
         touchStartCenter = { x: 0, y: 0 };
+        
+        // DEBUG: Stop visibility checking for mobile Safari
+        if (/iPad|iPhone|iPod/.test(navigator.userAgent) && /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent)) {
+            console.log('Pinch gesture ended');
+            stopVisibilityCheck();
+        }
         
         // Handle inertia for single touch panning
         if (isSingleTouchPanning && panPositions.length >= 2) {
