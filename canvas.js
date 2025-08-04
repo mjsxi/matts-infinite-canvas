@@ -40,6 +40,100 @@ let itemCounter = 0;
 // Real-time subscription
 let realtimeChannel = null;
 
+// Cached DOM elements for performance
+let cachedElements = {
+    fileInput: null,
+    adminPassword: null,
+    adminLogin: null,
+    canvasContainer: null,
+    adminButtons: null,
+    loginBtn: null,
+    codeModal: null,
+    codeInput: null,
+    mobileGradient: null
+};
+
+// Cache DOM elements
+function cacheElements() {
+    cachedElements.fileInput = document.getElementById('fileInput');
+    cachedElements.adminPassword = document.getElementById('adminPassword');
+    cachedElements.adminLogin = document.getElementById('adminLogin');
+    cachedElements.canvasContainer = document.getElementById('canvasContainer');
+    cachedElements.adminButtons = document.getElementById('adminButtons');
+    cachedElements.loginBtn = document.getElementById('loginBtn');
+    cachedElements.codeModal = document.getElementById('codeModal');
+    cachedElements.codeInput = document.getElementById('codeInput');
+    cachedElements.mobileGradient = document.getElementById('mobileGradient');
+}
+
+// Optimized screen to canvas conversion with caching
+let containerRectCache = null;
+let lastContainerRectTime = 0;
+const RECT_CACHE_DURATION = 100; // Cache for 100ms
+
+function getContainerRect() {
+    const now = Date.now();
+    if (!containerRectCache || (now - lastContainerRectTime) > RECT_CACHE_DURATION) {
+        containerRectCache = container.getBoundingClientRect();
+        lastContainerRectTime = now;
+    }
+    return containerRectCache;
+}
+
+function screenToCanvas(screenX, screenY) {
+    const rect = getContainerRect();
+    const canvasX = (screenX - rect.left - canvasTransform.x) / canvasTransform.scale;
+    const canvasY = (screenY - rect.top - canvasTransform.y) / canvasTransform.scale;
+    return { x: canvasX, y: canvasY };
+}
+
+function canvasToScreen(canvasX, canvasY) {
+    const rect = getContainerRect();
+    const screenX = (canvasX * canvasTransform.scale) + canvasTransform.x + rect.left;
+    const screenY = (canvasY * canvasTransform.scale) + canvasTransform.y + rect.top;
+    return { x: screenX, y: screenY };
+}
+
+// Performance monitoring
+let performanceMetrics = {
+    frameCount: 0,
+    lastFrameTime: 0,
+    averageFrameTime: 0,
+    memoryUsage: 0,
+    domNodeCount: 0
+};
+
+function updatePerformanceMetrics() {
+    const now = performance.now();
+    const frameTime = now - performanceMetrics.lastFrameTime;
+    
+    performanceMetrics.frameCount++;
+    performanceMetrics.lastFrameTime = now;
+    performanceMetrics.averageFrameTime = 
+        (performanceMetrics.averageFrameTime * (performanceMetrics.frameCount - 1) + frameTime) / performanceMetrics.frameCount;
+    
+    // Update DOM node count
+    performanceMetrics.domNodeCount = document.querySelectorAll('*').length;
+    
+    // Log performance issues
+    if (frameTime > 16.67) { // More than 60fps threshold
+        console.warn(`Frame time exceeded 16.67ms: ${frameTime.toFixed(2)}ms`);
+    }
+    
+    if (performanceMetrics.domNodeCount > 1000) {
+        console.warn(`High DOM node count: ${performanceMetrics.domNodeCount}`);
+    }
+}
+
+// Start performance monitoring
+function startPerformanceMonitoring() {
+    function monitorPerformance() {
+        updatePerformanceMetrics();
+        requestAnimationFrame(monitorPerformance);
+    }
+    requestAnimationFrame(monitorPerformance);
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
     canvas = document.getElementById('canvas');
@@ -47,6 +141,12 @@ document.addEventListener('DOMContentLoaded', function() {
     toolbar = document.getElementById('toolbar');
     textToolbar = document.getElementById('textToolbar');
     drawToolbar = document.getElementById('drawToolbar');
+    
+    // Cache frequently accessed elements
+    cacheElements();
+    
+    // Start performance monitoring
+    startPerformanceMonitoring();
     
     checkAuth();
     bindEvents();
@@ -134,20 +234,6 @@ function showCanvas(isAdmin = false) {
 function updateCanvasTransform() {
     const transform = `translate(${canvasTransform.x}px, ${canvasTransform.y}px) scale(${canvasTransform.scale})`;
     canvas.style.transform = transform;
-}
-
-function screenToCanvas(screenX, screenY) {
-    const rect = container.getBoundingClientRect();
-    const canvasX = (screenX - rect.left - canvasTransform.x) / canvasTransform.scale;
-    const canvasY = (screenY - rect.top - canvasTransform.y) / canvasTransform.scale;
-    return { x: canvasX, y: canvasY };
-}
-
-function canvasToScreen(canvasX, canvasY) {
-    const rect = container.getBoundingClientRect();
-    const screenX = (canvasX * canvasTransform.scale) + canvasTransform.x + rect.left;
-    const screenY = (canvasY * canvasTransform.scale) + canvasTransform.y + rect.top;
-    return { x: screenX, y: screenY };
 }
 
 // Event Bindings
@@ -1071,15 +1157,23 @@ function createImageItem(src, x = centerPoint.x, y = centerPoint.y, width = 200,
     item.dataset.type = 'image';
     
     const img = document.createElement('img');
+    img.loading = 'lazy'; // Enable lazy loading
+    img.decoding = 'async'; // Enable async decoding
     img.src = src;
     
     // Set a default aspect ratio initially
     item.dataset.aspectRatio = width / height;
     
+    // Add loading state
+    item.classList.add('loading');
+    
     img.onload = function() {
         // Calculate and store the correct aspect ratio
         const aspectRatio = img.naturalWidth / img.naturalHeight;
         item.dataset.aspectRatio = aspectRatio;
+        
+        // Remove loading state
+        item.classList.remove('loading');
         
         // Only adjust size and save if not from database (new item)
         if (!fromDatabase) {
@@ -1098,7 +1192,28 @@ function createImageItem(src, x = centerPoint.x, y = centerPoint.y, width = 200,
     // Handle load errors
     img.onerror = function() {
         console.error('Failed to load image:', src);
+        item.classList.remove('loading');
+        item.classList.add('error');
         showStatus('Failed to load image');
+        
+        // Add error placeholder
+        img.style.display = 'none';
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'image-error';
+        errorDiv.innerHTML = '⚠️ Image failed to load';
+        errorDiv.style.cssText = `
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            background: #f8f9fa;
+            color: #6c757d;
+            font-size: 12px;
+            text-align: center;
+            border: 1px dashed #dee2e6;
+        `;
+        item.appendChild(errorDiv);
     };
     
     item.appendChild(img);
@@ -1142,10 +1257,14 @@ function createVideoItem(src, x = centerPoint.x, y = centerPoint.y, width = 400,
     video.playsInline = true; // Required for iOS autoplay
     video.disablePictureInPicture = true; // Disable PiP on iOS
     video.disableRemotePlayback = true; // Disable AirPlay on iOS
+    video.preload = 'metadata'; // Only load metadata initially
     video.style.width = '100%';
     video.style.height = '100%';
     video.style.objectFit = 'cover';
     video.style.display = 'block';
+    
+    // Add loading state
+    item.classList.add('loading');
     
     // Set a default aspect ratio initially
     item.dataset.aspectRatio = width / height;
@@ -1154,6 +1273,9 @@ function createVideoItem(src, x = centerPoint.x, y = centerPoint.y, width = 400,
         // Calculate and store the correct aspect ratio
         const aspectRatio = video.videoWidth / video.videoHeight;
         item.dataset.aspectRatio = aspectRatio;
+        
+        // Remove loading state
+        item.classList.remove('loading');
         
         // Only adjust size and save if not from database (new item)
         if (!fromDatabase) {
@@ -1172,7 +1294,28 @@ function createVideoItem(src, x = centerPoint.x, y = centerPoint.y, width = 400,
     // Handle load errors
     video.onerror = function() {
         console.error('Failed to load video:', src);
+        item.classList.remove('loading');
+        item.classList.add('error');
         showStatus('Failed to load video');
+        
+        // Add error placeholder
+        video.style.display = 'none';
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'video-error';
+        errorDiv.innerHTML = '⚠️ Video failed to load';
+        errorDiv.style.cssText = `
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            background: #f8f9fa;
+            color: #6c757d;
+            font-size: 12px;
+            text-align: center;
+            border: 1px dashed #dee2e6;
+        `;
+        item.appendChild(errorDiv);
     };
     
     item.appendChild(video);
@@ -1667,9 +1810,42 @@ function setupRealtimeSubscription() {
             { event: 'UPDATE', schema: 'public', table: 'canvas_center' },
             handleCenterUpdate
         )
-        .subscribe();
+        .on('error', (error) => {
+            console.error('Real-time subscription error:', error);
+            // Attempt to reconnect after a delay
+            setTimeout(() => {
+                if (isAuthenticated) {
+                    console.log('Attempting to reconnect real-time subscription...');
+                    setupRealtimeSubscription();
+                }
+            }, 5000);
+        })
+        .on('close', () => {
+            console.log('Real-time subscription closed');
+            // Attempt to reconnect if still authenticated
+            if (isAuthenticated) {
+                setTimeout(() => {
+                    console.log('Attempting to reconnect real-time subscription...');
+                    setupRealtimeSubscription();
+                }, 3000);
+            }
+        })
+        .subscribe((status) => {
+            console.log('Real-time subscription status:', status);
+            if (status === 'SUBSCRIBED') {
+                console.log('Real-time subscription active');
+            } else if (status === 'CHANNEL_ERROR') {
+                console.error('Real-time subscription channel error');
+                // Attempt to reconnect
+                setTimeout(() => {
+                    if (isAuthenticated) {
+                        setupRealtimeSubscription();
+                    }
+                }, 5000);
+            }
+        });
     
-    console.log('Real-time subscription active');
+    console.log('Real-time subscription setup complete');
 }
 
 function handleRealtimeInsert(payload) {
@@ -1717,6 +1893,22 @@ function handleCenterUpdate(payload) {
 }
 
 // Database Operations
+// Debounced save function to prevent excessive database calls
+let saveTimeout = null;
+const SAVE_DELAY = 300; // 300ms delay
+
+function debouncedSaveItem(item) {
+    if (saveTimeout) {
+        clearTimeout(saveTimeout);
+    }
+    
+    saveTimeout = setTimeout(() => {
+        saveItemToDatabase(item);
+        saveTimeout = null;
+    }, SAVE_DELAY);
+}
+
+// Replace direct save calls with debounced version for frequent operations
 async function saveItemToDatabase(item) {
     const isTextItem = item.dataset.type === 'text';
     const isDrawingItem = item.dataset.type === 'drawing';
@@ -2270,46 +2462,56 @@ function hideTextToolbar() {
     textToolbar.classList.add('hidden');
 }
 
+function handleFontFamilyChange(e) {
+    if (selectedTextItem) {
+        selectedTextItem.style.fontFamily = e.target.value;
+        saveItemToDatabase(selectedTextItem);
+    }
+}
+
+function handleFontSizeChange(e) {
+    if (selectedTextItem) {
+        selectedTextItem.style.fontSize = e.target.value + 'px';
+        debouncedSaveTextItem();
+    }
+}
+
+function handleFontWeightChange(e) {
+    if (selectedTextItem) {
+        selectedTextItem.style.fontWeight = e.target.value;
+        saveItemToDatabase(selectedTextItem);
+    }
+}
+
+function handleTextColorChange(e) {
+    if (selectedTextItem) {
+        selectedTextItem.style.color = e.target.value;
+        saveItemToDatabase(selectedTextItem);
+    }
+}
+
+function handleLineHeightChange(e) {
+    if (selectedTextItem) {
+        selectedTextItem.style.lineHeight = e.target.value;
+        debouncedSaveTextItem();
+    }
+}
+
 function bindTextToolbarEvents() {
     // Font family change
-    document.getElementById('fontFamily').addEventListener('change', (e) => {
-        if (selectedTextItem) {
-            selectedTextItem.style.fontFamily = e.target.value;
-            saveItemToDatabase(selectedTextItem);
-        }
-    });
+    document.getElementById('fontFamily').addEventListener('change', handleFontFamilyChange);
     
     // Font size change
-    document.getElementById('fontSize').addEventListener('input', (e) => {
-        if (selectedTextItem) {
-            selectedTextItem.style.fontSize = e.target.value + 'px';
-            debouncedSaveTextItem();
-        }
-    });
+    document.getElementById('fontSize').addEventListener('input', handleFontSizeChange);
     
     // Font weight change
-    document.getElementById('fontWeight').addEventListener('change', (e) => {
-        if (selectedTextItem) {
-            selectedTextItem.style.fontWeight = e.target.value;
-            saveItemToDatabase(selectedTextItem);
-        }
-    });
+    document.getElementById('fontWeight').addEventListener('change', handleFontWeightChange);
     
     // Text color change
-    document.getElementById('textColor').addEventListener('input', (e) => {
-        if (selectedTextItem) {
-            selectedTextItem.style.color = e.target.value;
-            saveItemToDatabase(selectedTextItem);
-        }
-    });
+    document.getElementById('textColor').addEventListener('input', handleTextColorChange);
     
     // Line height change
-    document.getElementById('lineHeight').addEventListener('input', (e) => {
-        if (selectedTextItem) {
-            selectedTextItem.style.lineHeight = e.target.value;
-            debouncedSaveTextItem();
-        }
-    });
+    document.getElementById('lineHeight').addEventListener('input', handleLineHeightChange);
 }
 
 // Drawing toolbar debounced save
@@ -2326,28 +2528,32 @@ function debouncedSaveDrawingItem() {
     }, 300);
 }
 
+function handleStrokeColorChange(e) {
+    if (selectedItem && selectedItem.dataset.type === 'drawing') {
+        const path = selectedItem.querySelector('path');
+        if (path) {
+            path.setAttribute('stroke', e.target.value);
+            debouncedSaveDrawingItem();
+        }
+    }
+}
+
+function handleStrokeThicknessChange(e) {
+    if (selectedItem && selectedItem.dataset.type === 'drawing') {
+        const path = selectedItem.querySelector('path');
+        if (path) {
+            path.setAttribute('stroke-width', e.target.value);
+            debouncedSaveDrawingItem();
+        }
+    }
+}
+
 function bindDrawToolbarEvents() {
     // Stroke color change
-    document.getElementById('strokeColor').addEventListener('input', (e) => {
-        if (selectedItem && selectedItem.dataset.type === 'drawing') {
-            const path = selectedItem.querySelector('path');
-            if (path) {
-                path.setAttribute('stroke', e.target.value);
-                debouncedSaveDrawingItem();
-            }
-        }
-    });
+    document.getElementById('strokeColor').addEventListener('input', handleStrokeColorChange);
     
     // Stroke thickness change
-    document.getElementById('strokeThickness').addEventListener('input', (e) => {
-        if (selectedItem && selectedItem.dataset.type === 'drawing') {
-            const path = selectedItem.querySelector('path');
-            if (path) {
-                path.setAttribute('stroke-width', e.target.value);
-                debouncedSaveDrawingItem();
-            }
-        }
-    });
+    document.getElementById('strokeThickness').addEventListener('input', handleStrokeThicknessChange);
 }
 
 // Utility function to convert rgb color to hex
@@ -2405,3 +2611,50 @@ function hideMoveButtons() {
     bringToFrontBtn.classList.add('hidden');
     sendToBackBtn.classList.add('hidden');
 }
+
+// Add cleanup function for event listeners
+function cleanupEventListeners() {
+    // Remove global event listeners
+    document.removeEventListener('mousemove', handleMouseMove);
+    document.removeEventListener('mouseup', handleMouseUp);
+    document.removeEventListener('keydown', handleKeyDown);
+    
+    // Remove container event listeners
+    if (container) {
+        container.removeEventListener('mousedown', handleMouseDown);
+        container.removeEventListener('wheel', handleWheel);
+        container.removeEventListener('touchstart', handleTouchStart);
+        container.removeEventListener('touchmove', handleTouchMove);
+        container.removeEventListener('touchend', handleTouchEnd);
+        container.removeEventListener('contextmenu', e => e.preventDefault());
+    }
+    
+    // Remove file input listener
+    const fileInput = document.getElementById('fileInput');
+    if (fileInput) {
+        fileInput.removeEventListener('change', handleFileSelect);
+    }
+    
+    // Remove text toolbar listeners
+    const fontFamily = document.getElementById('fontFamily');
+    const fontSize = document.getElementById('fontSize');
+    const fontWeight = document.getElementById('fontWeight');
+    const textColor = document.getElementById('textColor');
+    const lineHeight = document.getElementById('lineHeight');
+    
+    if (fontFamily) fontFamily.removeEventListener('change', handleFontFamilyChange);
+    if (fontSize) fontSize.removeEventListener('input', handleFontSizeChange);
+    if (fontWeight) fontWeight.removeEventListener('change', handleFontWeightChange);
+    if (textColor) textColor.removeEventListener('input', handleTextColorChange);
+    if (lineHeight) lineHeight.removeEventListener('input', handleLineHeightChange);
+    
+    // Remove drawing toolbar listeners
+    const strokeColor = document.getElementById('strokeColor');
+    const strokeThickness = document.getElementById('strokeThickness');
+    
+    if (strokeColor) strokeColor.removeEventListener('input', handleStrokeColorChange);
+    if (strokeThickness) strokeThickness.removeEventListener('input', handleStrokeThicknessChange);
+}
+
+// Add window beforeunload listener to cleanup
+window.addEventListener('beforeunload', cleanupEventListeners);
