@@ -550,6 +550,44 @@ body {
     cursor: grabbing;
 }
 
+/* Mobile Gradient Overlay */
+.mobile-gradient {
+    display: none; /* Hidden by default */
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 52px;
+    background: linear-gradient(
+        to bottom,
+        color-mix(in srgb, var(--canvas-bg) 0%, transparent) 0%,
+        color-mix(in srgb, var(--canvas-bg) 1.3%, transparent) 8.1%,
+        color-mix(in srgb, var(--canvas-bg) 4.9%, transparent) 15.5%,
+        color-mix(in srgb, var(--canvas-bg) 10.4%, transparent) 22.5%,
+        color-mix(in srgb, var(--canvas-bg) 17.5%, transparent) 29%,
+        color-mix(in srgb, var(--canvas-bg) 25.9%, transparent) 35.3%,
+        color-mix(in srgb, var(--canvas-bg) 35.2%, transparent) 41.2%,
+        color-mix(in srgb, var(--canvas-bg) 45%, transparent) 47.1%,
+        color-mix(in srgb, var(--canvas-bg) 55%, transparent) 52.9%,
+        color-mix(in srgb, var(--canvas-bg) 64.8%, transparent) 58.8%,
+        color-mix(in srgb, var(--canvas-bg) 74.1%, transparent) 64.7%,
+        color-mix(in srgb, var(--canvas-bg) 82.5%, transparent) 71%,
+        color-mix(in srgb, var(--canvas-bg) 89.6%, transparent) 77.5%,
+        color-mix(in srgb, var(--canvas-bg) 95.1%, transparent) 84.5%,
+        color-mix(in srgb, var(--canvas-bg) 98.7%, transparent) 91.9%,
+        var(--canvas-bg) 100%
+    );
+    pointer-events: none;
+    z-index: calc(var(--z-index-toolbar) - 1);
+}
+
+/* Show gradient on mobile only */
+@media (max-width: 768px) {
+    .mobile-gradient {
+        display: block;
+    }
+}
+
 /* Toolbar Variables */
 :root {
     --toolbar-width: min(678px, calc(100vw - 68px));
