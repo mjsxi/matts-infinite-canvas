@@ -477,7 +477,7 @@ body {
     --toolbar-height: 48px;
     --toolbar-padding: 3px;
     --toolbar-gap: 1px;
-    --toolbar-btn-width: calc((var(--toolbar-width) - (var(--toolbar-padding) * 2) - (var(--toolbar-gap) * 7)) / 8);
+    --toolbar-btn-width: 72px;
     --toolbar-btn-height: 100%;
     --toolbar-btn-padding: 6px 10px;
     --toolbar-icon-size: 28px;
@@ -490,7 +490,7 @@ body {
     left: 50%;
     transform: translateX(-50%);
     display: flex;
-    /* width: var(--toolbar-width); */
+    min-width: 60px;
     height: var(--toolbar-height);
     padding: var(--toolbar-padding);
     justify-content: center;
@@ -547,6 +547,17 @@ body {
 /* Last button styling */
 .toolbar-btn.last-btn {
     border-radius: 6px 20px 20px 6px;
+}
+
+/* Login button styling - standalone rounded button */
+.toolbar-btn.login-btn {
+    border-radius: 20px;
+}
+
+/* Admin buttons container */
+.admin-buttons {
+    display: flex;
+    gap: var(--toolbar-gap);
 }
 
 /* Modal */

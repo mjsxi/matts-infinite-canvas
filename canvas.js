@@ -46,9 +46,11 @@ document.addEventListener('DOMContentLoaded', function() {
 function checkAuth() {
     const auth = localStorage.getItem('canvas_admin_auth');
     if (auth === 'true') {
-        showCanvas();
+        isAuthenticated = true;
+        showCanvas(true); // Show canvas in admin mode
     } else {
-        showLogin();
+        isAuthenticated = false;
+        showCanvas(false); // Show canvas in guest mode
     }
 }
 
@@ -57,7 +59,7 @@ function login() {
     if (password === ADMIN_PASSWORD) {
         isAuthenticated = true;
         localStorage.setItem('canvas_admin_auth', 'true');
-        showCanvas();
+        showCanvas(true); // Show canvas in admin mode
     } else {
         alert('Invalid password');
     }
@@ -76,16 +78,26 @@ function logout() {
     location.reload();
 }
 
-function showLogin() {
+function showLoginModal() {
     document.getElementById('adminLogin').classList.remove('hidden');
-    document.getElementById('canvasContainer').classList.add('hidden');
-    document.getElementById('toolbar').classList.add('hidden');
 }
 
-function showCanvas() {
+function showCanvas(isAdmin = false) {
     document.getElementById('adminLogin').classList.add('hidden');
     document.getElementById('canvasContainer').classList.remove('hidden');
     document.getElementById('toolbar').classList.remove('hidden');
+    
+    // Show/hide admin buttons based on authentication status
+    const adminButtons = document.getElementById('adminButtons');
+    const loginBtn = document.getElementById('loginBtn');
+    
+    if (isAdmin) {
+        adminButtons.classList.remove('hidden');
+        loginBtn.classList.add('hidden');
+    } else {
+        adminButtons.classList.add('hidden');
+        loginBtn.classList.remove('hidden');
+    }
     
     loadCanvasData().then(() => {
         // Wait a moment before setting up real-time to avoid receiving events for items we just loaded
@@ -148,10 +160,14 @@ function handleMouseDown(e) {
         clearSelection();
     } else if (e.target.closest('.canvas-item')) {
         const item = e.target.closest('.canvas-item');
-        selectItem(item);
         
-        if (!e.target.closest('.resize-handle')) {
-            startDragging(e, item);
+        // Only allow item interaction for authenticated admin users
+        if (isAuthenticated) {
+            selectItem(item);
+            
+            if (!e.target.closest('.resize-handle')) {
+                startDragging(e, item);
+            }
         }
     }
 }
@@ -453,6 +469,11 @@ function stopInertiaAnimation() {
 function handleKeyDown(e) {
     if (e.target.contentEditable === 'true' || e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
         return; // Don't interfere with text editing
+    }
+    
+    // Only allow admin keyboard shortcuts
+    if (!isAuthenticated) {
+        return; // Guests cannot use keyboard shortcuts
     }
     
     if (e.key === 'Delete' || e.key === 'Backspace') {
