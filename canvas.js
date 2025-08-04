@@ -132,8 +132,9 @@ function showCanvas() {
 // Canvas Management
 function updateCanvasTransform() {
     // Clamp values to prevent extreme transforms that cause rendering issues on mobile
-    const clampedX = Math.max(-30000, Math.min(30000, canvasTransform.x));
-    const clampedY = Math.max(-30000, Math.min(30000, canvasTransform.y));
+    const maxPan = 50000; // Increased bounds to prevent jumping
+    const clampedX = Math.max(-maxPan, Math.min(maxPan, canvasTransform.x));
+    const clampedY = Math.max(-maxPan, Math.min(maxPan, canvasTransform.y));
     const clampedScale = Math.max(0.1, Math.min(3, canvasTransform.scale));
     
     // Update the clamped values back to the transform object
@@ -392,10 +393,20 @@ function handleWheel(e) {
         const zoomFactor = e.ctrlKey || e.metaKey ? 0.99 : 0.985; // More responsive for trackpad
         const newScale = Math.max(0.05, Math.min(5, canvasTransform.scale * (zoomFactor ** delta)));
         
-        // Zoom towards mouse/cursor position
+        // FIXED: Use the same stable transform calculation
         const scaleRatio = newScale / canvasTransform.scale;
-        canvasTransform.x = mouseX - (mouseX - canvasTransform.x) * scaleRatio;
-        canvasTransform.y = mouseY - (mouseY - canvasTransform.y) * scaleRatio;
+        
+        // Calculate the offset from the mouse position
+        const offsetX = mouseX - canvasTransform.x;
+        const offsetY = mouseY - canvasTransform.y;
+        
+        // Apply the scale change to the offset
+        const scaledOffsetX = offsetX * scaleRatio;
+        const scaledOffsetY = offsetY * scaleRatio;
+        
+        // Calculate new position relative to the mouse
+        canvasTransform.x = mouseX - scaledOffsetX;
+        canvasTransform.y = mouseY - scaledOffsetY;
         canvasTransform.scale = newScale;
     } else {
         // Two-finger scroll (pan)
@@ -481,8 +492,9 @@ function handleTouchMove(e) {
         const newX = touchStartTransform.x + deltaX;
         const newY = touchStartTransform.y + deltaY;
         
-        canvasTransform.x = Math.max(-30000, Math.min(30000, newX));
-        canvasTransform.y = Math.max(-30000, Math.min(30000, newY));
+        const maxPan = 50000; // Increased bounds to prevent jumping
+        canvasTransform.x = Math.max(-maxPan, Math.min(maxPan, newX));
+        canvasTransform.y = Math.max(-maxPan, Math.min(maxPan, newY));
         
         throttledUpdateCanvasTransform();
         
@@ -538,24 +550,26 @@ function handleTouchMove(e) {
             const panX = currentCenter.x - touchStartCenter.x;
             const panY = currentCenter.y - touchStartCenter.y;
             
-            // Alternative zoom calculation that's more Safari-friendly
-            const rect = container.getBoundingClientRect();
-            const centerX = touchStartCenter.x - rect.left;
-            const centerY = touchStartCenter.y - rect.top;
-            
             // Use a simpler zoom calculation that doesn't rely on complex transform math
             const scaleRatio = newScale / touchStartTransform.scale;
             
-            // Calculate new position using a more direct approach
-            const deltaX = (centerX - touchStartTransform.x) * (1 - scaleRatio);
-            const deltaY = (centerY - touchStartTransform.y) * (1 - scaleRatio);
+            // FIXED: Use the same stable transform calculation
+            // Calculate the offset from the gesture center
+            const offsetX = currentCenter.x - touchStartCenter.x;
+            const offsetY = currentCenter.y - touchStartCenter.y;
             
-            const newX = touchStartTransform.x + deltaX + panX;
-            const newY = touchStartTransform.y + deltaY + panY;
+            // Apply the scale change to the offset
+            const scaledOffsetX = offsetX * scaleRatio;
+            const scaledOffsetY = offsetY * scaleRatio;
+            
+            // Calculate new position relative to the original transform
+            const newX = touchStartTransform.x + scaledOffsetX;
+            const newY = touchStartTransform.y + scaledOffsetY;
             
             // Bounds checking to prevent extreme pan values
-            canvasTransform.x = Math.max(-30000, Math.min(30000, newX));
-            canvasTransform.y = Math.max(-30000, Math.min(30000, newY));
+            const maxPan = 50000; // Increased bounds to prevent jumping
+            canvasTransform.x = Math.max(-maxPan, Math.min(maxPan, newX));
+            canvasTransform.y = Math.max(-maxPan, Math.min(maxPan, newY));
             canvasTransform.scale = newScale;
             
             // Use immediate update for pinch gestures to prevent lag
@@ -1825,18 +1839,30 @@ function handleGestureChange(e) {
         // Use Safari's native gesture scale
         const newScale = Math.max(0.1, Math.min(3, touchStartTransform.scale * e.scale));
         
-        // Calculate new position
+        // Calculate new position with better bounds checking
         const rect = container.getBoundingClientRect();
         const centerX = e.clientX - rect.left;
         const centerY = e.clientY - rect.top;
         
+        // FIXED: Use a more stable transform calculation that doesn't cause jumping
         const scaleRatio = newScale / touchStartTransform.scale;
-        const newX = centerX - (centerX - touchStartTransform.x) * scaleRatio;
-        const newY = centerY - (centerY - touchStartTransform.y) * scaleRatio;
         
-        // Apply bounds checking
-        canvasTransform.x = Math.max(-30000, Math.min(30000, newX));
-        canvasTransform.y = Math.max(-30000, Math.min(30000, newY));
+        // Calculate the offset from the gesture center
+        const offsetX = centerX - touchStartCenter.x;
+        const offsetY = centerY - touchStartCenter.y;
+        
+        // Apply the scale change to the offset
+        const scaledOffsetX = offsetX * scaleRatio;
+        const scaledOffsetY = offsetY * scaleRatio;
+        
+        // Calculate new position relative to the original transform
+        const newX = touchStartTransform.x + scaledOffsetX;
+        const newY = touchStartTransform.y + scaledOffsetY;
+        
+        // Apply bounds checking with better limits
+        const maxPan = 50000; // Increased bounds to prevent jumping
+        canvasTransform.x = Math.max(-maxPan, Math.min(maxPan, newX));
+        canvasTransform.y = Math.max(-maxPan, Math.min(maxPan, newY));
         canvasTransform.scale = newScale;
         
         // CRITICAL: Force immediate update and rerender to prevent disappearing items
