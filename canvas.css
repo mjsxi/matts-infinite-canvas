@@ -855,7 +855,7 @@ body {
     /* Mobile toolbar positioning with safe area */
     .toolbar {
         bottom: calc(0px + env(safe-area-inset-bottom));
-        box-shadow: rgba(0, 0, 0, 0.0);
+        box-shadow: none !important;
     }
     
     .text-toolbar {
