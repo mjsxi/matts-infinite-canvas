@@ -2051,13 +2051,15 @@ function showStatus(message) {
     toast.style.cssText = `
         position: fixed;
         top: 20px;
-        right: 20px;
+        left: 50%;
+        transform: translateX(-50%);
         background: #333;
         color: white;
         padding: 12px 20px;
         border-radius: 8px;
         z-index: 10000;
         font-size: 14px;
+        white-space: nowrap;
     `;
     
     document.body.appendChild(toast);
