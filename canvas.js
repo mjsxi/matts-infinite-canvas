@@ -126,16 +126,6 @@ function updateCanvasTransform() {
             scale: clampedScale,
             transform: transform
         });
-        
-        // Force Safari to repaint items by temporarily changing their styles
-        const items = canvas.querySelectorAll('.canvas-item');
-        items.forEach(item => {
-            // Force a repaint by temporarily changing and restoring the transform
-            const originalTransform = item.style.transform;
-            item.style.transform = originalTransform + ' translateZ(0)';
-            item.offsetHeight; // Force reflow
-            item.style.transform = originalTransform;
-        });
     }
     
     // Reset pending update flag
@@ -217,14 +207,10 @@ function forceSafariItemVisibility() {
     if (/iPad|iPhone|iPod/.test(navigator.userAgent) && /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent)) {
         const items = canvas.querySelectorAll('.canvas-item');
         items.forEach(item => {
-            // Force Safari to maintain the item's layer
-            item.style.webkitTransform = item.style.transform;
+            // Force Safari to maintain the item's layer (less aggressive)
             item.style.webkitBackfaceVisibility = 'hidden';
             item.style.backfaceVisibility = 'hidden';
             item.style.willChange = 'transform';
-            
-            // Force a repaint
-            item.offsetHeight;
         });
     }
 }
@@ -566,8 +552,10 @@ function handleTouchMove(e) {
             
             throttledUpdateCanvasTransform();
             
-            // Force Safari to maintain item visibility during pinch gestures
-            forceSafariItemVisibility();
+            // Force Safari to maintain item visibility during pinch gestures (less frequent)
+            if (Math.abs(newScale - touchStartTransform.scale) > 0.2) {
+                forceSafariItemVisibility();
+            }
             
             // Reduce aggressive rerender calls - only after significant scale changes
             if (Math.abs(newScale - touchStartTransform.scale) > 0.3) {

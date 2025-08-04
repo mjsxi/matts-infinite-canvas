@@ -748,8 +748,6 @@ body {
         transform: translateZ(0);
         -webkit-backface-visibility: hidden;
         backface-visibility: hidden;
-        -webkit-perspective: 1000px;
-        perspective: 1000px;
         /* Force Safari to maintain the layer */
         will-change: transform;
         /* Prevent Safari from optimizing away the canvas */
@@ -768,9 +766,6 @@ body {
         /* Prevent Safari from dropping items during transforms */
         -webkit-transform-style: preserve-3d;
         transform-style: preserve-3d;
-        /* Force repaint on transform changes */
-        -webkit-transition: none;
-        transition: none;
     }
     
     /* Additional Safari-specific fixes */
