@@ -126,6 +126,16 @@ function updateCanvasTransform() {
             scale: clampedScale,
             transform: transform
         });
+        
+        // Force Safari to repaint items by temporarily changing their styles
+        const items = canvas.querySelectorAll('.canvas-item');
+        items.forEach(item => {
+            // Force a repaint by temporarily changing and restoring the transform
+            const originalTransform = item.style.transform;
+            item.style.transform = originalTransform + ' translateZ(0)';
+            item.offsetHeight; // Force reflow
+            item.style.transform = originalTransform;
+        });
     }
     
     // Reset pending update flag
@@ -202,27 +212,20 @@ function forceCanvasRerender() {
     }
 }
 
-// Add a function to check item visibility
-function checkItemVisibility() {
-    const items = canvas.querySelectorAll('.canvas-item');
-    const visibleItems = Array.from(items).filter(item => item.offsetParent !== null);
-    const hiddenItems = Array.from(items).filter(item => item.offsetParent === null && item.style.display !== 'none');
-    
-    console.log('Item Visibility Check:', {
-        total: items.length,
-        visible: visibleItems.length,
-        hidden: hiddenItems.length,
-        canvasTransform: canvasTransform,
-        canvasStyle: canvas.style.transform
-    });
-    
-    if (hiddenItems.length > 0) {
-        console.log('Hidden items found:', hiddenItems);
-    }
-    
-    // If all items are hidden, log a warning
-    if (visibleItems.length === 0 && items.length > 0) {
-        console.warn('ALL ITEMS HAVE DISAPPEARED!');
+// Add a function to force Safari to maintain item visibility
+function forceSafariItemVisibility() {
+    if (/iPad|iPhone|iPod/.test(navigator.userAgent) && /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent)) {
+        const items = canvas.querySelectorAll('.canvas-item');
+        items.forEach(item => {
+            // Force Safari to maintain the item's layer
+            item.style.webkitTransform = item.style.transform;
+            item.style.webkitBackfaceVisibility = 'hidden';
+            item.style.backfaceVisibility = 'hidden';
+            item.style.willChange = 'transform';
+            
+            // Force a repaint
+            item.offsetHeight;
+        });
     }
 }
 
@@ -562,6 +565,9 @@ function handleTouchMove(e) {
             }
             
             throttledUpdateCanvasTransform();
+            
+            // Force Safari to maintain item visibility during pinch gestures
+            forceSafariItemVisibility();
             
             // Reduce aggressive rerender calls - only after significant scale changes
             if (Math.abs(newScale - touchStartTransform.scale) > 0.3) {

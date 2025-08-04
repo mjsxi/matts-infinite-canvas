@@ -739,3 +739,47 @@ body {
         will-change: transform;
     }
 }
+
+/* Mobile Safari optimizations for pinch-to-zoom */
+@media screen and (-webkit-min-device-pixel-ratio: 0) {
+    .canvas {
+        /* Force hardware acceleration and prevent Safari from dropping layers */
+        -webkit-transform: translateZ(0);
+        transform: translateZ(0);
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
+        -webkit-perspective: 1000px;
+        perspective: 1000px;
+        /* Force Safari to maintain the layer */
+        will-change: transform;
+        /* Prevent Safari from optimizing away the canvas */
+        -webkit-transform-style: preserve-3d;
+        transform-style: preserve-3d;
+    }
+    
+    .canvas-item {
+        /* Force hardware acceleration for each item */
+        -webkit-transform: translateZ(0);
+        transform: translateZ(0);
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
+        /* Force Safari to maintain individual item layers */
+        will-change: transform;
+        /* Prevent Safari from dropping items during transforms */
+        -webkit-transform-style: preserve-3d;
+        transform-style: preserve-3d;
+        /* Force repaint on transform changes */
+        -webkit-transition: none;
+        transition: none;
+    }
+    
+    /* Additional Safari-specific fixes */
+    .canvas-container {
+        /* Force container to maintain its layer */
+        -webkit-transform: translateZ(0);
+        transform: translateZ(0);
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
+        will-change: transform;
+    }
+}
