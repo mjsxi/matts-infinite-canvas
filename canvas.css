@@ -347,7 +347,7 @@ body {
 }
 
 .text-item:empty:before {
-    content: 'Click to edit text...';
+    content: 'Double-click to edit text...';
     color: var(--color-text-secondary);
     font-style: italic;
 }

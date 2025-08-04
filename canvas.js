@@ -921,15 +921,15 @@ function createImageItem(src, x = centerPoint.x, y = centerPoint.y, width = 200,
 }
 
 function addText() {
-    createTextItem('Click to edit text...', centerPoint.x, centerPoint.y);
+    createTextItem('Double-click to edit text...', centerPoint.x, centerPoint.y);
 }
 
-function createTextItem(content = 'Click to edit text...', x = centerPoint.x, y = centerPoint.y, fromDatabase = false) {
+function createTextItem(content = 'Double-click to edit text...', x = centerPoint.x, y = centerPoint.y, fromDatabase = false) {
     const item = document.createElement('div');
     item.className = 'canvas-item text-item';
     item.style.left = x + 'px';
     item.style.top = y + 'px';
-    item.contentEditable = true;
+    item.contentEditable = false; // Start in non-editing mode
     item.textContent = content;
     
     // Set default text styling
@@ -954,10 +954,26 @@ function createTextItem(content = 'Click to edit text...', x = centerPoint.x, y 
     }
     item.dataset.type = 'text';
     
+    // Double-click to enter text editing mode
+    item.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        item.contentEditable = true;
+        item.focus();
+        item.classList.add('editing');
+        
+        // Select all text for easy editing
+        const range = document.createRange();
+        range.selectNodeContents(item);
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+    });
+    
     // Handle text editing
     item.addEventListener('focus', () => item.classList.add('editing'));
     item.addEventListener('blur', () => {
         item.classList.remove('editing');
+        item.contentEditable = false;
         saveItemToDatabase(item);
     });
     
