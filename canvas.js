@@ -2045,6 +2045,11 @@ function showStatus(message) {
     // Simple status implementation
     console.log('Status:', message);
     
+    // Only show status messages when authenticated as admin
+    if (!isAuthenticated) {
+        return;
+    }
+    
     // You could create a toast notification here
     const toast = document.createElement('div');
     toast.textContent = message;
