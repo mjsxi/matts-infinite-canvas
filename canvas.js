@@ -270,15 +270,14 @@ function handleMouseUp(e) {
             
             console.log('Path data:', pathData);
             
-            // Create a reasonably sized container (can be manually resized later)
-            const baseWidth = maxX - minX;
-            const baseHeight = maxY - minY;
-            const containerWidth = Math.max(100, baseWidth);
-            const containerHeight = Math.max(100, baseHeight);
+            // Keep the drawing at its original size with padding for stroke
+            const padding = Math.max(10, strokeThickness);
+            const containerWidth = (maxX - minX) + (padding * 2);
+            const containerHeight = (maxY - minY) + (padding * 2);
             
-            console.log('Container size:', { containerWidth, containerHeight });
+            console.log('Container size (original scale):', { containerWidth, containerHeight });
             
-            createDrawingItem(pathData, strokeColor, strokeThickness, minX, minY, containerWidth, containerHeight);
+            createDrawingItem(pathData, strokeColor, strokeThickness, minX - padding, minY - padding, containerWidth, containerHeight);
         } else {
             console.log('Not enough points to create drawing:', drawingPath.length);
         }
@@ -1350,16 +1349,11 @@ function createDrawingItem(pathData, strokeColor, strokeThickness, x, y, width, 
         item.dataset.viewBox = viewBoxData;
         console.log('Using provided viewBox:', viewBoxData);
     } else {
-        // Calculate viewBox to show the path relative to the container position
-        const padding = Math.max(50, strokeThickness * 2);
-        const viewBoxX = x - padding;
-        const viewBoxY = y - padding;
-        const viewBoxWidth = width + (padding * 2);
-        const viewBoxHeight = height + (padding * 2);
-        const viewBox = `${viewBoxX} ${viewBoxY} ${viewBoxWidth} ${viewBoxHeight}`;
+        // Set viewBox to show the exact area of the container (1:1 scale)
+        const viewBox = `${x} ${y} ${width} ${height}`;
         svg.setAttribute('viewBox', viewBox);
         item.dataset.viewBox = viewBox;
-        console.log('Calculated viewBox:', viewBox);
+        console.log('Calculated viewBox (1:1 scale):', viewBox);
     }
     
     // Create path element
