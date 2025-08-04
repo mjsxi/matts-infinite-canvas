@@ -18,8 +18,8 @@
     console.log('Mobile device detected - applying zoom limits');
     
     // Mobile zoom limits
-    const MOBILE_MIN_SCALE = 0.35;
-    const MOBILE_MAX_SCALE = 2.75;
+    const MOBILE_MIN_SCALE = 0.25; // this is for how far you can zoom out
+    const MOBILE_MAX_SCALE = 2.75; // this is for how far you can zoom in
     
     // Override the handleWheel function with mobile limits
     function mobileHandleWheel(e) {
@@ -115,7 +115,15 @@
             
             if (touchStartDistance > 0) {
                 const scaleChange = currentDistance / touchStartDistance;
-                const newScale = Math.max(MOBILE_MIN_SCALE, Math.min(MOBILE_MAX_SCALE, touchStartTransform.scale * scaleChange));
+                const requestedScale = touchStartTransform.scale * scaleChange;
+                const newScale = Math.max(MOBILE_MIN_SCALE, Math.min(MOBILE_MAX_SCALE, requestedScale));
+                
+                // Debug logging to verify limits are working
+                if (requestedScale !== newScale) {
+                    console.log(`Zoom limited: requested ${requestedScale.toFixed(3)}x, clamped to ${newScale.toFixed(3)}x`);
+                } else {
+                    console.log(`Zoom allowed: ${newScale.toFixed(3)}x (within limits)`);
+                }
                 
                 const panX = currentCenter.x - touchStartCenter.x;
                 const panY = currentCenter.y - touchStartCenter.y;
@@ -177,7 +185,7 @@
             };
         }
         
-        console.log('Mobile zoom limits applied: 0.5x - 1.5x');
+        console.log(`Mobile zoom limits applied: ${MOBILE_MIN_SCALE}x - ${MOBILE_MAX_SCALE}x`);
     }
     
     // Initialize when DOM is ready
