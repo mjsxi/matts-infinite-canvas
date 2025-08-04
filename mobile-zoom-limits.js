@@ -18,8 +18,8 @@
     console.log('Mobile device detected - applying zoom limits');
     
     // Mobile zoom limits
-    const MOBILE_MIN_SCALE = 0.5;
-    const MOBILE_MAX_SCALE = 1.5;
+    const MOBILE_MIN_SCALE = 0.35;
+    const MOBILE_MAX_SCALE = 2.75;
     
     // Override the handleWheel function with mobile limits
     function mobileHandleWheel(e) {
