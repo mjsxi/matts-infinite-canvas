@@ -55,6 +55,15 @@
         </div>
     </div>
 
+    <!-- Drawing Toolbar -->
+    <div id="drawToolbar" class="text-toolbar hidden">
+        <div class="text-toolbar-group">
+            <input type="color" id="strokeColor" class="text-control color-input" value="#333333">
+            
+            <input type="number" id="strokeThickness" class="text-control number-input" min="1" max="50" step="1" value="4">
+        </div>
+    </div>
+
     <!-- Toolbar -->
     <div id="toolbar" class="toolbar">
         <!-- Login button - always visible for guests -->
@@ -69,6 +78,9 @@
             </button>
             <button onclick="addText()" class="toolbar-btn middle-btn">
                 <img src="icons/text.svg" alt="Text">
+            </button>
+            <button onclick="toggleDrawMode()" class="toolbar-btn middle-btn" id="drawBtn">
+                <img src="icons/draw.svg" alt="Draw">
             </button>
             <button onclick="addCode()" class="toolbar-btn middle-btn">
                 <img src="icons/code.svg" alt="Code">

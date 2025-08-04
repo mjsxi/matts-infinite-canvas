@@ -9,7 +9,7 @@ const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // Global State
 let isAuthenticated = false;
-let canvas, container, toolbar, textToolbar;
+let canvas, container, toolbar, textToolbar, drawToolbar;
 let selectedItem = null;
 let selectedTextItem = null;
 let canvasTransform = { x: -9500, y: -9500, scale: 1 }; // Start centered in 20000x20000 canvas
@@ -18,8 +18,14 @@ let isSettingCenter = false;
 let isDragging = false;
 let isPanning = false;
 let isResizing = false;
+let isDrawing = false;
+let isDrawMode = false;
 let dragStart = { x: 0, y: 0 };
 let lastMousePos = { x: 0, y: 0 };
+
+// Drawing state
+let currentDrawing = null;
+let drawingPath = [];
 
 // Inertia scrolling variables
 let panVelocity = { x: 0, y: 0 };
@@ -39,10 +45,12 @@ document.addEventListener('DOMContentLoaded', function() {
     container = document.getElementById('canvasContainer');
     toolbar = document.getElementById('toolbar');
     textToolbar = document.getElementById('textToolbar');
+    drawToolbar = document.getElementById('drawToolbar');
     
     checkAuth();
     bindEvents();
     bindTextToolbarEvents();
+    bindDrawToolbarEvents();
 });
 
 // Authentication
@@ -152,6 +160,17 @@ function handleMouseDown(e) {
             return;
         }
         
+        if (isDrawMode && isAuthenticated) {
+            // Start drawing
+            console.log('Starting drawing mode');
+            isDrawing = true;
+            const canvasPos = screenToCanvas(e.clientX, e.clientY);
+            drawingPath = [{ x: canvasPos.x, y: canvasPos.y }];
+            console.log('Initial drawing point:', canvasPos);
+            clearSelection();
+            return;
+        }
+        
         // Stop any ongoing inertia animation
         stopInertiaAnimation();
         
@@ -176,7 +195,13 @@ function handleMouseDown(e) {
 }
 
 function handleMouseMove(e) {
-    if (isPanning) {
+    if (isDrawing) {
+        const canvasPos = screenToCanvas(e.clientX, e.clientY);
+        drawingPath.push({ x: canvasPos.x, y: canvasPos.y });
+        console.log('Drawing point:', canvasPos, 'Total points:', drawingPath.length);
+        // Don't update transform while drawing
+        return;
+    } else if (isPanning) {
         const deltaX = e.clientX - dragStart.x;
         const deltaY = e.clientY - dragStart.y;
         canvasTransform.x += deltaX;
@@ -207,6 +232,51 @@ function handleMouseMove(e) {
 }
 
 function handleMouseUp(e) {
+    if (isDrawing) {
+        isDrawing = false;
+        
+        if (drawingPath.length > 1) {
+            console.log('Creating drawing with', drawingPath.length, 'points');
+            
+            // Create the drawing item
+            const strokeColor = document.getElementById('strokeColor').value;
+            const strokeThickness = parseFloat(document.getElementById('strokeThickness').value);
+            
+            console.log('Drawing settings:', { strokeColor, strokeThickness });
+            
+            // Calculate bounding box
+            const minX = Math.min(...drawingPath.map(p => p.x));
+            const maxX = Math.max(...drawingPath.map(p => p.x));
+            const minY = Math.min(...drawingPath.map(p => p.y));
+            const maxY = Math.max(...drawingPath.map(p => p.y));
+            
+            console.log('Bounding box:', { minX, maxX, minY, maxY });
+            
+            // Use original coordinates for the path data (no adjustment needed with viewBox)
+            let pathData = `M ${drawingPath[0].x} ${drawingPath[0].y}`;
+            for (let i = 1; i < drawingPath.length; i++) {
+                pathData += ` L ${drawingPath[i].x} ${drawingPath[i].y}`;
+            }
+            
+            console.log('Path data:', pathData);
+            
+            // Create a reasonably sized container (can be manually resized later)
+            const baseWidth = maxX - minX;
+            const baseHeight = maxY - minY;
+            const containerWidth = Math.max(100, baseWidth);
+            const containerHeight = Math.max(100, baseHeight);
+            
+            console.log('Container size:', { containerWidth, containerHeight });
+            
+            createDrawingItem(pathData, strokeColor, strokeThickness, minX, minY, containerWidth, containerHeight);
+        } else {
+            console.log('Not enough points to create drawing:', drawingPath.length);
+        }
+        
+        drawingPath = [];
+        return;
+    }
+    
     if (isPanning) {
         isPanning = false;
         container.classList.remove('panning');
@@ -513,6 +583,17 @@ function selectItem(item) {
         selectedTextItem = item;
         showTextToolbar(item);
     }
+    
+    // Show draw toolbar if this is a drawing item and user is admin
+    if (item.classList.contains('drawing-item') && isAuthenticated) {
+        showDrawToolbar();
+        // Update toolbar controls with current drawing values
+        const path = item.querySelector('path');
+        if (path) {
+            document.getElementById('strokeColor').value = path.getAttribute('stroke') || '#333333';
+            document.getElementById('strokeThickness').value = path.getAttribute('stroke-width') || '4';
+        }
+    }
 }
 
 function clearSelection() {
@@ -540,6 +621,9 @@ function clearSelection() {
     // Hide text toolbar
     hideTextToolbar();
     selectedTextItem = null;
+    
+    // Hide draw toolbar
+    hideDrawToolbar();
 }
 
 function showResizeHandles(item) {
@@ -549,8 +633,10 @@ function showResizeHandles(item) {
     handles.className = 'resize-handles';
     handles.id = 'resizeHandles';
     
-    // Add resize handles
-    const positions = ['nw', 'ne', 'sw', 'se', 'n', 's', 'w', 'e'];
+    // For drawing items, only show corner handles for aspect ratio resizing
+    const isDrawingItem = item.classList.contains('drawing-item');
+    const positions = isDrawingItem ? ['nw', 'ne', 'sw', 'se'] : ['nw', 'ne', 'sw', 'se', 'n', 's', 'w', 'e'];
+    
     positions.forEach(pos => {
         const handle = document.createElement('div');
         handle.className = `resize-handle ${pos}`;
@@ -1126,6 +1212,113 @@ function createCodeItem(htmlContent, x = centerPoint.x, y = centerPoint.y, width
     return item;
 }
 
+// Drawing Functions
+function toggleDrawMode() {
+    isDrawMode = !isDrawMode;
+    const drawBtn = document.getElementById('drawBtn');
+    
+    console.log('Draw mode toggled:', isDrawMode, 'Authenticated:', isAuthenticated);
+    
+    if (isDrawMode) {
+        drawBtn.style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
+        showDrawToolbar();
+        container.style.cursor = 'crosshair';
+        console.log('Draw mode enabled');
+    } else {
+        drawBtn.style.backgroundColor = '';
+        hideDrawToolbar();
+        container.style.cursor = '';
+        console.log('Draw mode disabled');
+    }
+}
+
+function showDrawToolbar() {
+    hideTextToolbar();
+    drawToolbar.classList.remove('hidden');
+}
+
+function hideDrawToolbar() {
+    drawToolbar.classList.add('hidden');
+}
+
+function createDrawingItem(pathData, strokeColor, strokeThickness, x, y, width, height, fromDatabase = false, viewBoxData = null) {
+    console.log('createDrawingItem called with:', { pathData, strokeColor, strokeThickness, x, y, width, height, fromDatabase, viewBoxData });
+    
+    const item = document.createElement('div');
+    item.className = 'canvas-item drawing-item';
+    item.style.left = x + 'px';
+    item.style.top = y + 'px';
+    item.style.width = width + 'px';
+    item.style.height = height + 'px';
+    
+    console.log('Item positioned at:', { left: item.style.left, top: item.style.top, width: item.style.width, height: item.style.height });
+    
+    // Set default border radius as CSS variable
+    item.style.setProperty('--item-border-radius', '0px');
+    
+    // Set z-index to be on top for new items
+    if (!fromDatabase) {
+        item.dataset.id = ++itemCounter;
+        // Get the next available z-index (number of items + 1)
+        const items = Array.from(canvas.querySelectorAll('.canvas-item'));
+        item.style.zIndex = items.length + 1;
+    }
+    item.dataset.type = 'drawing';
+    
+    // Create SVG element with viewBox for proper scaling and centering
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', '100%');
+    svg.setAttribute('height', '100%');
+    svg.style.pointerEvents = 'none';
+    
+    // Set viewBox - if provided from database, use it; otherwise calculate from path
+    if (viewBoxData) {
+        svg.setAttribute('viewBox', viewBoxData);
+        // Store viewBox data for database saving
+        item.dataset.viewBox = viewBoxData;
+        console.log('Using provided viewBox:', viewBoxData);
+    } else {
+        // Calculate viewBox to show the path relative to the container position
+        const padding = Math.max(50, strokeThickness * 2);
+        const viewBoxX = x - padding;
+        const viewBoxY = y - padding;
+        const viewBoxWidth = width + (padding * 2);
+        const viewBoxHeight = height + (padding * 2);
+        const viewBox = `${viewBoxX} ${viewBoxY} ${viewBoxWidth} ${viewBoxHeight}`;
+        svg.setAttribute('viewBox', viewBox);
+        item.dataset.viewBox = viewBox;
+        console.log('Calculated viewBox:', viewBox);
+    }
+    
+    // Create path element
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', pathData);
+    path.setAttribute('stroke', strokeColor);
+    path.setAttribute('stroke-width', strokeThickness);
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke-linecap', 'round');
+    path.setAttribute('stroke-linejoin', 'round');
+    
+    console.log('Path attributes:', {
+        d: path.getAttribute('d'),
+        stroke: path.getAttribute('stroke'),
+        strokeWidth: path.getAttribute('stroke-width')
+    });
+    
+    svg.appendChild(path);
+    item.appendChild(svg);
+    
+    canvas.appendChild(item);
+    console.log('Drawing item added to canvas');
+    
+    if (!fromDatabase) {
+        selectItem(item);
+        saveItemToDatabase(item);
+    }
+    
+    return item;
+}
+
 function deleteItem(item) {
     if (confirm('Delete this item?')) {
         deleteItemFromDatabase(item);
@@ -1359,6 +1552,7 @@ function handleCenterUpdate(payload) {
 // Database Operations
 async function saveItemToDatabase(item) {
     const isTextItem = item.dataset.type === 'text';
+    const isDrawingItem = item.dataset.type === 'drawing';
     
     // For text items, save width/height if they have been explicitly set
     const hasExplicitWidth = isTextItem && item.style.width && item.style.width !== '';
@@ -1384,7 +1578,9 @@ async function saveItemToDatabase(item) {
         font_weight: item.style.fontWeight || 'normal',
         text_color: item.style.color || '#333333',
         line_height: parseFloat(item.style.lineHeight) || 1.15,
-        html_content: item.dataset.type === 'code' ? getItemContent(item) : null
+        html_content: item.dataset.type === 'code' ? getItemContent(item) : (isDrawingItem ? item.dataset.viewBox : null),
+        stroke_thickness: isDrawingItem ? parseFloat(item.querySelector('path')?.getAttribute('stroke-width')) || 4 : null,
+        stroke_color: isDrawingItem ? item.querySelector('path')?.getAttribute('stroke') || '#333333' : null
     };
     
     // Debug logging for text items
@@ -1397,15 +1593,32 @@ async function saveItemToDatabase(item) {
         });
     }
     
+    // Debug logging for drawing items
+    if (isDrawingItem) {
+        console.log('Saving drawing item:', {
+            id: itemData.id,
+            content: itemData.content,
+            stroke_color: itemData.stroke_color,
+            stroke_thickness: itemData.stroke_thickness,
+            html_content: itemData.html_content,
+            width: itemData.width,
+            height: itemData.height
+        });
+    }
+    
     try {
         const { error } = await supabaseClient
             .from('canvas_items')
             .upsert(itemData);
         
-        if (error) throw error;
-        console.log('Item saved:', itemData);
+        if (error) {
+            console.error('Database error details:', error);
+            throw error;
+        }
+        console.log('Item saved successfully:', itemData);
     } catch (error) {
         console.error('Error saving item:', error);
+        console.error('Item data that failed to save:', itemData);
         showStatus('Failed to save item - check console for details');
     }
 }
@@ -1547,6 +1760,9 @@ function createItemFromData(data) {
             // Use html_content if available, fallback to content
             const codeContent = data.html_content || data.content;
             item = createCodeItem(codeContent, data.x, data.y, data.width, data.height, true);
+            break;
+        case 'drawing':
+            item = createDrawingItem(data.content, data.stroke_color || '#333333', data.stroke_thickness || 4, data.x, data.y, data.width, data.height, true, data.html_content);
             break;
     }
     
@@ -1720,6 +1936,8 @@ function getItemContent(item) {
             return item.textContent;
         case 'code':
             return item.querySelector('iframe').srcdoc;
+        case 'drawing':
+            return item.querySelector('path').getAttribute('d');
         default:
             return '';
     }
@@ -1879,6 +2097,30 @@ function bindTextToolbarEvents() {
         if (selectedTextItem) {
             selectedTextItem.style.lineHeight = e.target.value;
             debouncedSaveTextItem();
+        }
+    });
+}
+
+function bindDrawToolbarEvents() {
+    // Stroke color change
+    document.getElementById('strokeColor').addEventListener('input', (e) => {
+        if (selectedItem && selectedItem.dataset.type === 'drawing') {
+            const path = selectedItem.querySelector('path');
+            if (path) {
+                path.setAttribute('stroke', e.target.value);
+                saveItemToDatabase(selectedItem);
+            }
+        }
+    });
+    
+    // Stroke thickness change
+    document.getElementById('strokeThickness').addEventListener('input', (e) => {
+        if (selectedItem && selectedItem.dataset.type === 'drawing') {
+            const path = selectedItem.querySelector('path');
+            if (path) {
+                path.setAttribute('stroke-width', e.target.value);
+                saveItemToDatabase(selectedItem);
+            }
         }
     });
 }

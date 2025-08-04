@@ -379,6 +379,35 @@ body {
     font-style: italic;
 }
 
+/* Drawing Items */
+.drawing-item {
+    box-shadow: none; /* No shadow by default for drawing items */
+    cursor: pointer; /* Show pointer cursor */
+}
+
+.drawing-item:hover {
+    border-color: var(--canvas-item-border-hover);
+    box-shadow: var(--canvas-item-shadow-hover);
+}
+
+.drawing-item.selected {
+    overflow: visible; /* Allow resize handles to show outside */
+    box-shadow: var(--canvas-item-shadow-selected);
+    border-color: var(--canvas-item-border-selected);
+}
+
+.drawing-item:not(.selected):not(:hover) {
+    border-color: var(--canvas-item-border-transparent);
+    box-shadow: none;
+}
+
+.drawing-item svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    pointer-events: none;
+}
+
 /* Code Items */
 .code-item {
     background: var(--color-secondary);
