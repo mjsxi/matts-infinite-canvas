@@ -219,8 +219,8 @@ function logout() {
         realtimeChannel = null;
     }
     
-    // Redirect to admin login page
-    window.location.href = '/admin.html';
+    // Redirect to root page
+    window.location.href = '/index.html';
 }
 
 function goToCenter() {
