@@ -338,6 +338,36 @@ body {
     border-radius: var(--radius-md);
 }
 
+/* Video Items */
+.video-item {
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    background: var(--color-white);
+    box-shadow: var(--canvas-item-shadow);
+}
+
+.video-item.selected {
+    overflow: visible; /* Allow resize handles to show outside */
+}
+
+.video-item video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    border-radius: var(--radius-md);
+}
+
+/* Disable video controls when not selected to prevent accidental interaction */
+.video-item:not(.selected) video {
+    pointer-events: none;
+}
+
+/* Enable video controls when selected */
+.video-item.selected video {
+    pointer-events: all;
+}
+
 /* Text Items */
 .text-item {
     padding: var(--spacing-lg) var(--spacing-xl);

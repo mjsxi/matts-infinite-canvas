@@ -996,8 +996,17 @@ async function handleFileSelect(e) {
     const file = e.target.files[0];
     if (!file) return;
     
+    // Check if it's a video or image
+    const isVideo = file.type.startsWith('video/');
+    const isImage = file.type.startsWith('image/');
+    
+    if (!isVideo && !isImage) {
+        showStatus('Please select an image or video file');
+        return;
+    }
+    
     try {
-        showStatus('Uploading image...');
+        showStatus(`Uploading ${isVideo ? 'video' : 'image'}...`);
         
         // Generate unique filename
         const timestamp = Date.now();
@@ -1011,7 +1020,7 @@ async function handleFileSelect(e) {
         
         if (error) {
             console.error('Upload error:', error);
-            showStatus('Failed to upload image: ' + error.message);
+            showStatus(`Failed to upload ${isVideo ? 'video' : 'image'}: ` + error.message);
             return;
         }
         
@@ -1021,16 +1030,21 @@ async function handleFileSelect(e) {
             .getPublicUrl(filename);
         
         if (urlData?.publicUrl) {
-            console.log('Image uploaded successfully:', urlData.publicUrl);
-            showStatus('Image uploaded successfully');
-            createImageItem(urlData.publicUrl);
+            console.log(`${isVideo ? 'Video' : 'Image'} uploaded successfully:`, urlData.publicUrl);
+            showStatus(`${isVideo ? 'Video' : 'Image'} uploaded successfully`);
+            
+            if (isVideo) {
+                createVideoItem(urlData.publicUrl);
+            } else {
+                createImageItem(urlData.publicUrl);
+            }
         } else {
-            showStatus('Failed to get image URL');
+            showStatus(`Failed to get ${isVideo ? 'video' : 'image'} URL`);
         }
         
     } catch (error) {
         console.error('Error uploading file:', error);
-        showStatus('Failed to upload image');
+        showStatus(`Failed to upload ${isVideo ? 'video' : 'image'}`);
     }
     
     e.target.value = ''; // Reset input
@@ -1088,6 +1102,78 @@ function createImageItem(src, x = centerPoint.x, y = centerPoint.y, width = 200,
     };
     
     item.appendChild(img);
+    canvas.appendChild(item);
+    
+    if (!fromDatabase) {
+        selectItem(item);
+        // Save immediately with initial dimensions
+        saveItemToDatabase(item);
+    }
+    
+    return item;
+}
+
+function createVideoItem(src, x = centerPoint.x, y = centerPoint.y, width = 400, height = 300, fromDatabase = false) {
+    const item = document.createElement('div');
+    item.className = 'canvas-item video-item';
+    item.style.left = x + 'px';
+    item.style.top = y + 'px';
+    item.style.width = width + 'px';
+    item.style.height = height + 'px';
+    
+    // Set default border radius as CSS variable
+    item.style.setProperty('--item-border-radius', '0px');
+    
+    // Set z-index to be on top for new items
+    if (!fromDatabase) {
+        item.dataset.id = ++itemCounter;
+        // Get the next available z-index (number of items + 1)
+        const items = Array.from(canvas.querySelectorAll('.canvas-item'));
+        item.style.zIndex = items.length + 1;
+    }
+    item.dataset.type = 'video';
+    
+    const video = document.createElement('video');
+    video.src = src;
+    video.controls = true;
+    video.muted = true; // Muted by default for autoplay compatibility
+    video.autoplay = true; // Autoplay when loaded
+    video.loop = true; // Loop continuously
+    video.playsInline = true; // Required for iOS autoplay
+    video.style.width = '100%';
+    video.style.height = '100%';
+    video.style.objectFit = 'cover';
+    video.style.display = 'block';
+    
+    // Set a default aspect ratio initially
+    item.dataset.aspectRatio = width / height;
+    
+    video.onloadedmetadata = function() {
+        // Calculate and store the correct aspect ratio
+        const aspectRatio = video.videoWidth / video.videoHeight;
+        item.dataset.aspectRatio = aspectRatio;
+        
+        // Only adjust size and save if not from database (new item)
+        if (!fromDatabase) {
+            // Adjust size to maintain aspect ratio
+            if (aspectRatio > 1) {
+                item.style.height = (width / aspectRatio) + 'px';
+            } else {
+                item.style.width = (height * aspectRatio) + 'px';
+            }
+            
+            // Save again with correct dimensions
+            saveItemToDatabase(item);
+        }
+    };
+    
+    // Handle load errors
+    video.onerror = function() {
+        console.error('Failed to load video:', src);
+        showStatus('Failed to load video');
+    };
+    
+    item.appendChild(video);
     canvas.appendChild(item);
     
     if (!fromDatabase) {
@@ -1832,6 +1918,9 @@ function createItemFromData(data) {
         case 'image':
             item = createImageItem(data.content, data.x, data.y, data.width, data.height, true);
             break;
+        case 'video':
+            item = createVideoItem(data.content, data.x, data.y, data.width, data.height, true);
+            break;
         case 'text':
             item = createTextItem(data.content, data.x, data.y, data.width, data.height, true);
             break;
@@ -1980,6 +2069,12 @@ function updateItemFromData(item, data) {
                 img.src = data.content;
             }
             break;
+        case 'video':
+            const video = item.querySelector('video');
+            if (video && video.src !== data.content) {
+                video.src = data.content;
+            }
+            break;
         case 'code':
             const iframe = item.querySelector('iframe');
             if (iframe && iframe.srcdoc !== data.content) {
@@ -2037,6 +2132,8 @@ function getItemContent(item) {
     switch (item.dataset.type) {
         case 'image':
             return item.querySelector('img').src;
+        case 'video':
+            return item.querySelector('video').src;
         case 'text':
             return item.textContent;
         case 'code':
