@@ -504,6 +504,7 @@ body {
     background: rgba(0, 0, 0, 0.5);
     backdrop-filter: blur(50px);
     z-index: var(--z-index-toolbar);
+    box-shadow: var(--canvas-item-shadow);
 }
 
 .toolbar-btn {
@@ -693,7 +694,8 @@ body {
     
     /* Mobile toolbar positioning with safe area */
     .toolbar {
-        bottom: calc(8px + env(safe-area-inset-bottom));
+        bottom: calc(0px + env(safe-area-inset-bottom));
+        box-shadow: rgba(0, 0, 0, 0.0);
     }
     
     /* Ensure login form accounts for safe areas */
