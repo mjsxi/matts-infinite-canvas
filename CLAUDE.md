@@ -121,7 +121,8 @@ All canvas objects (images / text) include these custom properties:
 - **Text-only properties**  
   - `fontFamily` (`font_family`): Font family name (e.g. `Sans-serif`)  
   - `fontSize` (`font_size`): Font size in px (e.g. `24`)  
-  - `fontWeight` (`font_weight`): Font weight (e.g. `normal`, `bold`)  
+  - `fontWeight` (`font_weight`): Font weight (e.g. `400`, `700`)  
+  - `fontVariation` (`font_variation`): Font variations (e.g. `Weight: 450, Width: 100, CNTR: 50`)  
   - `textColor` (`text_color`): Color value (hex, rgb, etc.)  
   - `lineHeight` (`line_height`): Line-height multiplier (e.g. `1.15`)
 - **Stroke-only properties** 
