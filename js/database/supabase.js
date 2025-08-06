@@ -247,7 +247,26 @@ function handleRealtimeInsert(payload) {
         console.log('Real-time insert:', payload.new);
         // Mark as coming from real-time for entrance animation
         payload.new.fromRealtime = true;
-        createItemFromData(payload.new);
+        const newItem = createItemFromData(payload.new);
+        
+        // Add entrance animation
+        if (newItem) {
+            newItem.style.opacity = '0';
+            newItem.style.transform = (newItem.style.transform || '') + ' scale(0.8)';
+            newItem.classList.add('remote-update');
+            
+            setTimeout(() => {
+                newItem.style.transition = 'opacity var(--transition-normal), transform var(--transition-normal)';
+                newItem.style.opacity = '1';
+                newItem.style.transform = (newItem.style.transform || '').replace('scale(0.8)', 'scale(1)');
+            }, 10);
+            
+            // Remove animation class after transition
+            setTimeout(() => {
+                newItem.classList.remove('remote-update');
+            }, 300);
+        }
+        
         AppGlobals.showStatus('New item added by another user');
     } else {
         console.log('Ignoring duplicate real-time insert for existing item:', payload.new.id);
@@ -265,10 +284,11 @@ function handleRealtimeUpdate(payload) {
 function handleRealtimeDelete(payload) {
     const existingItem = canvas.querySelector(`[data-id="${payload.old.id}"]`);
     if (existingItem && existingItem !== selectedItem) {
-        // Add exit animation
+        // Add exit animation with pulse effect
+        existingItem.classList.add('remote-update');
         existingItem.style.transition = 'opacity var(--transition-normal), transform var(--transition-normal)';
         existingItem.style.opacity = '0';
-        existingItem.style.transform = existingItem.style.transform + ' scale(0.8)';
+        existingItem.style.transform = (existingItem.style.transform || '') + ' scale(0.8)';
         
         // Remove after animation
         setTimeout(() => {
@@ -344,12 +364,18 @@ function createItemFromData(data) {
         if (data.fromRealtime) {
             item.style.opacity = '0';
             item.style.transform = (item.style.transform || '') + ' scale(0.8)';
+            item.classList.add('remote-update');
             
             setTimeout(() => {
                 item.style.transition = 'opacity var(--transition-normal), transform var(--transition-normal)';
                 item.style.opacity = '1';
                 item.style.transform = item.style.transform.replace('scale(0.8)', 'scale(1)');
             }, 10);
+            
+            // Remove animation class after transition
+            setTimeout(() => {
+                item.classList.remove('remote-update');
+            }, 300);
         }
     }
     
@@ -359,6 +385,9 @@ function createItemFromData(data) {
 function updateItemFromData(item, data) {
     const itemType = data.item_type;
     
+    // Add animation class for smooth transitions
+    item.classList.add('remote-update');
+    
     // Update position and dimensions
     item.style.left = data.x + 'px';
     item.style.top = data.y + 'px';
@@ -367,6 +396,11 @@ function updateItemFromData(item, data) {
     if (data.z_index) item.style.zIndex = data.z_index;
     if (data.rotation !== undefined) item.dataset.rotation = data.rotation;
     if (data.border_radius !== undefined) item.style.setProperty('--item-border-radius', data.border_radius + 'px');
+    
+    // Remove animation class after transition
+    setTimeout(() => {
+        item.classList.remove('remote-update');
+    }, 300);
     
     // Update content based on item type
     switch (itemType) {

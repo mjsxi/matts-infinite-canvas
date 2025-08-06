@@ -69,7 +69,8 @@ function handleMouseDown(e) {
         if (isAuthenticated) {
             ItemsModule.selectItem(item);
             
-            if (!e.target.closest('.resize-handle')) {
+            // Don't start dragging if clicking on resize handles or rotation handle
+            if (!e.target.closest('.resize-handle') && !e.target.closest('.rotation-handle')) {
                 ItemsModule.startDragging(e, item);
             }
         }
@@ -109,6 +110,7 @@ function handleMouseMove(e) {
     } else if (isDragging && selectedItem && !isResizing) {
         ItemsModule.dragItem(e);
     }
+    // Note: Resize and rotation are handled by their own event listeners in the ItemsModule
     
     lastMousePos = { x: e.clientX, y: e.clientY };
 }
@@ -128,7 +130,7 @@ function handleMouseUp(e) {
             const minY = Math.min(...drawingPath.map(p => p.y));
             const maxY = Math.max(...drawingPath.map(p => p.y));
             
-            // Use original coordinates for the path data (no adjustment needed with viewBox)
+            // Create path data with original coordinates
             let pathData = `M ${drawingPath[0].x} ${drawingPath[0].y}`;
             for (let i = 1; i < drawingPath.length; i++) {
                 pathData += ` L ${drawingPath[i].x} ${drawingPath[i].y}`;

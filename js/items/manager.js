@@ -73,6 +73,11 @@ function clearSelection() {
 function showResizeHandles(item) {
     hideResizeHandles();
     
+    // Only show resize handles for authenticated admin users
+    if (!isAuthenticated) {
+        return;
+    }
+    
     const handles = document.createElement('div');
     handles.className = 'resize-handles';
     handles.id = 'resizeHandles';
@@ -160,21 +165,142 @@ function startResize(e, direction) {
     e.stopPropagation();
     e.preventDefault();
     
-    if (!selectedItem) return;
+    if (!selectedItem) {
+        return;
+    }
     
     isResizing = true;
-    // Resize logic would be here - simplified for brevity
-    console.log('Starting resize:', direction);
+    canvas.classList.add('resizing');
+    
+    // Store initial dimensions and position
+    const rect = selectedItem.getBoundingClientRect();
+    const initialWidth = rect.width;
+    const initialHeight = rect.height;
+    const initialLeft = parseFloat(selectedItem.style.left) || 0;
+    const initialTop = parseFloat(selectedItem.style.top) || 0;
+    
+    // Store initial mouse position
+    const startX = e.clientX;
+    const startY = e.clientY;
+    
+    // Create resize function
+    const handleResize = (e) => {
+        if (!isResizing || !selectedItem) return;
+        
+        const deltaX = e.clientX - startX;
+        const deltaY = e.clientY - startY;
+        
+        let newWidth = initialWidth;
+        let newHeight = initialHeight;
+        let newLeft = initialLeft;
+        let newTop = initialTop;
+        
+        // Get current aspect ratio
+        const currentAspectRatio = parseFloat(selectedItem.dataset.aspectRatio) || (initialWidth / initialHeight);
+        const isImage = selectedItem.dataset.type === 'image';
+        const isVideo = selectedItem.dataset.type === 'video';
+        const shouldMaintainAspectRatio = isImage || isVideo || e.shiftKey;
+        
+        // Calculate new dimensions based on direction
+        if (direction.includes('e')) {
+            newWidth = Math.max(50, initialWidth + deltaX);
+        }
+        if (direction.includes('w')) {
+            newWidth = Math.max(50, initialWidth - deltaX);
+            newLeft = initialLeft + deltaX;
+        }
+        if (direction.includes('s')) {
+            newHeight = Math.max(50, initialHeight + deltaY);
+        }
+        if (direction.includes('n')) {
+            newHeight = Math.max(50, initialHeight - deltaY);
+            newTop = initialTop + deltaY;
+        }
+        
+        // Maintain aspect ratio if needed
+        if (shouldMaintainAspectRatio) {
+            if (direction.includes('e') || direction.includes('w')) {
+                // Width changed, adjust height
+                newHeight = newWidth / currentAspectRatio;
+                if (direction.includes('n')) {
+                    newTop = initialTop + (initialHeight - newHeight);
+                }
+            } else if (direction.includes('s') || direction.includes('n')) {
+                // Height changed, adjust width
+                newWidth = newHeight * currentAspectRatio;
+                if (direction.includes('w')) {
+                    newLeft = initialLeft + (initialWidth - newWidth);
+                }
+            }
+        }
+        
+        // Apply new dimensions
+        selectedItem.style.width = newWidth + 'px';
+        selectedItem.style.height = newHeight + 'px';
+        selectedItem.style.left = newLeft + 'px';
+        selectedItem.style.top = newTop + 'px';
+        
+        // Update aspect ratio
+        selectedItem.dataset.aspectRatio = newWidth / newHeight;
+    };
+    
+    // Create stop resize function
+    const stopResize = () => {
+        isResizing = false;
+        canvas.classList.remove('resizing');
+        document.removeEventListener('mousemove', handleResize);
+        document.removeEventListener('mouseup', stopResize);
+        
+        if (selectedItem) {
+            DatabaseModule.debouncedSaveItem(selectedItem);
+        }
+    };
+    
+    document.addEventListener('mousemove', handleResize);
+    document.addEventListener('mouseup', stopResize);
 }
 
 function startRotation(e) {
     e.stopPropagation();
     e.preventDefault();
     
-    if (!selectedItem) return;
+    if (!selectedItem) {
+        return;
+    }
     
-    // Rotation logic would be here - simplified for brevity
-    console.log('Starting rotation');
+    // Get item center
+    const rect = selectedItem.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    
+    // Get initial angle
+    const startAngle = Math.atan2(e.clientY - centerY, e.clientX - centerX);
+    const currentRotation = parseFloat(selectedItem.dataset.rotation) || 0;
+    
+    // Create rotation function
+    const handleRotation = (e) => {
+        if (!selectedItem) return;
+        
+        const angle = Math.atan2(e.clientY - centerY, e.clientX - centerX);
+        const deltaAngle = angle - startAngle;
+        const newRotation = currentRotation + (deltaAngle * 180 / Math.PI);
+        
+        selectedItem.style.transform = `rotate(${newRotation}deg)`;
+        selectedItem.dataset.rotation = newRotation;
+    };
+    
+    // Create stop rotation function
+    const stopRotation = () => {
+        document.removeEventListener('mousemove', handleRotation);
+        document.removeEventListener('mouseup', stopRotation);
+        
+        if (selectedItem) {
+            DatabaseModule.debouncedSaveItem(selectedItem);
+        }
+    };
+    
+    document.addEventListener('mousemove', handleRotation);
+    document.addEventListener('mouseup', stopRotation);
 }
 
 function normalizeZIndexes() {

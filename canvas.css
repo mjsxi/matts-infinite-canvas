@@ -398,6 +398,17 @@ body {
 /* Animation for real-time updates from other users */
 .canvas-item.remote-update {
     transition: left var(--transition-normal), top var(--transition-normal), width var(--transition-normal), height var(--transition-normal), transform var(--transition-normal);
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.3) !important;
+    animation: remote-update-pulse 0.3s ease-out;
+}
+
+@keyframes remote-update-pulse {
+    0% {
+        box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.6);
+    }
+    100% {
+        box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.3);
+    }
 }
 
 .canvas-item:hover {

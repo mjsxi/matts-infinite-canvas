@@ -84,6 +84,8 @@ function createDrawingItem(pathData, strokeColor, strokeThickness, x, y, width, 
     item.style.width = width + 'px';
     item.style.height = height + 'px';
     
+
+    
     // Set default border radius as CSS variable
     item.style.setProperty('--item-border-radius', '0px');
     
@@ -108,9 +110,12 @@ function createDrawingItem(pathData, strokeColor, strokeThickness, x, y, width, 
         viewBox = viewBoxData;
         item.dataset.viewBox = viewBoxData;
     } else {
-        // Calculate viewBox from path bounds with padding
+        // Calculate viewBox to match the actual path bounds
+        const pathBounds = calculatePathBounds(pathData);
         const padding = Math.max(10, strokeThickness);
-        viewBox = `0 0 ${width} ${height}`;
+        const viewBoxWidth = pathBounds.maxX - pathBounds.minX + (padding * 2);
+        const viewBoxHeight = pathBounds.maxY - pathBounds.minY + (padding * 2);
+        viewBox = `${pathBounds.minX - padding} ${pathBounds.minY - padding} ${viewBoxWidth} ${viewBoxHeight}`;
         item.dataset.viewBox = viewBox;
     }
     
