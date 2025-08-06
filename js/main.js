@@ -63,6 +63,12 @@ function initializeApp() {
         window.ViewportModule.updateCanvasTransform();
     }
     
+    // Handle video autoplay on mobile devices
+    handleVideoAutoplay();
+    
+    // Add user interaction handler for mobile video autoplay
+    setupMobileVideoAutoplay();
+    
     console.log('Canvas App initialized successfully');
 }
 
@@ -122,6 +128,82 @@ function cacheElements() {
     if (window.PerformanceModule) {
         window.PerformanceModule.cacheElements();
     }
+}
+
+function handleVideoAutoplay() {
+    // Handle video autoplay issues on mobile devices
+    const videos = document.querySelectorAll('video');
+    videos.forEach(video => {
+        // Ensure videos are muted and ready to play
+        video.muted = true;
+        video.defaultMuted = true;
+        
+        // Try to play videos that are paused
+        if (video.paused && !video.ended) {
+            const playPromise = video.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(e => {
+                    console.log('Video autoplay prevented on init');
+                });
+            }
+        }
+        
+        // Add event listeners for better mobile support
+        video.addEventListener('canplay', function() {
+            if (video.paused && !video.ended) {
+                const playPromise = video.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(e => {
+                        console.log('Video play prevented on canplay');
+                    });
+                }
+            }
+        });
+        
+        video.addEventListener('pause', function() {
+            // Try to resume if not ended (but not too aggressively)
+            if (!video.ended) {
+                setTimeout(() => {
+                    const playPromise = video.play();
+                    if (playPromise !== undefined) {
+                        playPromise.catch(e => {
+                            console.log('Video resume prevented');
+                        });
+                    }
+                }, 500);
+            }
+        });
+    });
+}
+
+function setupMobileVideoAutoplay() {
+    // Handle mobile video autoplay after user interaction
+    let hasUserInteracted = false;
+    
+    const startAllVideos = () => {
+        if (hasUserInteracted) return;
+        hasUserInteracted = true;
+        
+        const videos = document.querySelectorAll('video');
+        videos.forEach(video => {
+            if (video.paused && !video.ended) {
+                video.muted = true;
+                video.defaultMuted = true;
+                const playPromise = video.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(e => {
+                        console.log('Video autoplay still prevented after user interaction');
+                    });
+                }
+            }
+        });
+    };
+    
+    // Listen for user interactions that can trigger autoplay
+    const events = ['touchstart', 'click', 'scroll', 'keydown'];
+    events.forEach(event => {
+        document.addEventListener(event, startAllVideos, { once: true });
+    });
 }
 
 function initializeSupabase() {
@@ -212,7 +294,14 @@ window.AppGlobals = {
     // Utility functions
     showCanvas,
     closeModal,
-    showStatus: (message) => window.ToolbarModule?.showStatus?.(message) || console.log(message),
+    showStatus: (message) => {
+        // Only show status messages for authenticated admin users
+        if (isAuthenticated) {
+            window.ToolbarModule?.showStatus?.(message);
+        } else {
+            console.log('Status (admin only):', message);
+        }
+    },
     updateAuthBodyClass,
     checkAuth,
     

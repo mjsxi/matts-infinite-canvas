@@ -186,7 +186,10 @@ async function loadCanvasData() {
             canvasTransform.y = containerRect.height / 2 - center.y * canvasTransform.scale;
             ViewportModule.updateCanvasTransform();
             
-            AdminModule.showCenterIndicator(center.x, center.y);
+            // Show center indicator for authenticated admin users
+            if (isAuthenticated && window.AdminModule) {
+                window.AdminModule.showCenterIndicator(center.x, center.y);
+            }
         }
         
         AppGlobals.showStatus('Canvas data loaded successfully');
@@ -385,6 +388,16 @@ function updateItemFromData(item, data) {
             const video = item.querySelector('video');
             if (video && video.src !== data.content) {
                 video.src = data.content;
+            }
+            // Ensure video autoplay works for loaded videos
+            if (video) {
+                setTimeout(() => {
+                    if (video.paused && !video.ended) {
+                        video.play().catch(e => {
+                            console.log('Video autoplay prevented for loaded video');
+                        });
+                    }
+                }, 100);
             }
             break;
         case 'code':

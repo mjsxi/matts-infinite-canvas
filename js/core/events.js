@@ -45,11 +45,9 @@ function handleMouseDown(e) {
         
         if (isDrawMode && isAuthenticated) {
             // Start drawing
-            console.log('Starting drawing mode');
             isDrawing = true;
             const canvasPos = ViewportModule.screenToCanvas(e.clientX, e.clientY);
             drawingPath = [{ x: canvasPos.x, y: canvasPos.y }];
-            console.log('Initial drawing point:', canvasPos);
             DrawingModule.createDrawingPreview();
             ItemsModule.clearSelection();
             return;
@@ -83,7 +81,6 @@ function handleMouseMove(e) {
         const canvasPos = ViewportModule.screenToCanvas(e.clientX, e.clientY);
         drawingPath.push({ x: canvasPos.x, y: canvasPos.y });
         DrawingModule.updateDrawingPreview();
-        console.log('Drawing point:', canvasPos, 'Total points:', drawingPath.length);
         // Don't update transform while drawing
         return;
     } else if (isPanning) {
@@ -121,13 +118,9 @@ function handleMouseUp(e) {
         isDrawing = false;
         
         if (drawingPath.length > 1) {
-            console.log('Creating drawing with', drawingPath.length, 'points');
-            
             // Create the drawing item
             const strokeColor = document.getElementById('strokeColor').value;
             const strokeThickness = parseFloat(document.getElementById('strokeThickness').value);
-            
-            console.log('Drawing settings:', { strokeColor, strokeThickness });
             
             // Calculate bounding box
             const minX = Math.min(...drawingPath.map(p => p.x));
@@ -135,26 +128,18 @@ function handleMouseUp(e) {
             const minY = Math.min(...drawingPath.map(p => p.y));
             const maxY = Math.max(...drawingPath.map(p => p.y));
             
-            console.log('Bounding box:', { minX, maxX, minY, maxY });
-            
             // Use original coordinates for the path data (no adjustment needed with viewBox)
             let pathData = `M ${drawingPath[0].x} ${drawingPath[0].y}`;
             for (let i = 1; i < drawingPath.length; i++) {
                 pathData += ` L ${drawingPath[i].x} ${drawingPath[i].y}`;
             }
             
-            console.log('Path data:', pathData);
-            
             // Keep the drawing at its original size with padding for stroke
             const padding = Math.max(10, strokeThickness);
             const containerWidth = (maxX - minX) + (padding * 2);
             const containerHeight = (maxY - minY) + (padding * 2);
             
-            console.log('Container size (original scale):', { containerWidth, containerHeight });
-            
             DrawingModule.createDrawingItem(pathData, strokeColor, strokeThickness, minX - padding, minY - padding, containerWidth, containerHeight);
-        } else {
-            console.log('Not enough points to create drawing:', drawingPath.length);
         }
         
         // Clean up

@@ -17,6 +17,11 @@ function checkAuth() {
         updateAuthBodyClass();
         AppGlobals.showCanvas(true); // Show canvas in admin mode
         ToolbarModule.showStatus('Logged in via admin page');
+        
+        // Show center indicator for admin users
+        if (centerPoint && window.AdminModule) {
+            window.AdminModule.showCenterIndicator(centerPoint.x, centerPoint.y);
+        }
         return;
     }
     
@@ -33,6 +38,11 @@ function checkAuth() {
                 AppGlobals.showCanvas(true); // Show canvas in admin mode
                 console.log('Valid admin session found');
                 updateAuthBodyClass();
+                
+                // Show center indicator for admin users
+                if (centerPoint && window.AdminModule) {
+                    window.AdminModule.showCenterIndicator(centerPoint.x, centerPoint.y);
+                }
                 return;
             }
         } catch (e) {
@@ -44,15 +54,32 @@ function checkAuth() {
     isAuthenticated = false;
     AppGlobals.showCanvas(false); // Show canvas in guest mode
     updateAuthBodyClass();
+    
+    // Remove center indicator for guest users
+    const existingIndicator = document.querySelector('.center-indicator');
+    if (existingIndicator) {
+        existingIndicator.remove();
+    }
 }
 
 function updateAuthBodyClass() {
     if (isAuthenticated) {
         document.body.classList.add('authenticated');
         document.body.classList.remove('guest');
+        
+        // Show center indicator for admin users
+        if (centerPoint && window.AdminModule) {
+            window.AdminModule.showCenterIndicator(centerPoint.x, centerPoint.y);
+        }
     } else {
         document.body.classList.add('guest');
         document.body.classList.remove('authenticated');
+        
+        // Remove center indicator for guest users
+        const existingIndicator = document.querySelector('.center-indicator');
+        if (existingIndicator) {
+            existingIndicator.remove();
+        }
     }
 }
 
@@ -100,6 +127,12 @@ function logout() {
     
     // Clean up any selected items
     ItemsModule.clearSelection();
+    
+    // Remove center indicator when logging out
+    const existingIndicator = document.querySelector('.center-indicator');
+    if (existingIndicator) {
+        existingIndicator.remove();
+    }
     
     // Redirect to root page
     window.location.href = '/index.html';
@@ -151,12 +184,8 @@ function showCenterIndicator(x, y) {
     
     canvas.appendChild(indicator);
     
-    // Auto-hide after 3 seconds
-    setTimeout(() => {
-        if (indicator.parentNode) {
-            indicator.remove();
-        }
-    }, 3000);
+    // Keep the indicator visible permanently for admin users
+    // No auto-hide timeout
 }
 
 // Admin Operations

@@ -545,11 +545,23 @@ body {
 /* Video controls disabled globally for clean appearance */
 .video-item video {
     pointer-events: none; /* Disable all video interactions */
+    -webkit-user-select: none; /* Prevent text selection on iOS */
+    -webkit-touch-callout: none; /* Disable callout on iOS */
+    -webkit-tap-highlight-color: transparent; /* Remove tap highlight on mobile */
 }
 
 /* Allow video interaction only when selected (for potential future features) */
 .video-item.selected video {
     pointer-events: auto;
+}
+
+/* Mobile-specific video optimizations */
+@media (max-width: 768px) {
+    .video-item video {
+        -webkit-transform: translateZ(0); /* Force hardware acceleration */
+        transform: translateZ(0);
+        will-change: transform; /* Optimize for animations */
+    }
 }
 
 /* Text Items */

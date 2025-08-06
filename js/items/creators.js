@@ -172,11 +172,14 @@ function createVideoItem(src, x = null, y = null, width = 400, height = 300, fro
     video.playsInline = true; // Required for iOS autoplay
     video.disablePictureInPicture = true; // Disable PiP on iOS
     video.disableRemotePlayback = true; // Disable AirPlay on iOS
-    video.preload = 'metadata'; // Only load metadata initially
+    video.preload = 'metadata'; // Load metadata first for better mobile performance
+    video.defaultMuted = true; // Ensure muted by default
+    video.defaultPlaybackRate = 1.0; // Normal playback speed
     video.style.width = '100%';
     video.style.height = '100%';
     video.style.objectFit = 'cover';
     video.style.display = 'block';
+    video.style.pointerEvents = 'none'; // Prevent interaction with video
     
     // Calculate and store aspect ratio when video metadata loads
     video.addEventListener('loadedmetadata', function() {
@@ -185,9 +188,45 @@ function createVideoItem(src, x = null, y = null, width = 400, height = 300, fro
         item.dataset.originalWidth = video.videoWidth;
         item.dataset.originalHeight = video.videoHeight;
         
+        // Try to play video after metadata loads
+        attemptVideoPlay(video);
+        
         if (!fromDatabase) {
             DatabaseModule.debouncedSaveItem(item);
         }
+    });
+    
+    // Ensure video plays when it can
+    video.addEventListener('canplay', function() {
+        attemptVideoPlay(video);
+    });
+    
+    // Handle play events
+    video.addEventListener('play', function() {
+        console.log('Video started playing');
+    });
+    
+    video.addEventListener('pause', function() {
+        // Try to resume playback if paused (but not too aggressively)
+        if (!video.ended && !isUserPaused) {
+            setTimeout(() => {
+                attemptVideoPlay(video);
+            }, 500);
+        }
+    });
+    
+    // Track if user manually paused
+    let isUserPaused = false;
+    video.addEventListener('pause', function() {
+        // Check if pause was triggered by user interaction
+        setTimeout(() => {
+            isUserPaused = video.paused;
+        }, 100);
+    });
+    
+    // Reset user pause flag when video starts playing
+    video.addEventListener('play', function() {
+        isUserPaused = false;
     });
     
     video.addEventListener('error', function() {
@@ -199,6 +238,15 @@ function createVideoItem(src, x = null, y = null, width = 400, height = 300, fro
     item.appendChild(video);
     canvas.appendChild(item);
     
+    // Ensure video autoplay works on mobile with multiple attempts
+    setTimeout(() => {
+        attemptVideoPlay(video);
+    }, 100);
+    
+    setTimeout(() => {
+        attemptVideoPlay(video);
+    }, 1000);
+    
     if (!fromDatabase) {
         ItemsModule.selectItem(item);
         // Save immediately with initial dimensions
@@ -206,6 +254,39 @@ function createVideoItem(src, x = null, y = null, width = 400, height = 300, fro
     }
     
     return item;
+}
+
+// Helper function to attempt video playback with better mobile support
+function attemptVideoPlay(video) {
+    if (!video || video.ended) return;
+    
+    // Ensure video is muted for autoplay
+    video.muted = true;
+    video.defaultMuted = true;
+    
+    // Try to play the video
+    if (video.paused) {
+        const playPromise = video.play();
+        
+        if (playPromise !== undefined) {
+            playPromise.catch(error => {
+                console.log('Video autoplay prevented:', error.name);
+                
+                // For mobile, try again after user interaction
+                if (error.name === 'NotAllowedError') {
+                    // Add a one-time click listener to start playback
+                    const startPlayback = () => {
+                        video.play().catch(e => console.log('Still prevented'));
+                        document.removeEventListener('touchstart', startPlayback);
+                        document.removeEventListener('click', startPlayback);
+                    };
+                    
+                    document.addEventListener('touchstart', startPlayback, { once: true });
+                    document.addEventListener('click', startPlayback, { once: true });
+                }
+            });
+        }
+    }
 }
 
 function addText() {

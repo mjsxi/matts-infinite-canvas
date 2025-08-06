@@ -5,19 +5,15 @@ function toggleDrawMode() {
     isDrawMode = !isDrawMode;
     const drawBtn = document.getElementById('drawBtn');
     
-    console.log('Draw mode toggled:', isDrawMode, 'Authenticated:', isAuthenticated);
-    
     if (isDrawMode) {
         drawBtn.style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
         ToolbarModule.showDrawToolbar();
         container.style.cursor = 'crosshair';
-        console.log('Draw mode enabled');
     } else {
         drawBtn.style.backgroundColor = '';
         ToolbarModule.hideDrawToolbar();
         container.style.cursor = '';
         removeDrawingPreview();
-        console.log('Draw mode disabled');
     }
 }
 
@@ -81,16 +77,12 @@ function removeDrawingPreview() {
 }
 
 function createDrawingItem(pathData, strokeColor, strokeThickness, x, y, width, height, fromDatabase = false, viewBoxData = null) {
-    console.log('createDrawingItem called with:', { pathData, strokeColor, strokeThickness, x, y, width, height, fromDatabase, viewBoxData });
-    
     const item = document.createElement('div');
     item.className = 'canvas-item drawing-item';
     item.style.left = x + 'px';
     item.style.top = y + 'px';
     item.style.width = width + 'px';
     item.style.height = height + 'px';
-    
-    console.log('Item positioned at:', { left: item.style.left, top: item.style.top, width: item.style.width, height: item.style.height });
     
     // Set default border radius as CSS variable
     item.style.setProperty('--item-border-radius', '0px');
@@ -124,8 +116,6 @@ function createDrawingItem(pathData, strokeColor, strokeThickness, x, y, width, 
     
     svg.setAttribute('viewBox', viewBox);
     
-    console.log('SVG viewBox set to:', viewBox);
-    
     // Create path element
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     path.setAttribute('d', pathData);
@@ -135,14 +125,10 @@ function createDrawingItem(pathData, strokeColor, strokeThickness, x, y, width, 
     path.setAttribute('stroke-linecap', 'round');
     path.setAttribute('stroke-linejoin', 'round');
     
-    console.log('Path created with data:', pathData);
-    console.log('Stroke settings:', { color: strokeColor, thickness: strokeThickness });
-    
     svg.appendChild(path);
     item.appendChild(svg);
     
     canvas.appendChild(item);
-    console.log('Drawing item added to canvas');
     
     if (!fromDatabase) {
         ItemsModule.selectItem(item);

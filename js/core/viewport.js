@@ -63,8 +63,8 @@ function goToCenter() {
     canvasTransform.y = finalY;
     updateCanvasTransform();
     
-    // Show center indicator
-    if (window.AdminModule) {
+    // Show center indicator only for authenticated admin users
+    if (isAuthenticated && window.AdminModule) {
         window.AdminModule.showCenterIndicator(centerPoint.x, centerPoint.y);
     }
     
