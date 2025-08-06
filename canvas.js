@@ -94,6 +94,13 @@ function canvasToScreen(canvasX, canvasY) {
     return { x: screenX, y: screenY };
 }
 
+function getViewportCenter() {
+    const rect = getContainerRect();
+    const centerScreenX = rect.width / 2;
+    const centerScreenY = rect.height / 2;
+    return screenToCanvas(centerScreenX, centerScreenY);
+}
+
 // Performance monitoring
 let performanceMetrics = {
     frameCount: 0,
@@ -771,6 +778,16 @@ function selectItem(item) {
     item.classList.add('selected');
     showResizeHandles(item);
     
+    // Disable draw mode when selecting any item
+    if (isDrawMode) {
+        isDrawMode = false;
+        const drawBtn = document.getElementById('drawBtn');
+        drawBtn.style.backgroundColor = '';
+        container.style.cursor = '';
+        removeDrawingPreview();
+        console.log('Draw mode disabled - item selected');
+    }
+    
     // Show move up/down buttons when item is selected (admin only)
     if (isAuthenticated) {
         showMoveButtons();
@@ -1224,7 +1241,13 @@ async function handleFileSelect(e) {
     e.target.value = ''; // Reset input
 }
 
-function createImageItem(src, x = centerPoint.x, y = centerPoint.y, width = 200, height = 150, fromDatabase = false) {
+function createImageItem(src, x = null, y = null, width = 200, height = 150, fromDatabase = false) {
+    // Use viewport center for new items, explicit coordinates for database items
+    if (x === null || y === null) {
+        const viewportCenter = getViewportCenter();
+        x = x ?? (viewportCenter.x - width / 2);
+        y = y ?? (viewportCenter.y - height / 2);
+    }
     const item = document.createElement('div');
     item.className = 'canvas-item image-item';
     item.style.left = x + 'px';
@@ -1316,7 +1339,13 @@ function createImageItem(src, x = centerPoint.x, y = centerPoint.y, width = 200,
     return item;
 }
 
-function createVideoItem(src, x = centerPoint.x, y = centerPoint.y, width = 400, height = 300, fromDatabase = false) {
+function createVideoItem(src, x = null, y = null, width = 400, height = 300, fromDatabase = false) {
+    // Use viewport center for new items, explicit coordinates for database items
+    if (x === null || y === null) {
+        const viewportCenter = getViewportCenter();
+        x = x ?? (viewportCenter.x - width / 2);
+        y = y ?? (viewportCenter.y - height / 2);
+    }
     const item = document.createElement('div');
     item.className = 'canvas-item video-item';
     item.style.left = x + 'px';
@@ -1419,10 +1448,18 @@ function createVideoItem(src, x = centerPoint.x, y = centerPoint.y, width = 400,
 }
 
 function addText() {
-    createTextItem('Double-click to edit text...', centerPoint.x, centerPoint.y);
+    const viewportCenter = getViewportCenter();
+    // Create text at viewport center, will be centered after creation
+    createTextItem('Double-click to edit text...', viewportCenter.x, viewportCenter.y);
 }
 
-function createTextItem(content = 'Double-click to edit text...', x = centerPoint.x, y = centerPoint.y, width = null, height = null, fromDatabase = false) {
+function createTextItem(content = 'Double-click to edit text...', x = null, y = null, width = null, height = null, fromDatabase = false) {
+    // Use viewport center for new items, explicit coordinates for database items
+    if (x === null || y === null) {
+        const viewportCenter = getViewportCenter();
+        x = x ?? viewportCenter.x;
+        y = y ?? viewportCenter.y;
+    }
     const item = document.createElement('div');
     item.className = 'canvas-item text-item';
     item.style.left = x + 'px';
@@ -1491,6 +1528,21 @@ function createTextItem(content = 'Double-click to edit text...', x = centerPoin
     
     canvas.appendChild(item);
     
+    // Center the text item if it's not from database and using viewport center
+    if (!fromDatabase && x !== null && y !== null) {
+        // Force layout calculation to get actual dimensions
+        const rect = item.getBoundingClientRect();
+        const itemWidth = rect.width;
+        const itemHeight = rect.height;
+        
+        // If we used viewport center, adjust position to center the item
+        const viewportCenter = getViewportCenter();
+        if (Math.abs(x - viewportCenter.x) < 1 && Math.abs(y - viewportCenter.y) < 1) {
+            item.style.left = (viewportCenter.x - itemWidth / 2) + 'px';
+            item.style.top = (viewportCenter.y - itemHeight / 2) + 'px';
+        }
+    }
+    
     if (!fromDatabase) {
         selectItem(item);
         saveItemToDatabase(item);
@@ -1508,12 +1560,19 @@ function insertCode() {
     const code = document.getElementById('codeInput').value.trim();
     if (!code) return;
     
-    createCodeItem(code, centerPoint.x, centerPoint.y);
+    const viewportCenter = getViewportCenter();
+    createCodeItem(code, viewportCenter.x, viewportCenter.y);
     closeModal('codeModal');
     document.getElementById('codeInput').value = '';
 }
 
-function createCodeItem(htmlContent, x = centerPoint.x, y = centerPoint.y, width = 400, height = 300, fromDatabase = false) {
+function createCodeItem(htmlContent, x = null, y = null, width = 400, height = 300, fromDatabase = false) {
+    // Use viewport center for new items, explicit coordinates for database items
+    if (x === null || y === null) {
+        const viewportCenter = getViewportCenter();
+        x = x ?? (viewportCenter.x - width / 2);
+        y = y ?? (viewportCenter.y - height / 2);
+    }
     const item = document.createElement('div');
     item.className = 'canvas-item code-item';
     item.style.left = x + 'px';
