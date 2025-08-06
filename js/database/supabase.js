@@ -283,8 +283,6 @@ function handleCenterUpdate(payload) {
 }
 
 function createItemFromData(data) {
-    console.log('Creating item from data:', data);
-    
     let item;
     const itemType = data.item_type;
     

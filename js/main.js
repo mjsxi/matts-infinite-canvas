@@ -7,8 +7,8 @@ window.canvas = null;
 window.supabaseClient = null;
 window.selectedItem = null;
 window.selectedTextItem = null;
-window.canvasTransform = { x: -9500, y: -9500, scale: 1 };
-window.centerPoint = { x: 10000, y: 10000 };
+window.canvasTransform = { x: 0, y: 0, scale: 1 };
+window.centerPoint = { x: 1000, y: 1000 };
 window.isSettingCenter = false;
 window.isDragging = false;
 window.isPanning = false;
@@ -56,6 +56,11 @@ function initializeApp() {
     // Start performance monitoring
     if (window.PerformanceModule) {
         window.PerformanceModule.startPerformanceMonitoring();
+    }
+    
+    // Update canvas transform to ensure it's visible
+    if (window.ViewportModule) {
+        window.ViewportModule.updateCanvasTransform();
     }
     
     console.log('Canvas App initialized successfully');
@@ -146,11 +151,13 @@ function showCanvas(isAdmin = false) {
     closeModal('loginModal');
     
     // Show canvas interface
-    const loginContainer = document.getElementById('loginContainer');
+    const loginModal = document.getElementById('loginModal');
     const canvasInterface = document.getElementById('canvasInterface');
     
-    if (loginContainer) loginContainer.classList.add('hidden');
-    if (canvasInterface) canvasInterface.classList.remove('hidden');
+    if (loginModal) loginModal.classList.add('hidden');
+    if (canvasInterface) {
+        canvasInterface.style.display = 'block';
+    }
     
     // Show/hide admin buttons based on authentication status
     const adminButtons = document.getElementById('adminButtons');
@@ -187,25 +194,25 @@ function showStatus(message) {
 }
 
 // Export global functions for HTML button clicks and module access
-window.addImage = () => CreatorsModule?.addImage();
-window.addText = () => CreatorsModule?.addText();
-window.addCode = () => CreatorsModule?.addCode();
-window.insertCode = () => CreatorsModule?.insertCode();
-window.login = () => AdminModule?.login();
-window.logout = () => AdminModule?.logout();
-window.toggleDrawMode = () => DrawingModule?.toggleDrawMode();
-window.setCenter = () => AdminModule?.setCenter();
-window.clearAll = () => AdminModule?.clearAll();
-window.goToCenter = () => ViewportModule?.goToCenter();
-window.bringToFront = () => AdminModule?.bringToFront();
-window.sendToBack = () => AdminModule?.sendToBack();
+window.addImage = () => window.CreatorsModule?.addImage();
+window.addText = () => window.CreatorsModule?.addText();
+window.addCode = () => window.CreatorsModule?.addCode();
+window.insertCode = () => window.CreatorsModule?.insertCode();
+window.login = () => window.AdminModule?.login();
+window.logout = () => window.AdminModule?.logout();
+window.toggleDrawMode = () => window.DrawingModule?.toggleDrawMode();
+window.setCenter = () => window.AdminModule?.setCenter();
+window.clearAll = () => window.AdminModule?.clearAll();
+window.goToCenter = () => window.ViewportModule?.goToCenter();
+window.bringToFront = () => window.AdminModule?.bringToFront();
+window.sendToBack = () => window.AdminModule?.sendToBack();
 
 // Export global functions and variables for modules to use
 window.AppGlobals = {
     // Utility functions
     showCanvas,
     closeModal,
-    showStatus: (message) => ToolbarModule?.showStatus?.(message) || console.log(message),
+    showStatus: (message) => window.ToolbarModule?.showStatus?.(message) || console.log(message),
     updateAuthBodyClass,
     checkAuth,
     

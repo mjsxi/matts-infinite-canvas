@@ -64,7 +64,9 @@ function goToCenter() {
     updateCanvasTransform();
     
     // Show center indicator
-    showCenterIndicator(centerPoint.x, centerPoint.y);
+    if (window.AdminModule) {
+        window.AdminModule.showCenterIndicator(centerPoint.x, centerPoint.y);
+    }
     
     // Remove transition after animation
     setTimeout(() => {
