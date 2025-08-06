@@ -378,6 +378,12 @@ function createTextItem(content = 'Double-click to edit text...', x = null, y = 
         // Double-click event triggered on text item
         e.stopPropagation();
         
+        // Check if user is authenticated admin
+        if (!isAuthenticated) {
+            ToolbarModule.showStatus('Only admin users can edit text');
+            return;
+        }
+        
         // Temporarily hide resize handles during editing
         const resizeHandles = item.querySelector('.resize-handles');
         if (resizeHandles) {
