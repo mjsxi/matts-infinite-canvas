@@ -32,6 +32,10 @@ async function saveItemToDatabase(item) {
     const hasExplicitWidth = isTextItem && item.style.width && item.style.width !== '';
     const hasExplicitHeight = isTextItem && item.style.height && item.style.height !== '';
     
+    // Get actual dimensions for text items
+    const actualWidth = isTextItem ? (parseFloat(item.style.width) || item.offsetWidth) : (parseFloat(item.style.width) || 100);
+    const actualHeight = isTextItem ? (parseFloat(item.style.height) || item.offsetHeight) : (parseFloat(item.style.height) || 100);
+    
     const itemData = {
         id: parseInt(item.dataset.id),
         x: parseFloat(item.style.left) || 0,
@@ -39,10 +43,10 @@ async function saveItemToDatabase(item) {
         item_type: item.dataset.type,
         content: getItemContent(item),
         user_id: 'admin', // Set user ID - you can customize this
-        width: hasExplicitWidth ? (parseFloat(item.style.width) || null) : (isTextItem ? null : (parseFloat(item.style.width) || 100)),
-        height: hasExplicitHeight ? (parseFloat(item.style.height) || null) : (isTextItem ? null : (parseFloat(item.style.height) || 100)),
-        original_width: isTextItem ? null : (parseFloat(item.style.width) || 100),
-        original_height: isTextItem ? null : (parseFloat(item.style.height) || 100),
+        width: actualWidth,
+        height: actualHeight,
+        original_width: isTextItem ? actualWidth : (parseFloat(item.style.width) || 100),
+        original_height: isTextItem ? actualHeight : (parseFloat(item.style.height) || 100),
         aspect_ratio: parseFloat(item.dataset.aspectRatio) || 1,
         rotation: parseFloat(item.dataset.rotation) || 0,
         z_index: parseInt(item.style.zIndex) || 1,
@@ -365,14 +369,34 @@ function handleRealtimeUpdate(payload) {
                 const wasFocused = document.activeElement === existingItem;
                 const wasSelected = existingItem.classList.contains('selected');
                 
-                // Update text content in the text container
-                const textContainer = existingItem.querySelector('.text-content');
-                if (textContainer) {
-                    textContainer.textContent = payload.new.content;
-                } else {
-                    // Fallback for items without text container
-                    existingItem.textContent = payload.new.content;
+                // Store resize handles before updating content
+                const resizeHandles = existingItem.querySelector('.resize-handles');
+                
+                // Update content and properties
+                // Clear all text nodes but preserve child elements (like resize handles)
+                const textNodes = [];
+                for (let i = 0; i < existingItem.childNodes.length; i++) {
+                    const node = existingItem.childNodes[i];
+                    if (node.nodeType === Node.TEXT_NODE) {
+                        textNodes.push(node);
+                    }
                 }
+                textNodes.forEach(node => node.remove());
+                
+                // Add the new text content
+                existingItem.appendChild(document.createTextNode(payload.new.content));
+                
+                // Restore resize handles if they were removed
+                if (resizeHandles && !existingItem.querySelector('.resize-handles')) {
+                    existingItem.appendChild(resizeHandles);
+                }
+                
+                console.log('Real-time text update:', {
+                    newContent: payload.new.content,
+                    itemTextContent: existingItem.textContent,
+                    itemInnerHTML: existingItem.innerHTML.substring(0, 100) + '...',
+                    hasResizeHandles: !!existingItem.querySelector('.resize-handles')
+                });
                 
                 if (payload.new.font_family) existingItem.style.fontFamily = payload.new.font_family;
                 if (payload.new.font_size) existingItem.style.fontSize = payload.new.font_size + 'px';
@@ -383,14 +407,12 @@ function handleRealtimeUpdate(payload) {
                 // Restore editing state if it was editing
                 if (wasEditing) {
                     existingItem.classList.add('editing');
-                    if (textContainer) {
-                        textContainer.contentEditable = true;
-                    }
+                    existingItem.contentEditable = true;
                 }
                 
                 // Restore focus if it was focused
-                if (wasFocused && textContainer) {
-                    textContainer.focus();
+                if (wasFocused) {
+                    existingItem.focus();
                 }
                 
                 // Ensure selection state is maintained
@@ -637,19 +659,21 @@ function getItemContent(item) {
             console.log('Video content:', { src: content, hasVideo: !!video });
             break;
         case 'text':
-            // Get text from the text container
-            const textContainer = item.querySelector('.text-content');
-            if (textContainer) {
-                content = textContainer.textContent;
-            } else {
-                // Fallback to item textContent for backward compatibility
-                content = item.textContent;
+            // Clone the item to remove resize handles before extracting content
+            const tempItem = item.cloneNode(true);
+            const resizeHandles = tempItem.querySelector('.resize-handles');
+            if (resizeHandles) {
+                resizeHandles.remove();
             }
+            content = tempItem.textContent;
             console.log('Text content extraction:', { 
                 content: content.substring(0, 50) + '...', 
                 length: content.length,
                 textContent: content,
-                hasTextContainer: !!textContainer
+                innerText: tempItem.innerText,
+                innerHTML: tempItem.innerHTML.substring(0, 100) + '...',
+                originalTextContent: item.textContent,
+                originalInnerHTML: item.innerHTML.substring(0, 100) + '...'
             });
             break;
         case 'code':

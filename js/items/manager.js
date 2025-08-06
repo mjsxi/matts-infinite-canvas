@@ -64,6 +64,13 @@ function clearSelection() {
         if (selectedItem.classList.contains('text-item')) {
             selectedItem.classList.remove('editing');
             selectedItem.contentEditable = false;
+            selectedItem.blur();
+            
+            // Show resize handles if they were hidden
+            const resizeHandles = selectedItem.querySelector('.resize-handles');
+            if (resizeHandles) {
+                resizeHandles.style.display = '';
+            }
         }
         
         hideResizeHandles();

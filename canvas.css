@@ -594,24 +594,7 @@ body {
     box-shadow: none; /* No shadow by default for text items */
     cursor: pointer; /* Show pointer cursor when not editing */
     overflow: hidden; /* Prevent text from overflowing the container */
-}
-
-.text-content {
-    width: 100%;
-    height: 100%;
-    outline: none;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-    word-break: break-word;
-    hyphens: auto;
-    border: none;
-    background: transparent;
-}
-
-.text-content:focus {
-    outline: none;
-    border: none;
-    background: transparent;
+    white-space: pre-wrap; /* Preserve line breaks and spaces */
 }
 
 .text-item[contenteditable="true"] {

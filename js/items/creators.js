@@ -307,13 +307,7 @@ function createTextItem(content = 'Double-click to edit text...', x = null, y = 
     item.style.left = x + 'px';
     item.style.top = y + 'px';
     item.contentEditable = false; // Start in non-editing mode
-    
-    // Create a text container for editing
-    const textContainer = document.createElement('div');
-    textContainer.className = 'text-content';
-    textContainer.textContent = content;
-    textContainer.contentEditable = false;
-    item.appendChild(textContainer);
+    item.textContent = content;
     
     // Set default text styling
     item.style.fontFamily = 'Antarctica';
@@ -323,13 +317,21 @@ function createTextItem(content = 'Double-click to edit text...', x = null, y = 
     item.style.lineHeight = '1.15';
     item.style.padding = '8px';
     
-    // Set dimensions if provided (from database)
+    // Set dimensions if provided (from database) or use auto-sizing
     if (width && width > 0) {
         item.style.width = width + 'px';
+    } else if (!fromDatabase) {
+        // Auto-size to content for new items
+        item.style.width = 'auto';
+        item.style.minWidth = '50px';
     }
     
     if (height && height > 0) {
         item.style.height = height + 'px';
+    } else if (!fromDatabase) {
+        // Auto-size to content for new items
+        item.style.height = 'auto';
+        item.style.minHeight = '30px';
     }
     
     // Set default border radius as CSS variable
@@ -347,40 +349,53 @@ function createTextItem(content = 'Double-click to edit text...', x = null, y = 
     // Double-click to enter text editing mode
     item.addEventListener('dblclick', (e) => {
         e.stopPropagation();
-        textContainer.contentEditable = true;
-        textContainer.focus();
+        
+        // Temporarily hide resize handles during editing
+        const resizeHandles = item.querySelector('.resize-handles');
+        if (resizeHandles) {
+            resizeHandles.style.display = 'none';
+        }
+        
+        item.contentEditable = true;
+        item.focus();
         item.classList.add('editing');
         
         // Select all text for easy editing
         const range = document.createRange();
-        range.selectNodeContents(textContainer);
+        range.selectNodeContents(item);
         const selection = window.getSelection();
         selection.removeAllRanges();
         selection.addRange(range);
     });
     
     // Handle text editing
-    textContainer.addEventListener('focus', () => {
+    item.addEventListener('focus', () => {
         // Only add editing class if the item is already selected and not just being clicked
-        if (item.classList.contains('selected') && textContainer.contentEditable === 'true') {
+        if (item.classList.contains('selected') && item.contentEditable === 'true') {
             item.classList.add('editing');
         }
     });
-    textContainer.addEventListener('blur', () => {
+    item.addEventListener('blur', () => {
         item.classList.remove('editing');
-        textContainer.contentEditable = false;
+        item.contentEditable = false;
+        
+        // Show resize handles again after editing
+        const resizeHandles = item.querySelector('.resize-handles');
+        if (resizeHandles) {
+            resizeHandles.style.display = '';
+        }
+        
         // Save to database if not from database recreation and not during real-time updates
-        // But allow saving if the user actually edited the content
         if (!fromDatabase && !item.dataset.isUpdating) {
             DatabaseModule.saveItemToDatabase(item);
         }
     });
     
     // Also save when the user finishes editing (Enter key)
-    textContainer.addEventListener('keydown', (e) => {
+    item.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            textContainer.blur();
+            item.blur();
             // Ensure save happens even if blur event is prevented
             if (!fromDatabase && !item.dataset.isUpdating) {
                 DatabaseModule.saveItemToDatabase(item);
