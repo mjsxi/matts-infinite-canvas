@@ -20,6 +20,14 @@ async function saveItemToDatabase(item) {
     const isTextItem = item.dataset.type === 'text';
     const isDrawingItem = item.dataset.type === 'drawing';
     
+    // Debug: Log what type of item we're trying to save
+    console.log('Attempting to save item:', {
+        type: item.dataset.type,
+        id: item.dataset.id,
+        isTextItem,
+        isDrawingItem
+    });
+    
     // For text items, save width/height if they have been explicitly set
     const hasExplicitWidth = isTextItem && item.style.width && item.style.width !== '';
     const hasExplicitHeight = isTextItem && item.style.height && item.style.height !== '';
@@ -49,11 +57,28 @@ async function saveItemToDatabase(item) {
         stroke_color: isDrawingItem ? item.querySelector('path')?.getAttribute('stroke') || '#333333' : null
     };
 
+    // Debug: Log the content being extracted
+    console.log('Item content extracted:', {
+        type: item.dataset.type,
+        content: itemData.content,
+        contentLength: itemData.content ? itemData.content.length : 0
+    });
+
     // Remove null values to avoid unnecessary database columns
     Object.keys(itemData).forEach(key => {
         if (itemData[key] === null || itemData[key] === undefined) {
             delete itemData[key];
         }
+    });
+
+    // Debug: Log the final data being sent to database
+    console.log('Saving item data to database:', {
+        id: itemData.id,
+        type: itemData.item_type,
+        x: itemData.x,
+        y: itemData.y,
+        content: itemData.content ? itemData.content.substring(0, 100) + '...' : null,
+        hasContent: !!itemData.content
     });
 
     // Debug logging for drawing items
@@ -77,13 +102,15 @@ async function saveItemToDatabase(item) {
 
         if (error) {
             console.error('Database save error:', error);
+            console.error('Failed item data:', itemData);
             AppGlobals.showStatus('Failed to save item - check console for details');
             throw error;
         }
 
-        console.log('Item saved successfully:', itemData.id);
+        console.log('Item saved successfully:', itemData.id, 'Type:', itemData.item_type);
     } catch (error) {
         console.error('Error saving item to database:', error);
+        console.error('Failed item data:', itemData);
         AppGlobals.showStatus('Save failed - check console for details');
     }
 }
@@ -481,20 +508,49 @@ function updateItemFromData(item, data) {
 }
 
 function getItemContent(item) {
+    console.log('Getting content for item:', {
+        type: item.dataset.type,
+        id: item.dataset.id
+    });
+    
+    let content = '';
     switch (item.dataset.type) {
         case 'image':
-            return item.querySelector('img').src;
+            const img = item.querySelector('img');
+            content = img ? img.src : '';
+            console.log('Image content:', { src: content, hasImg: !!img });
+            break;
         case 'video':
-            return item.querySelector('video').src;
+            const video = item.querySelector('video');
+            content = video ? video.src : '';
+            console.log('Video content:', { src: content, hasVideo: !!video });
+            break;
         case 'text':
-            return item.textContent;
+            content = item.textContent;
+            console.log('Text content:', { content: content.substring(0, 50) + '...', length: content.length });
+            break;
         case 'code':
-            return item.querySelector('iframe').srcdoc;
+            const iframe = item.querySelector('iframe');
+            content = iframe ? iframe.srcdoc : '';
+            console.log('Code content:', { content: content.substring(0, 50) + '...', length: content.length, hasIframe: !!iframe });
+            break;
         case 'drawing':
-            return item.querySelector('path').getAttribute('d');
+            const path = item.querySelector('path');
+            content = path ? path.getAttribute('d') : '';
+            console.log('Drawing content:', { content: content.substring(0, 50) + '...', length: content.length, hasPath: !!path });
+            break;
         default:
-            return '';
+            content = '';
+            console.log('Unknown item type:', item.dataset.type);
     }
+    
+    console.log('Final content for', item.dataset.type, ':', {
+        content: content.substring(0, 100) + '...',
+        length: content.length,
+        isEmpty: !content
+    });
+    
+    return content;
 }
 
 // Export module
@@ -511,5 +567,197 @@ window.DatabaseModule = {
     handleCenterUpdate,
     createItemFromData,
     updateItemFromData,
-    getItemContent
+    getItemContent,
+    
+    // Debug function to test saving different item types
+    testSaveItem: function(item) {
+        console.log('=== TESTING ITEM SAVE ===');
+        console.log('Item element:', item);
+        console.log('Item dataset:', item.dataset);
+        console.log('Item style:', {
+            left: item.style.left,
+            top: item.style.top,
+            width: item.style.width,
+            height: item.style.height,
+            zIndex: item.style.zIndex
+        });
+        
+        // Test content extraction
+        const content = getItemContent(item);
+        console.log('Extracted content:', content);
+        
+        // Test full save
+        return saveItemToDatabase(item);
+    },
+    
+    // Debug function to test saving all items on canvas
+    testSaveAllItems: function() {
+        console.log('=== TESTING ALL ITEMS SAVE ===');
+        const items = canvas.querySelectorAll('.canvas-item');
+        console.log('Found', items.length, 'items on canvas');
+        
+        items.forEach((item, index) => {
+            console.log(`\n--- Item ${index + 1} ---`);
+            console.log('Type:', item.dataset.type);
+            console.log('ID:', item.dataset.id);
+            console.log('Position:', item.style.left, item.style.top);
+            
+            // Test save for this item
+            this.testSaveItem(item);
+        });
+    },
+    
+    // Comprehensive test to identify sync issues
+    comprehensiveTest: async function() {
+        console.log('=== COMPREHENSIVE SYNC TEST ===');
+        
+        // Test 1: Check database connection
+        console.log('\n1. Testing database connection...');
+        try {
+            const { data, error } = await supabaseClient
+                .from('canvas_items')
+                .select('count', { count: 'exact', head: true });
+            
+            if (error) {
+                console.error('Database connection failed:', error);
+                return;
+            }
+            console.log('Database connection successful');
+        } catch (error) {
+            console.error('Database connection error:', error);
+            return;
+        }
+        
+        // Test 2: Check current items in database
+        console.log('\n2. Checking current items in database...');
+        try {
+            const { data: items, error } = await supabaseClient
+                .from('canvas_items')
+                .select('*');
+            
+            if (error) {
+                console.error('Failed to load items:', error);
+            } else {
+                console.log('Items in database:', items?.length || 0);
+                items?.forEach(item => {
+                    console.log(`- ID: ${item.id}, Type: ${item.item_type}, Content: ${item.content ? item.content.substring(0, 50) + '...' : 'null'}`);
+                });
+            }
+        } catch (error) {
+            console.error('Error loading items:', error);
+        }
+        
+        // Test 3: Test saving each item type
+        console.log('\n3. Testing save for each item type...');
+        const canvasItems = canvas.querySelectorAll('.canvas-item');
+        console.log('Canvas items found:', canvasItems.length);
+        
+        for (let i = 0; i < canvasItems.length; i++) {
+            const item = canvasItems[i];
+            console.log(`\n--- Testing item ${i + 1} (${item.dataset.type}) ---`);
+            
+            // Test content extraction
+            const content = getItemContent(item);
+            console.log('Content extracted:', content ? content.substring(0, 100) + '...' : 'null');
+            
+            // Test save
+            try {
+                await saveItemToDatabase(item);
+                console.log('Save successful');
+            } catch (error) {
+                console.error('Save failed:', error);
+            }
+        }
+        
+        console.log('\n=== COMPREHENSIVE TEST COMPLETE ===');
+    },
+    
+    // Test database schema with simple inserts
+    testDatabaseSchema: async function() {
+        console.log('=== TESTING DATABASE SCHEMA ===');
+        
+        const testItems = [
+            {
+                id: 999999,
+                item_type: 'image',
+                content: 'https://example.com/test-image.jpg',
+                x: 100,
+                y: 100,
+                width: 200,
+                height: 150,
+                user_id: 'admin'
+            },
+            {
+                id: 999998,
+                item_type: 'video',
+                content: 'https://example.com/test-video.mp4',
+                x: 300,
+                y: 100,
+                width: 300,
+                height: 200,
+                user_id: 'admin'
+            },
+            {
+                id: 999997,
+                item_type: 'code',
+                content: '<div>Test HTML</div>',
+                x: 100,
+                y: 300,
+                width: 200,
+                height: 100,
+                user_id: 'admin'
+            },
+            {
+                id: 999996,
+                item_type: 'drawing',
+                content: 'M 10 10 L 100 100',
+                x: 300,
+                y: 300,
+                width: 200,
+                height: 100,
+                stroke_color: '#ff0000',
+                stroke_thickness: 4,
+                user_id: 'admin'
+            }
+        ];
+        
+        for (const testItem of testItems) {
+            console.log(`\nTesting ${testItem.item_type} insert...`);
+            try {
+                const { data, error } = await supabaseClient
+                    .from('canvas_items')
+                    .upsert(testItem, { 
+                        onConflict: 'id',
+                        ignoreDuplicates: false 
+                    });
+                
+                if (error) {
+                    console.error(`Failed to insert ${testItem.item_type}:`, error);
+                } else {
+                    console.log(`Successfully inserted ${testItem.item_type}`);
+                }
+            } catch (error) {
+                console.error(`Error inserting ${testItem.item_type}:`, error);
+            }
+        }
+        
+        // Clean up test items
+        console.log('\nCleaning up test items...');
+        try {
+            const { error } = await supabaseClient
+                .from('canvas_items')
+                .delete()
+                .in('id', [999999, 999998, 999997, 999996]);
+            
+            if (error) {
+                console.error('Failed to clean up test items:', error);
+            } else {
+                console.log('Test items cleaned up successfully');
+            }
+        } catch (error) {
+            console.error('Error cleaning up test items:', error);
+        }
+        
+        console.log('=== DATABASE SCHEMA TEST COMPLETE ===');
+    }
 };

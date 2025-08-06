@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supabase Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h1>Supabase Database Test</h1>
+    <button onclick="testConnection()">Test Connection</button>
+    <button onclick="testInsert()">Test Insert</button>
+    <button onclick="testUpdate()">Test Update</button>
+    <button onclick="testSelect()">Test Select</button>
+    <button onclick="testDelete()">Test Delete</button>
+    
+    <div id="results"></div>
+
+    <script>
+        // Supabase Configuration
+        const SUPABASE_URL = 'https://ruefemuqeehlqieitoma.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ1ZWZlbXVxZWVobHFpZWl0b21hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQxNzc5ODQsImV4cCI6MjA2OTc1Mzk4NH0.Bl3Af45EF-RINH_MD5AcZITNbk4wj79cm3Znsbrpb9k';
+        
+        // Initialize Supabase
+        const { createClient } = supabase;
+        const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
+        
+        function log(message) {
+            console.log(message);
+            document.getElementById('results').innerHTML += '<p>' + message + '</p>';
+        }
+        
+        async function testConnection() {
+            log('=== TESTING CONNECTION ===');
+            try {
+                const { data, error } = await supabaseClient
+                    .from('canvas_items')
+                    .select('count', { count: 'exact', head: true });
+                
+                if (error) {
+                    log('Connection failed: ' + error.message);
+                } else {
+                    log('Connection successful!');
+                }
+            } catch (error) {
+                log('Connection error: ' + error.message);
+            }
+        }
+        
+        async function testInsert() {
+            log('=== TESTING INSERT ===');
+            const testItem = {
+                id: 999999,
+                item_type: 'text',
+                content: 'Test content from console - ' + new Date().toISOString(),
+                x: 100,
+                y: 100,
+                user_id: 'admin'
+            };
+            
+            try {
+                const { data, error } = await supabaseClient
+                    .from('canvas_items')
+                    .upsert(testItem, { 
+                        onConflict: 'id',
+                        ignoreDuplicates: false 
+                    });
+                
+                if (error) {
+                    log('Insert failed: ' + error.message);
+                    log('Error details: ' + JSON.stringify(error));
+                } else {
+                    log('Insert successful!');
+                }
+            } catch (error) {
+                log('Insert error: ' + error.message);
+            }
+        }
+        
+        async function testUpdate() {
+            log('=== TESTING UPDATE ===');
+            const updatedContent = 'Updated content - ' + new Date().toISOString();
+            
+            try {
+                const { data, error } = await supabaseClient
+                    .from('canvas_items')
+                    .update({ content: updatedContent })
+                    .eq('id', 999999);
+                
+                if (error) {
+                    log('Update failed: ' + error.message);
+                    log('Error details: ' + JSON.stringify(error));
+                } else {
+                    log('Update successful!');
+                }
+            } catch (error) {
+                log('Update error: ' + error.message);
+            }
+        }
+        
+        async function testSelect() {
+            log('=== TESTING SELECT ===');
+            try {
+                const { data, error } = await supabaseClient
+                    .from('canvas_items')
+                    .select('*')
+                    .eq('id', 999999);
+                
+                if (error) {
+                    log('Select failed: ' + error.message);
+                } else {
+                    log('Select successful!');
+                    log('Data: ' + JSON.stringify(data, null, 2));
+                }
+            } catch (error) {
+                log('Select error: ' + error.message);
+            }
+        }
+        
+        async function testDelete() {
+            log('=== TESTING DELETE ===');
+            try {
+                const { data, error } = await supabaseClient
+                    .from('canvas_items')
+                    .delete()
+                    .eq('id', 999999);
+                
+                if (error) {
+                    log('Delete failed: ' + error.message);
+                } else {
+                    log('Delete successful!');
+                }
+            } catch (error) {
+                log('Delete error: ' + error.message);
+            }
+        }
+        
+        // Test all operations
+        async function runAllTests() {
+            log('=== RUNNING ALL TESTS ===');
+            await testConnection();
+            await testInsert();
+            await testSelect();
+            await testUpdate();
+            await testSelect();
+            await testDelete();
+            log('=== ALL TESTS COMPLETE ===');
+        }
+        
+        // Make function available globally
+        window.runAllTests = runAllTests;
+    </script>
+</body>
+</html> 
