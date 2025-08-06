@@ -8,6 +8,19 @@ let lastSelectedItemId = null;
 function selectItem(item) {
     // Removed console.log for performance
     clearSelection();
+    
+    // Reset all code blocks to non-interactive state when selecting any item
+    const allCodeItems = document.querySelectorAll('.code-item');
+    allCodeItems.forEach(codeItem => {
+        if (codeItem !== item) { // Don't reset the item we're selecting
+            codeItem.classList.remove('interactive');
+            const iframe = codeItem.querySelector('iframe');
+            if (iframe) {
+                iframe.style.pointerEvents = 'none';
+            }
+        }
+    });
+    
     selectedItem = item;
     item.classList.add('selected');
     
@@ -52,6 +65,16 @@ function selectItem(item) {
 }
 
 function clearSelection() {
+    // Reset all code blocks to non-interactive state when clearing selection
+    const allCodeItems = document.querySelectorAll('.code-item');
+    allCodeItems.forEach(codeItem => {
+        codeItem.classList.remove('interactive');
+        const iframe = codeItem.querySelector('iframe');
+        if (iframe) {
+            iframe.style.pointerEvents = 'none';
+        }
+    });
+    
     // Removed console.log for performance
     if (selectedItem) {
         selectedItem.classList.remove('selected');
@@ -59,6 +82,10 @@ function clearSelection() {
         // Reset interactive state for code items when deselected
         if (selectedItem.classList.contains('code-item')) {
             selectedItem.classList.remove('interactive');
+            const iframe = selectedItem.querySelector('iframe');
+            if (iframe) {
+                iframe.style.pointerEvents = 'none';
+            }
         }
         
         // Reset text items to non-editing mode when deselected

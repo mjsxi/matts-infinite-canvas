@@ -522,12 +522,12 @@ function createCodeItem(htmlContent, x = null, y = null, width = 400, height = 3
     iframe.style.pointerEvents = 'none';
     iframe.srcdoc = htmlContent;
     
-    // Toggle interactivity on click
-    item.addEventListener('click', (e) => {
+    // Double-click to enable interactivity
+    item.addEventListener('dblclick', (e) => {
         e.stopPropagation();
         if (isAuthenticated) {
-            item.classList.toggle('interactive');
-            iframe.style.pointerEvents = item.classList.contains('interactive') ? 'auto' : 'none';
+            item.classList.add('interactive');
+            iframe.style.pointerEvents = 'auto';
         }
     });
     
