@@ -696,8 +696,15 @@ function updateItemFromData(item, data) {
             if (selectedItem === item && isAuthenticated && item.classList.contains('drawing-item')) {
                 ToolbarModule.showDrawToolbar();
                 if (path) {
-                    document.getElementById('strokeColor').value = path.getAttribute('stroke') || '#333333';
-                    document.getElementById('strokeThickness').value = path.getAttribute('stroke-width') || '4';
+                    const strokeColor = path.getAttribute('stroke') || '#333333';
+                    document.getElementById('strokeColor').value = strokeColor;
+                    document.getElementById('strokeThickness').value = path.getAttribute('stroke-width') || '8';
+                    
+                    // Update stroke color preview
+                    const strokeColorPreview = document.getElementById('strokeColorPreview');
+                    if (strokeColorPreview) {
+                        strokeColorPreview.style.backgroundColor = strokeColor;
+                    }
                 }
             }
             break;

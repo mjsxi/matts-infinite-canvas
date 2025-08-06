@@ -18,33 +18,88 @@
 
     <!-- Text Editing Toolbar -->
     <div id="textToolbar" class="text-toolbar hidden">
-        <div class="text-toolbar-group">
-            <select id="fontFamily" class="text-control">
-                <option value="Antarctica" selected>Antarctica</option>
-                <option value="Alpaga">Alpaga</option>
-                <option value="Atacama">Atacama</option>
-                <option value="Atacama Italic">Atacama Italic</option>
-            </select>
+        <div class="text-toolbar-content">
+            <!-- Font Family -->
+            <div class="text-control-item font-family-control">
+                <div class="text-control-wrapper">
+                    <img src="icons/font-family.svg" alt="Font Family" class="control-icon">
+                    <select id="fontFamily" class="text-control">
+                        <option value="Antarctica" selected>Antarctica</option>
+                        <option value="Alpaga">Alpaga</option>
+                        <option value="Atacama">Atacama</option>
+                        <option value="Atacama Italic">Atacama Italic</option>
+                    </select>
+                </div>
+            </div>
             
-            <input type="number" id="fontSize" class="text-control number-input" min="8" max="200" step="1" value="24">
+            <!-- Font Size -->
+            <div class="text-control-item">
+                <div class="text-control-wrapper">
+                    <img src="icons/size.svg" alt="Font Size" class="control-icon">
+                    <input type="number" id="fontSize" class="text-control number-input" min="8" max="200" step="1" value="24">
+                </div>
+            </div>
             
+            <!-- Text Color -->
+            <div class="text-control-item color-control">
+                <div class="text-control-wrapper">
+                    <div class="color-preview" id="colorPreview" style="background-color: #76fb9d;"></div>
+                    <input type="color" id="textColor" class="text-control color-input" value="#76fb9d">
+                </div>
+            </div>
             
-            <input type="color" id="textColor" class="text-control color-input" value="#333333">
+            <!-- Line Height -->
+            <div class="text-control-item">
+                <div class="text-control-wrapper">
+                    <img src="icons/line-height.svg" alt="Line Height" class="control-icon">
+                    <input type="number" id="lineHeight" class="text-control number-input" min="0.5" max="3" step="0.05" value="1.15">
+                </div>
+            </div>
             
-            <input type="number" id="lineHeight" class="text-control number-input" min="0.5" max="3" step="0.05" value="1.15">
+            <!-- Font Weight -->
+            <div class="text-control-item">
+                <div class="text-control-wrapper">
+                    <img src="icons/font-weight.svg" alt="Font Weight" class="control-icon">
+                    <input type="number" id="fontVariationWeight" class="text-control number-input" min="1" max="1000" step="1" value="400">
+                </div>
+            </div>
             
-            <input type="number" id="fontVariationWeight" class="text-control number-input" min="1" max="1000" step="1" value="400" title="Font Weight">
-            <input type="number" id="fontVariationWidth" class="text-control number-input" min="25" max="200" step="1" value="100" title="Font Width">
-            <input type="number" id="fontVariationContrast" class="text-control number-input" min="0" max="100" step="1" value="0" title="Font Contrast">
+            <!-- Font Width -->
+            <div class="text-control-item">
+                <div class="text-control-wrapper">
+                    <img src="icons/font-width.svg" alt="Font Width" class="control-icon">
+                    <input type="number" id="fontVariationWidth" class="text-control number-input" min="25" max="200" step="1" value="100">
+                </div>
+            </div>
+            
+            <!-- Font Contrast -->
+            <div class="text-control-item">
+                <div class="text-control-wrapper">
+                    <img src="icons/font-contrast.svg" alt="Font Contrast" class="control-icon">
+                    <input type="number" id="fontVariationContrast" class="text-control number-input" min="0" max="100" step="1" value="0">
+                </div>
+            </div>
         </div>
     </div>
 
     <!-- Drawing Toolbar -->
     <div id="drawToolbar" class="text-toolbar hidden">
-        <div class="text-toolbar-group">
-            <input type="color" id="strokeColor" class="text-control color-input" value="#333333">
+        <div class="text-toolbar-content">
+            <!-- Stroke Color -->
+            <div class="text-control-item color-control">
+                <div class="text-control-wrapper">
+                    <div class="color-preview" id="strokeColorPreview" style="background-color: #76fb9d;"></div>
+                    <input type="color" id="strokeColor" class="text-control color-input" value="#76fb9d">
+                </div>
+            </div>
             
-            <input type="number" id="strokeThickness" class="text-control number-input" min="1" max="50" step="1" value="4">
+            <!-- Stroke Thickness -->
+            <div class="text-control-item">
+                <div class="text-control-wrapper">
+                    <img src="icons/stroke-width.svg" alt="Stroke Width" class="control-icon">
+                    <input type="number" id="strokeThickness" class="text-control number-input" min="1" max="50" step="1" value="8">
+                </div>
+            </div>
         </div>
     </div>
 

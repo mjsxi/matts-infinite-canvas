@@ -91,6 +91,12 @@ function showTextToolbar(textItem) {
     document.getElementById('textColor').value = rgbToHex(textColor);
     document.getElementById('lineHeight').value = lineHeight;
     
+    // Update color preview
+    const colorPreview = document.getElementById('colorPreview');
+    if (colorPreview) {
+        colorPreview.style.backgroundColor = rgbToHex(textColor);
+    }
+    
     textToolbar.classList.remove('hidden');
     
     // Bind events if not already bound
@@ -125,8 +131,20 @@ function handleFontWeightChange(e) {
 function handleTextColorChange(e) {
     if (selectedTextItem) {
         selectedTextItem.style.color = e.target.value;
+        // Update color preview
+        const colorPreview = document.getElementById('colorPreview');
+        if (colorPreview) {
+            colorPreview.style.backgroundColor = e.target.value;
+        }
         DatabaseModule.saveItemToDatabase(selectedTextItem);
     }
+}
+
+function handleColorPreviewClick(e) {
+    // The color input is now positioned over the preview, so no manual trigger needed
+    // The click will naturally go to the underlying color input
+    e.preventDefault();
+    e.stopPropagation();
 }
 
 function handleLineHeightChange(e) {
@@ -209,6 +227,11 @@ function handleStrokeColorChange(e) {
         const path = selectedItem.querySelector('path');
         if (path) {
             path.setAttribute('stroke', e.target.value);
+            // Update stroke color preview
+            const strokeColorPreview = document.getElementById('strokeColorPreview');
+            if (strokeColorPreview) {
+                strokeColorPreview.style.backgroundColor = e.target.value;
+            }
             debouncedSaveDrawingItem();
         }
     }
@@ -398,6 +421,7 @@ window.ToolbarModule = {
     handleFontVariationContrastChange,
     updateFontVariation,
     handleTextColorChange,
+    handleColorPreviewClick,
     handleLineHeightChange,
     handleStrokeColorChange,
     handleStrokeThicknessChange,
