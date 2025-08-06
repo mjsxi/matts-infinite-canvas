@@ -109,6 +109,19 @@ function createImageItem(src, x = null, y = null, width = 200, height = 150, fro
         item.dataset.originalWidth = img.naturalWidth;
         item.dataset.originalHeight = img.naturalHeight;
         
+        // Resize item to maintain natural aspect ratio
+        // Keep the same area but adjust dimensions to match aspect ratio
+        const currentWidth = parseFloat(item.style.width);
+        const currentHeight = parseFloat(item.style.height);
+        
+        // Calculate new dimensions maintaining the same approximate area
+        const currentArea = currentWidth * currentHeight;
+        const newHeight = Math.sqrt(currentArea / aspectRatio);
+        const newWidth = newHeight * aspectRatio;
+        
+        item.style.width = newWidth + 'px';
+        item.style.height = newHeight + 'px';
+        
         // Remove loading state
         item.classList.remove('loading');
         
@@ -187,6 +200,19 @@ function createVideoItem(src, x = null, y = null, width = 400, height = 300, fro
         item.dataset.aspectRatio = aspectRatio;
         item.dataset.originalWidth = video.videoWidth;
         item.dataset.originalHeight = video.videoHeight;
+        
+        // Resize item to maintain natural aspect ratio
+        // Keep the same area but adjust dimensions to match aspect ratio
+        const currentWidth = parseFloat(item.style.width);
+        const currentHeight = parseFloat(item.style.height);
+        
+        // Calculate new dimensions maintaining the same approximate area
+        const currentArea = currentWidth * currentHeight;
+        const newHeight = Math.sqrt(currentArea / aspectRatio);
+        const newWidth = newHeight * aspectRatio;
+        
+        item.style.width = newWidth + 'px';
+        item.style.height = newHeight + 'px';
         
         // Try to play video after metadata loads
         attemptVideoPlay(video);
