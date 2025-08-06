@@ -92,6 +92,7 @@ async function saveItemToDatabase(item) {
         font_family: item.style.fontFamily || 'Antarctica',
         font_size: parseInt(item.style.fontSize) || 24,
         font_weight: item.style.fontWeight || 'normal',
+        font_variation: item.style.getPropertyValue('font-variation-settings') || '',
         text_color: item.style.color || '#333333',
         line_height: parseFloat(item.style.lineHeight) || 1.15,
         html_content: item.dataset.type === 'code' ? getItemContent(item) : (isDrawingItem ? item.dataset.viewBox : null),
@@ -580,6 +581,7 @@ function createItemFromData(data) {
             if (data.font_family) item.style.fontFamily = data.font_family;
             if (data.font_size) item.style.fontSize = data.font_size + 'px';
             if (data.font_weight) item.style.fontWeight = data.font_weight;
+            if (data.font_variation) item.style.setProperty('font-variation-settings', data.font_variation);
             if (data.text_color) item.style.color = data.text_color;
             if (data.line_height) item.style.lineHeight = data.line_height;
         }

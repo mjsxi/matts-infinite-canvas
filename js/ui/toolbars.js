@@ -41,7 +41,19 @@ function showTextToolbar(textItem) {
     // Populate toolbar with current text properties
     const fontFamily = textItem.style.fontFamily || 'Antarctica';
     const fontSize = parseInt(textItem.style.fontSize) || 24;
-    const fontWeight = textItem.style.fontWeight || 'normal';
+    const fontVariation = textItem.style.getPropertyValue('font-variation-settings') || '';
+    
+    // Parse font variation settings to extract individual values
+    let variationWeight = 400, variationWidth = 100, variationContrast = 0;
+    if (fontVariation) {
+        const weightMatch = fontVariation.match(/"wght"\s+(\d+)/);
+        const widthMatch = fontVariation.match(/"wdth"\s+(\d+)/);
+        const contrastMatch = fontVariation.match(/"CNTR"\s+(\d+)/);
+        
+        if (weightMatch) variationWeight = parseInt(weightMatch[1]);
+        if (widthMatch) variationWidth = parseInt(widthMatch[1]);
+        if (contrastMatch) variationContrast = parseInt(contrastMatch[1]);
+    }
     const textColor = textItem.style.color || '#333333';
     const lineHeight = parseFloat(textItem.style.lineHeight) || 1.15;
     
@@ -70,7 +82,12 @@ function showTextToolbar(textItem) {
     
     // Set other properties
     document.getElementById('fontSize').value = fontSize;
-    document.getElementById('fontWeight').value = convertFontWeightToNumeric(fontWeight);
+    
+    // Set font variation inputs
+    document.getElementById('fontVariationWeight').value = variationWeight;
+    document.getElementById('fontVariationWidth').value = variationWidth;
+    document.getElementById('fontVariationContrast').value = variationContrast;
+    
     document.getElementById('textColor').value = rgbToHex(textColor);
     document.getElementById('lineHeight').value = lineHeight;
     
@@ -119,24 +136,57 @@ function handleLineHeightChange(e) {
     }
 }
 
+function updateFontVariation() {
+    if (selectedTextItem) {
+        const weight = document.getElementById('fontVariationWeight').value || 400;
+        const width = document.getElementById('fontVariationWidth').value || 100;
+        const contrast = document.getElementById('fontVariationContrast').value || 0;
+        
+        const fontVariationValue = `"wght" ${weight}, "wdth" ${width}, "CNTR" ${contrast}`;
+        
+        selectedTextItem.style.setProperty('font-variation-settings', fontVariationValue);
+        
+        debouncedSaveTextItem();
+    }
+}
+
+function handleFontVariationWeightChange(e) {
+    updateFontVariation();
+}
+
+
+function handleFontVariationWidthChange(e) {
+    updateFontVariation();
+}
+
+function handleFontVariationContrastChange(e) {
+    updateFontVariation();
+}
+
 function bindTextToolbarEvents() {
     // Remove existing listeners to prevent duplicates
     const fontFamily = document.getElementById('fontFamily');
     const fontSize = document.getElementById('fontSize');
-    const fontWeight = document.getElementById('fontWeight');
+    const fontVariationWeight = document.getElementById('fontVariationWeight');
+    const fontVariationWidth = document.getElementById('fontVariationWidth');
+    const fontVariationContrast = document.getElementById('fontVariationContrast');
     const textColor = document.getElementById('textColor');
     const lineHeight = document.getElementById('lineHeight');
     
     if (fontFamily) fontFamily.removeEventListener('change', handleFontFamilyChange);
     if (fontSize) fontSize.removeEventListener('input', handleFontSizeChange);
-    if (fontWeight) fontWeight.removeEventListener('change', handleFontWeightChange);
+    if (fontVariationWeight) fontVariationWeight.removeEventListener('input', handleFontVariationWeightChange);
+    if (fontVariationWidth) fontVariationWidth.removeEventListener('input', handleFontVariationWidthChange);
+    if (fontVariationContrast) fontVariationContrast.removeEventListener('input', handleFontVariationContrastChange);
     if (textColor) textColor.removeEventListener('input', handleTextColorChange);
     if (lineHeight) lineHeight.removeEventListener('input', handleLineHeightChange);
     
     // Add new listeners
     if (fontFamily) fontFamily.addEventListener('change', handleFontFamilyChange);
     if (fontSize) fontSize.addEventListener('input', handleFontSizeChange);
-    if (fontWeight) fontWeight.addEventListener('change', handleFontWeightChange);
+    if (fontVariationWeight) fontVariationWeight.addEventListener('input', handleFontVariationWeightChange);
+    if (fontVariationWidth) fontVariationWidth.addEventListener('input', handleFontVariationWidthChange);
+    if (fontVariationContrast) fontVariationContrast.addEventListener('input', handleFontVariationContrastChange);
     if (textColor) textColor.addEventListener('input', handleTextColorChange);
     if (lineHeight) lineHeight.addEventListener('input', handleLineHeightChange);
 }
@@ -310,13 +360,17 @@ function cleanupEventListeners() {
     // Remove text toolbar listeners
     const fontFamily = document.getElementById('fontFamily');
     const fontSize = document.getElementById('fontSize');
-    const fontWeight = document.getElementById('fontWeight');
+    const fontVariationWeight = document.getElementById('fontVariationWeight');
+    const fontVariationWidth = document.getElementById('fontVariationWidth');
+    const fontVariationContrast = document.getElementById('fontVariationContrast');
     const textColor = document.getElementById('textColor');
     const lineHeight = document.getElementById('lineHeight');
     
     if (fontFamily) fontFamily.removeEventListener('change', handleFontFamilyChange);
     if (fontSize) fontSize.removeEventListener('input', handleFontSizeChange);
-    if (fontWeight) fontWeight.removeEventListener('change', handleFontWeightChange);
+    if (fontVariationWeight) fontVariationWeight.removeEventListener('input', handleFontVariationWeightChange);
+    if (fontVariationWidth) fontVariationWidth.removeEventListener('input', handleFontVariationWidthChange);
+    if (fontVariationContrast) fontVariationContrast.removeEventListener('input', handleFontVariationContrastChange);
     if (textColor) textColor.removeEventListener('input', handleTextColorChange);
     if (lineHeight) lineHeight.removeEventListener('input', handleLineHeightChange);
     
@@ -338,7 +392,10 @@ window.ToolbarModule = {
     hideMoveButtons,
     handleFontFamilyChange,
     handleFontSizeChange,
-    handleFontWeightChange,
+    handleFontVariationWeightChange,
+    handleFontVariationWidthChange,
+    handleFontVariationContrastChange,
+    updateFontVariation,
     handleTextColorChange,
     handleLineHeightChange,
     handleStrokeColorChange,
@@ -349,7 +406,6 @@ window.ToolbarModule = {
     showStatus,
     cleanupEventListeners,
     rgbToHex,
-    convertFontWeightToNumeric,
     debouncedSaveTextItem,
     debouncedSaveDrawingItem
 };

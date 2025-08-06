@@ -1029,6 +1029,11 @@ body {
     cursor: pointer;
 }
 
+#fontVariationWeight,
+#fontVariationWidth,
+#fontVariationContrast {
+    color: white !important;
+}
 
 /* Modal */
 .modal {

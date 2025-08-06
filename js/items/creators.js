@@ -341,6 +341,7 @@ function createTextItem(content = 'Double-click to edit text...', x = null, y = 
     item.style.fontWeight = '400';
     item.style.color = '#333333';
     item.style.lineHeight = '1.15';
+    item.style.setProperty('font-variation-settings', '');
     item.style.padding = '8px';
     
     // Set dimensions if provided (from database) or use auto-sizing
