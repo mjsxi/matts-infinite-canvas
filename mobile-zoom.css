@@ -14,7 +14,7 @@
     
     /* Ensure text items maintain proper letter spacing on mobile */
     .text-item {
-        letter-spacing: -2.5px !important;
+        letter-spacing: normal !important;
         text-rendering: optimizeLegibility !important;
         -webkit-font-smoothing: antialiased !important;
         -moz-osx-font-smoothing: grayscale !important;
