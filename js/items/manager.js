@@ -1,6 +1,10 @@
 // Item management module
 // Handles item selection, manipulation, dragging, resizing
 
+// Cache for resize handles to avoid recreation
+let cachedResizeHandles = null;
+let lastSelectedItemId = null;
+
 function selectItem(item) {
     console.log('Selecting item:', item, 'Type:', item.dataset.type);
     clearSelection();
@@ -106,6 +110,14 @@ function showResizeHandles(item) {
         return;
     }
     
+    const itemId = item.dataset.id;
+    
+    // Reuse handles if same item to improve performance
+    if (cachedResizeHandles && lastSelectedItemId === itemId) {
+        item.appendChild(cachedResizeHandles);
+        return;
+    }
+    
     const handles = document.createElement('div');
     handles.className = 'resize-handles';
     handles.id = 'resizeHandles';
@@ -114,20 +126,28 @@ function showResizeHandles(item) {
     const isDrawingItem = item.classList.contains('drawing-item');
     const positions = isDrawingItem ? ['nw', 'ne', 'sw', 'se'] : ['nw', 'ne', 'sw', 'se', 'n', 's', 'w', 'e'];
     
+    // Use document fragment for efficient DOM manipulation
+    const fragment = document.createDocumentFragment();
+    
     positions.forEach(pos => {
         const handle = document.createElement('div');
         handle.className = `resize-handle ${pos}`;
-        handle.addEventListener('mousedown', (e) => startResize(e, pos));
-        handles.appendChild(handle);
+        handle.addEventListener('mousedown', (e) => startResize(e, pos), { passive: false });
+        fragment.appendChild(handle);
     });
     
     // Add rotation handle
     const rotationHandle = document.createElement('div');
     rotationHandle.className = 'rotation-handle';
-    rotationHandle.addEventListener('mousedown', (e) => startRotation(e));
-    handles.appendChild(rotationHandle);
+    rotationHandle.addEventListener('mousedown', (e) => startRotation(e), { passive: false });
+    fragment.appendChild(rotationHandle);
     
+    handles.appendChild(fragment);
     item.appendChild(handles);
+    
+    // Cache for reuse
+    cachedResizeHandles = handles;
+    lastSelectedItemId = itemId;
 }
 
 function hideResizeHandles() {
@@ -135,6 +155,9 @@ function hideResizeHandles() {
     if (existing) {
         existing.remove();
     }
+    // Clear cache when hiding
+    cachedResizeHandles = null;
+    lastSelectedItemId = null;
 }
 
 function startDragging(e, item) {

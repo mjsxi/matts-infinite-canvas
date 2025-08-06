@@ -39,6 +39,11 @@ function getViewportCenter() {
 function updateCanvasTransform() {
     const transform = `translate(${canvasTransform.x}px, ${canvasTransform.y}px) scale(${canvasTransform.scale})`;
     canvas.style.transform = transform;
+    
+    // Trigger viewport-aware optimizations
+    if (window.PerformanceModule) {
+        window.PerformanceModule.optimizeCanvas();
+    }
 }
 
 function goToCenter() {

@@ -4,23 +4,47 @@
 // Debounced save function to prevent excessive database calls
 let saveTimeout = null;
 const SAVE_DELAY = 300; // 300ms delay
+const DEBUG_MODE = false; // Toggle for production
+
+// Batch save optimization
+let pendingSaves = new Map();
+let batchSaveTimeout = null;
+const BATCH_SAVE_DELAY = 500; // 500ms for batch operations
 
 function debouncedSaveItem(item) {
-    console.log('=== DEBOUNCED SAVE TRIGGERED ===');
-    console.log('Debounced save for item:', {
-        type: item.dataset.type,
-        id: item.dataset.id,
-        textContent: item.dataset.type === 'text' ? item.textContent : 'N/A'
-    });
+    if (DEBUG_MODE) {
+        console.log('=== DEBOUNCED SAVE TRIGGERED ===');
+        console.log('Debounced save for item:', {
+            type: item.dataset.type,
+            id: item.dataset.id,
+            textContent: item.dataset.type === 'text' ? item.textContent : 'N/A'
+        });
+    }
     
+    // Add to batch save queue
+    pendingSaves.set(item.dataset.id, item);
+    
+    if (batchSaveTimeout) {
+        clearTimeout(batchSaveTimeout);
+    }
+    
+    batchSaveTimeout = setTimeout(() => {
+        processBatchSave();
+        batchSaveTimeout = null;
+    }, BATCH_SAVE_DELAY);
+    
+    // Fallback to individual save for immediate saves
     if (saveTimeout) {
-        console.log('Clearing existing save timeout');
+        if (DEBUG_MODE) console.log('Clearing existing save timeout');
         clearTimeout(saveTimeout);
     }
     
     saveTimeout = setTimeout(() => {
-        console.log('Debounced save timeout executing for item:', item.dataset.id);
-        saveItemToDatabase(item);
+        // Only save if not already in batch queue or batch didn't process yet
+        if (!pendingSaves.has(item.dataset.id)) {
+            if (DEBUG_MODE) console.log('Debounced save timeout executing for item:', item.dataset.id);
+            saveItemToDatabase(item);
+        }
         saveTimeout = null;
     }, SAVE_DELAY);
 }
@@ -29,16 +53,18 @@ async function saveItemToDatabase(item) {
     const isTextItem = item.dataset.type === 'text';
     const isDrawingItem = item.dataset.type === 'drawing';
     
-    // Debug: Log what type of item we're trying to save
-    console.log('=== SAVE ITEM TO DATABASE ===');
-    console.log('Attempting to save item:', {
-        type: item.dataset.type,
-        id: item.dataset.id,
-        isTextItem,
-        isDrawingItem,
-        textContent: isTextItem ? item.textContent : null,
-        innerHTML: isTextItem ? item.innerHTML : null
-    });
+    if (DEBUG_MODE) {
+        // Debug: Log what type of item we're trying to save
+        console.log('=== SAVE ITEM TO DATABASE ===');
+        console.log('Attempting to save item:', {
+            type: item.dataset.type,
+            id: item.dataset.id,
+            isTextItem,
+            isDrawingItem,
+            textContent: isTextItem ? item.textContent : null,
+            innerHTML: isTextItem ? item.innerHTML : null
+        });
+    }
     
     // For text items, save width/height if they have been explicitly set
     const hasExplicitWidth = isTextItem && item.style.width && item.style.width !== '';
@@ -73,13 +99,6 @@ async function saveItemToDatabase(item) {
         stroke_color: isDrawingItem ? item.querySelector('path')?.getAttribute('stroke') || '#333333' : null
     };
 
-    // Debug: Log the content being extracted
-    console.log('Item content extracted:', {
-        type: item.dataset.type,
-        content: itemData.content,
-        contentLength: itemData.content ? itemData.content.length : 0
-    });
-
     // Remove null values to avoid unnecessary database columns
     Object.keys(itemData).forEach(key => {
         if (itemData[key] === null || itemData[key] === undefined) {
@@ -87,31 +106,42 @@ async function saveItemToDatabase(item) {
         }
     });
 
-    // Debug: Log the final data being sent to database
-    console.log('Saving item data to database:', {
-        id: itemData.id,
-        type: itemData.item_type,
-        x: itemData.x,
-        y: itemData.y,
-        content: itemData.content ? itemData.content.substring(0, 100) + '...' : null,
-        hasContent: !!itemData.content,
-        fullContent: itemData.content // Log the full content for debugging
-    });
-
-    // Debug logging for drawing items
-    if (isDrawingItem) {
-        console.log('Saving drawing item:', {
-            id: itemData.id,
+    if (DEBUG_MODE) {
+        // Debug: Log the content being extracted
+        console.log('Item content extracted:', {
+            type: item.dataset.type,
             content: itemData.content,
-            stroke_color: itemData.stroke_color,
-            stroke_thickness: itemData.stroke_thickness,
-            html_content: itemData.html_content
+            contentLength: itemData.content ? itemData.content.length : 0
         });
+
+        // Debug: Log the final data being sent to database
+        console.log('Saving item data to database:', {
+            id: itemData.id,
+            type: itemData.item_type,
+            x: itemData.x,
+            y: itemData.y,
+            content: itemData.content ? itemData.content.substring(0, 100) + '...' : null,
+            hasContent: !!itemData.content,
+            fullContent: itemData.content
+        });
+
+        // Debug logging for drawing items
+        if (isDrawingItem) {
+            console.log('Saving drawing item:', {
+                id: itemData.id,
+                content: itemData.content,
+                stroke_color: itemData.stroke_color,
+                stroke_thickness: itemData.stroke_thickness,
+                html_content: itemData.html_content
+            });
+        }
     }
 
     try {
-        console.log('=== SENDING TO SUPABASE ===');
-        console.log('Final itemData being sent:', JSON.stringify(itemData, null, 2));
+        if (DEBUG_MODE) {
+            console.log('=== SENDING TO SUPABASE ===');
+            console.log('Final itemData being sent:', JSON.stringify(itemData, null, 2));
+        }
         
         const { data, error } = await supabaseClient
             .from('canvas_items')
@@ -123,7 +153,7 @@ async function saveItemToDatabase(item) {
         if (error) {
             console.error('=== DATABASE SAVE ERROR ===');
             console.error('Database save error:', error);
-            console.error('Failed item data:', itemData);
+            if (DEBUG_MODE) console.error('Failed item data:', itemData);
             AppGlobals.showStatus('Failed to save item - check console for details');
             throw error;
         }
@@ -131,13 +161,15 @@ async function saveItemToDatabase(item) {
         // Mark the save time to prevent real-time update loops
         item.dataset.lastSaveTime = Date.now().toString();
         
-        console.log('=== SAVE SUCCESSFUL ===');
-        console.log('Item saved successfully:', itemData.id, 'Type:', itemData.item_type, 'Content:', itemData.content);
-        console.log('Response data:', data);
+        if (DEBUG_MODE) {
+            console.log('=== SAVE SUCCESSFUL ===');
+            console.log('Item saved successfully:', itemData.id, 'Type:', itemData.item_type, 'Content:', itemData.content);
+            console.log('Response data:', data);
+        }
     } catch (error) {
         console.error('=== SAVE EXCEPTION ===');
         console.error('Error saving item to database:', error);
-        console.error('Failed item data:', itemData);
+        if (DEBUG_MODE) console.error('Failed item data:', itemData);
         AppGlobals.showStatus('Save failed - check console for details');
     }
 }
@@ -731,6 +763,26 @@ function getItemContent(item) {
     return content;
 }
 
+async function processBatchSave() {
+    if (pendingSaves.size === 0) return;
+    
+    if (DEBUG_MODE) console.log('Processing batch save for', pendingSaves.size, 'items');
+    
+    // Convert items to data and batch save
+    const itemsToSave = Array.from(pendingSaves.values());
+    pendingSaves.clear();
+    
+    try {
+        // Process in parallel for better performance
+        const savePromises = itemsToSave.map(item => saveItemToDatabase(item));
+        await Promise.allSettled(savePromises);
+        
+        if (DEBUG_MODE) console.log('Batch save completed for', itemsToSave.length, 'items');
+    } catch (error) {
+        console.error('Batch save error:', error);
+    }
+}
+
 // Export module
 window.DatabaseModule = {
     debouncedSaveItem,
@@ -746,6 +798,7 @@ window.DatabaseModule = {
     createItemFromData,
     updateItemFromData,
     getItemContent,
+    processBatchSave,
     
     // Debug function to test saving different item types
     testSaveItem: function(item) {

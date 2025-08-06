@@ -34,29 +34,37 @@ function updatePerformanceMetrics() {
     performanceMetrics.averageFrameTime = 
         (performanceMetrics.averageFrameTime * (performanceMetrics.frameCount - 1) + frameTime) / performanceMetrics.frameCount;
     
-    // Update memory usage if available
-    if (performance.memory) {
+    // Update memory usage if available (throttled)
+    if (performance.memory && performanceMetrics.frameCount % 60 === 0) { // Every 60 frames
         performanceMetrics.memoryUsage = performance.memory.usedJSHeapSize;
     }
     
-    // Update DOM node count
-    performanceMetrics.domNodeCount = document.querySelectorAll('*').length;
-    
-    // Log performance issues
-    // Frame time warning disabled
-    
-    if (performanceMetrics.domNodeCount > 1000) {
-        console.warn(`High DOM node count: ${performanceMetrics.domNodeCount}`);
+    // Update DOM node count (throttled)
+    if (performanceMetrics.frameCount % 120 === 0) { // Every 120 frames
+        performanceMetrics.domNodeCount = document.querySelectorAll('*').length;
     }
     
-    if (performanceMetrics.memoryUsage > 50 * 1024 * 1024) { // 50MB
-        console.warn(`High memory usage: ${(performanceMetrics.memoryUsage / 1024 / 1024).toFixed(2)}MB`);
+    // Log performance issues (throttled)
+    if (performanceMetrics.frameCount % 300 === 0) { // Every 300 frames
+        if (performanceMetrics.domNodeCount > 1000) {
+            console.warn(`High DOM node count: ${performanceMetrics.domNodeCount}`);
+        }
+        
+        if (performanceMetrics.memoryUsage > 50 * 1024 * 1024) { // 50MB
+            console.warn(`High memory usage: ${(performanceMetrics.memoryUsage / 1024 / 1024).toFixed(2)}MB`);
+        }
     }
 }
 
 function startPerformanceMonitoring() {
     function monitorPerformance() {
         updatePerformanceMetrics();
+        
+        // Periodically optimize canvas (every 5 seconds)
+        if (performanceMetrics.frameCount % 300 === 0) {
+            optimizeCanvas();
+        }
+        
         requestAnimationFrame(monitorPerformance);
     }
     requestAnimationFrame(monitorPerformance);
@@ -175,10 +183,30 @@ function resizeImage(file, maxWidth, maxHeight, quality = 0.8) {
 
 // Canvas optimization utilities
 function optimizeCanvas() {
+    // Throttle viewport culling to reduce performance impact
+    if (optimizeCanvas.lastRun && Date.now() - optimizeCanvas.lastRun < 500) {
+        return; // Skip if called within 500ms
+    }
+    optimizeCanvas.lastRun = Date.now();
+    
+    // Use requestIdleCallback for non-critical work
+    if (window.requestIdleCallback) {
+        requestIdleCallback(() => performViewportCulling());
+    } else {
+        // Fallback for browsers without requestIdleCallback
+        setTimeout(performViewportCulling, 16);
+    }
+}
+
+function performViewportCulling() {
     // Remove invisible items (outside viewport with significant margin)
     const items = canvas.querySelectorAll('.canvas-item');
     const viewportBounds = getViewportBounds();
     const margin = 1000; // 1000px margin
+    
+    // Batch DOM operations
+    const itemsToHide = [];
+    const itemsToShow = [];
     
     items.forEach(item => {
         const rect = item.getBoundingClientRect();
@@ -197,11 +225,17 @@ function optimizeCanvas() {
         );
         
         if (!isVisible && !item.classList.contains('selected')) {
-            item.style.visibility = 'hidden';
+            itemsToHide.push(item);
         } else {
-            item.style.visibility = 'visible';
+            itemsToShow.push(item);
         }
     });
+    
+    // Apply changes in batches
+    batchDOMOperations([
+        () => itemsToHide.forEach(item => item.style.visibility = 'hidden'),
+        () => itemsToShow.forEach(item => item.style.visibility = 'visible')
+    ]);
 }
 
 function getViewportBounds() {
@@ -282,6 +316,7 @@ window.PerformanceModule = {
     cleanupEventListeners,
     resizeImage,
     optimizeCanvas,
+    performViewportCulling,
     getViewportBounds,
     setupLazyLoading,
     setStorageItem,
@@ -289,4 +324,4 @@ window.PerformanceModule = {
     clearStorageItems,
     cachedElements,
     performanceMetrics
-};// Cache busting: Wed Aug  6 04:10:47 EDT 2025
+};

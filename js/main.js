@@ -58,6 +58,11 @@ function initializeApp() {
         window.PerformanceModule.startPerformanceMonitoring();
     }
     
+    // Initialize memory optimizer
+    if (window.MemoryOptimizer) {
+        window.MemoryOptimizer.initializeMemoryOptimizer();
+    }
+    
     // Update canvas transform to ensure it's visible
     if (window.ViewportModule) {
         window.ViewportModule.updateCanvasTransform();
@@ -73,51 +78,18 @@ function initializeApp() {
 }
 
 function createGlobalAliases() {
-    // Create global aliases for modules to access
-    window.container = window.container;
-    window.canvas = window.canvas;
-    window.supabaseClient = window.supabaseClient;
-    window.selectedItem = window.selectedItem;
-    window.selectedTextItem = window.selectedTextItem;
-    window.canvasTransform = window.canvasTransform;
-    window.centerPoint = window.centerPoint;
-    window.isSettingCenter = window.isSettingCenter;
-    window.isDragging = window.isDragging;
-    window.isPanning = window.isPanning;
-    window.isResizing = window.isResizing;
-    window.isDrawing = window.isDrawing;
-    window.isDrawMode = window.isDrawMode;
-    window.isAuthenticated = window.isAuthenticated;
-    window.dragStart = window.dragStart;
-    window.lastMousePos = window.lastMousePos;
-    window.panVelocity = window.panVelocity;
-    window.itemCounter = window.itemCounter;
-    window.realtimeChannel = window.realtimeChannel;
-    window.drawingPath = window.drawingPath;
-    window.drawingPreview = window.drawingPreview;
+    // Optimized: removed redundant assignments since variables are already on window
+    // Only create globalThis aliases for cross-module access
+    const globalVars = [
+        'container', 'canvas', 'supabaseClient', 'selectedItem', 'selectedTextItem',
+        'canvasTransform', 'centerPoint', 'isSettingCenter', 'isDragging', 'isPanning',
+        'isResizing', 'isDrawing', 'isDrawMode', 'isAuthenticated', 'dragStart',
+        'lastMousePos', 'panVelocity', 'itemCounter', 'realtimeChannel', 'drawingPath', 'drawingPreview'
+    ];
     
-    // Also create non-window aliases for easier access in modules
-    globalThis.container = window.container;
-    globalThis.canvas = window.canvas;
-    globalThis.supabaseClient = window.supabaseClient;
-    globalThis.selectedItem = window.selectedItem;
-    globalThis.selectedTextItem = window.selectedTextItem;
-    globalThis.canvasTransform = window.canvasTransform;
-    globalThis.centerPoint = window.centerPoint;
-    globalThis.isSettingCenter = window.isSettingCenter;
-    globalThis.isDragging = window.isDragging;
-    globalThis.isPanning = window.isPanning;
-    globalThis.isResizing = window.isResizing;
-    globalThis.isDrawing = window.isDrawing;
-    globalThis.isDrawMode = window.isDrawMode;
-    globalThis.isAuthenticated = window.isAuthenticated;
-    globalThis.dragStart = window.dragStart;
-    globalThis.lastMousePos = window.lastMousePos;
-    globalThis.panVelocity = window.panVelocity;
-    globalThis.itemCounter = window.itemCounter;
-    globalThis.realtimeChannel = window.realtimeChannel;
-    globalThis.drawingPath = window.drawingPath;
-    globalThis.drawingPreview = window.drawingPreview;
+    globalVars.forEach(varName => {
+        globalThis[varName] = window[varName];
+    });
 }
 
 function cacheElements() {

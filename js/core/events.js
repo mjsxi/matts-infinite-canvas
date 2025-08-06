@@ -12,6 +12,7 @@ let isSingleTouchPanning = false;
 let panPositions = [];
 let lastPanTime = 0;
 let inertiaAnimationId = null;
+const MAX_PAN_POSITIONS = 5; // Limit array growth
 
 function bindEvents() {
     // Mouse events
@@ -105,9 +106,9 @@ function handleMouseMove(e) {
         }
         lastPanTime = now;
         
-        // Store position for velocity calculation
+        // Store position for velocity calculation (optimized)
         panPositions.push({ x: e.clientX, y: e.clientY, time: now });
-        if (panPositions.length > 5) {
+        if (panPositions.length > MAX_PAN_POSITIONS) {
             panPositions.shift();
         }
         
@@ -298,9 +299,9 @@ function handleTouchMove(e) {
         }
         lastPanTime = now;
         
-        // Store position for velocity calculation
+        // Store position for velocity calculation (optimized)
         panPositions.push({ x: touch.clientX, y: touch.clientY, time: now });
-        if (panPositions.length > 5) {
+        if (panPositions.length > MAX_PAN_POSITIONS) {
             panPositions.shift();
         }
     } else if (e.touches.length >= 2) {
