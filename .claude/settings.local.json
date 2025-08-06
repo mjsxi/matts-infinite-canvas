@@ -13,7 +13,8 @@
       "mcp__figma-dev-mode-mcp-server__get_code",
       "mcp__figma-dev-mode-mcp-server__get_image",
       "Bash(mkdir:*)",
-      "Bash(open -a \"Google Chrome\" index.html)"
+      "Bash(open -a \"Google Chrome\" index.html)",
+      "Bash(open:*)"
     ],
     "deny": []
   }

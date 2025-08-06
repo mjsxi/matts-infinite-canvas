@@ -68,17 +68,34 @@ function handleMouseDown(e) {
         
         // Only allow item interaction for authenticated admin users
         if (isAuthenticated) {
+            // Handle resize and rotation handles first - they take precedence
+            if (e.target.closest('.resize-handle') || e.target.closest('.rotation-handle')) {
+                // Only clear selection if clicking on a different item
+                if (selectedItem !== item) {
+                    ItemsModule.clearSelection();
+                }
+                ItemsModule.selectItem(item);
+                return;
+            }
+            
+            // If in drawing mode and clicking on canvas item (not handles), start drawing
+            if (isDrawMode) {
+                isDrawing = true;
+                const canvasPos = ViewportModule.screenToCanvas(e.clientX, e.clientY);
+                drawingPath = [{ x: canvasPos.x, y: canvasPos.y }];
+                DrawingModule.createDrawingPreview();
+                ItemsModule.clearSelection();
+                return;
+            }
+            
+            // Normal item interaction (selection and dragging)
             // Only clear selection if clicking on a different item
             if (selectedItem !== item) {
                 ItemsModule.clearSelection();
             }
             
             ItemsModule.selectItem(item);
-            
-            // Don't start dragging if clicking on resize handles or rotation handle
-            if (!e.target.closest('.resize-handle') && !e.target.closest('.rotation-handle')) {
-                ItemsModule.startDragging(e, item);
-            }
+            ItemsModule.startDragging(e, item);
         }
     }
 }

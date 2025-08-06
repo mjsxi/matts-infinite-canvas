@@ -19,16 +19,6 @@ function selectItem(item) {
     // Removed console.log for performance
     showResizeHandles(item);
     
-    // Disable draw mode when selecting any item
-    if (isDrawMode) {
-        isDrawMode = false;
-        const drawBtn = document.getElementById('drawBtn');
-        drawBtn.style.backgroundColor = '';
-        container.style.cursor = '';
-        DrawingModule.removeDrawingPreview();
-        // Draw mode disabled when item selected
-    }
-    
     // Show move up/down buttons when item is selected (admin only)
     if (isAuthenticated) {
         ToolbarModule.showMoveButtons();
