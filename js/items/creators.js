@@ -348,6 +348,7 @@ function createTextItem(content = 'Double-click to edit text...', x = null, y = 
     
     // Double-click to enter text editing mode
     item.addEventListener('dblclick', (e) => {
+        console.log('🎯 DOUBLE CLICK ON TEXT ITEM!');
         e.stopPropagation();
         
         // Temporarily hide resize handles during editing
@@ -360,6 +361,8 @@ function createTextItem(content = 'Double-click to edit text...', x = null, y = 
         item.focus();
         item.classList.add('editing');
         
+        console.log('📝 Text item now editable, focused, and has editing class');
+        
         // Select all text for easy editing
         const range = document.createRange();
         range.selectNodeContents(item);
@@ -370,12 +373,32 @@ function createTextItem(content = 'Double-click to edit text...', x = null, y = 
     
     // Handle text editing
     item.addEventListener('focus', () => {
+        console.log('🎯 TEXT ITEM FOCUSED!', {
+            isSelected: item.classList.contains('selected'),
+            isContentEditable: item.contentEditable === 'true',
+            hasEditingClass: item.classList.contains('editing')
+        });
         // Only add editing class if the item is already selected and not just being clicked
         if (item.classList.contains('selected') && item.contentEditable === 'true') {
             item.classList.add('editing');
+            console.log('✅ Added editing class to text item');
         }
     });
+    
+    // Add input event to catch text changes
+    item.addEventListener('input', () => {
+        console.log('⌨️ TEXT INPUT EVENT!', item.textContent);
+    });
+    
     item.addEventListener('blur', () => {
+        console.log('🔥 TEXT BLUR EVENT FIRED! 🔥');
+        console.log('Text blur triggered:', {
+            fromDatabase: fromDatabase,
+            textContent: item.textContent,
+            innerHTML: item.innerHTML,
+            id: item.dataset.id
+        });
+        
         item.classList.remove('editing');
         item.contentEditable = false;
         
@@ -385,23 +408,23 @@ function createTextItem(content = 'Double-click to edit text...', x = null, y = 
             resizeHandles.style.display = '';
         }
         
-        // Save to database if not from database recreation and not during real-time updates
-        if (!fromDatabase && !item.dataset.isUpdating) {
-            DatabaseModule.saveItemToDatabase(item);
-        }
+        // Always save text changes, regardless of origin
+        console.log('🚀 Text blur event - triggering save for:', item.textContent);
+        DatabaseModule.saveItemToDatabase(item);
     });
     
     // Also save when the user finishes editing (Enter key)
     item.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
+            console.log('🔥 ENTER KEY PRESSED! 🔥');
             e.preventDefault();
             item.blur();
             // Ensure save happens even if blur event is prevented
-            if (!fromDatabase && !item.dataset.isUpdating) {
-                DatabaseModule.saveItemToDatabase(item);
-            }
+            console.log('🚀 Text Enter key - saving to database:', item.textContent);
+            DatabaseModule.saveItemToDatabase(item);
         }
     });
+    
     
     canvas.appendChild(item);
     

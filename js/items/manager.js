@@ -62,9 +62,17 @@ function clearSelection() {
         
         // Reset text items to non-editing mode when deselected
         if (selectedItem.classList.contains('text-item')) {
+            console.log('🧹 CLEARING TEXT ITEM - calling blur()');
+            console.log('Text content before blur:', selectedItem.textContent);
+            
+            // Save the text item before clearing selection
+            console.log('💾 SAVING TEXT ITEM FROM CLEAR SELECTION');
+            DatabaseModule.saveItemToDatabase(selectedItem);
+            
             selectedItem.classList.remove('editing');
             selectedItem.contentEditable = false;
             selectedItem.blur();
+            console.log('✅ Text item blur() called');
             
             // Show resize handles if they were hidden
             const resizeHandles = selectedItem.querySelector('.resize-handles');

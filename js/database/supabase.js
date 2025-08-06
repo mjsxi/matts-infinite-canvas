@@ -6,11 +6,20 @@ let saveTimeout = null;
 const SAVE_DELAY = 300; // 300ms delay
 
 function debouncedSaveItem(item) {
+    console.log('=== DEBOUNCED SAVE TRIGGERED ===');
+    console.log('Debounced save for item:', {
+        type: item.dataset.type,
+        id: item.dataset.id,
+        textContent: item.dataset.type === 'text' ? item.textContent : 'N/A'
+    });
+    
     if (saveTimeout) {
+        console.log('Clearing existing save timeout');
         clearTimeout(saveTimeout);
     }
     
     saveTimeout = setTimeout(() => {
+        console.log('Debounced save timeout executing for item:', item.dataset.id);
         saveItemToDatabase(item);
         saveTimeout = null;
     }, SAVE_DELAY);
@@ -21,11 +30,14 @@ async function saveItemToDatabase(item) {
     const isDrawingItem = item.dataset.type === 'drawing';
     
     // Debug: Log what type of item we're trying to save
+    console.log('=== SAVE ITEM TO DATABASE ===');
     console.log('Attempting to save item:', {
         type: item.dataset.type,
         id: item.dataset.id,
         isTextItem,
-        isDrawingItem
+        isDrawingItem,
+        textContent: isTextItem ? item.textContent : null,
+        innerHTML: isTextItem ? item.innerHTML : null
     });
     
     // For text items, save width/height if they have been explicitly set
@@ -98,6 +110,9 @@ async function saveItemToDatabase(item) {
     }
 
     try {
+        console.log('=== SENDING TO SUPABASE ===');
+        console.log('Final itemData being sent:', JSON.stringify(itemData, null, 2));
+        
         const { data, error } = await supabaseClient
             .from('canvas_items')
             .upsert(itemData, { 
@@ -106,14 +121,21 @@ async function saveItemToDatabase(item) {
             });
 
         if (error) {
+            console.error('=== DATABASE SAVE ERROR ===');
             console.error('Database save error:', error);
             console.error('Failed item data:', itemData);
             AppGlobals.showStatus('Failed to save item - check console for details');
             throw error;
         }
 
+        // Mark the save time to prevent real-time update loops
+        item.dataset.lastSaveTime = Date.now().toString();
+        
+        console.log('=== SAVE SUCCESSFUL ===');
         console.log('Item saved successfully:', itemData.id, 'Type:', itemData.item_type, 'Content:', itemData.content);
+        console.log('Response data:', data);
     } catch (error) {
+        console.error('=== SAVE EXCEPTION ===');
         console.error('Error saving item to database:', error);
         console.error('Failed item data:', itemData);
         AppGlobals.showStatus('Save failed - check console for details');
@@ -357,13 +379,23 @@ function handleRealtimeInsert(payload) {
 function handleRealtimeUpdate(payload) {
     const existingItem = canvas.querySelector(`[data-id="${payload.new.id}"]`);
     if (existingItem && !isDragging && !isResizing) {
+        // Skip updates for items that are currently being edited locally
+        if (existingItem === selectedItem && existingItem.classList.contains('editing') && document.activeElement === existingItem) {
+            console.log('Skipping real-time update for actively editing text item');
+            return;
+        }
+        
+        // Store a flag to prevent real-time loops
+        if (existingItem.dataset.lastSaveTime && 
+            Date.now() - parseInt(existingItem.dataset.lastSaveTime) < 1000) {
+            console.log('Skipping real-time update - recent save detected');
+            return;
+        }
+        
         // For selected items, only update content, not position/size to avoid conflicts
         if (existingItem === selectedItem) {
             const itemType = payload.new.item_type;
             if (itemType === 'text') {
-                // Set flag to prevent blur event from saving during update
-                existingItem.dataset.isUpdating = 'true';
-                
                 // Store current selection state
                 const wasEditing = existingItem.classList.contains('editing');
                 const wasFocused = document.activeElement === existingItem;
@@ -420,11 +452,6 @@ function handleRealtimeUpdate(payload) {
                     console.log('Restoring selection after real-time update');
                     ItemsModule.selectItem(existingItem);
                 }
-                
-                // Clear the updating flag after a short delay
-                setTimeout(() => {
-                    delete existingItem.dataset.isUpdating;
-                }, 100);
                 
                 console.log('Updated selected text item content:', payload.new.content);
             }
@@ -641,9 +668,13 @@ function updateItemFromData(item, data) {
 }
 
 function getItemContent(item) {
+    console.log('=== GET ITEM CONTENT ===');
     console.log('Getting content for item:', {
         type: item.dataset.type,
-        id: item.dataset.id
+        id: item.dataset.id,
+        element: item,
+        textContent: item.textContent,
+        innerHTML: item.innerHTML
     });
     
     let content = '';
