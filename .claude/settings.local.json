@@ -7,7 +7,11 @@
       "Bash(curl:*)",
       "Bash(python:*)",
       "Bash(node:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "WebFetch(domain:www.figma.com)",
+      "Bash(env)",
+      "mcp__figma-dev-mode-mcp-server__get_code",
+      "mcp__figma-dev-mode-mcp-server__get_image"
     ],
     "deny": []
   }

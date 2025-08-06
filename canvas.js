@@ -293,7 +293,10 @@ function closeLoginModal() {
 }
 
 function showCanvas(isAdmin = false) {
-    document.getElementById('adminLogin').classList.add('hidden');
+    const adminLogin = document.getElementById('adminLogin');
+    if (adminLogin) {
+        adminLogin.classList.add('hidden');
+    }
     document.getElementById('canvasContainer').classList.remove('hidden');
     document.getElementById('toolbar').classList.remove('hidden');
     
