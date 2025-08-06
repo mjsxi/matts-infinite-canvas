@@ -8,13 +8,42 @@ This is a web-based collaborative infinite canvas application that allows and ad
 
 ## Architecture
 
-### Frontend (Vanilla JS)
+### Frontend (Modular Vanilla JS)
 - **Supabase**: Real-time database and file storage for persistence and collaboration
 - **index.html**: Main HTML structure with modals for user input
-- **canvas.js**: Core application logic (~815 lines)
+- **Modular JavaScript Structure**: Organized into focused modules (~95 functions across 10 files)
 - **mobile-zoom-limits.js**: Contains restraints for mobile to make the canvas work
 - **style.css**: Complete styling with responsive design and animations
 - **mobile-zoom.css**: Contains tweaks that are just for mobiles canvas
+
+### JavaScript Module Structure
+```
+js/
+├── core/
+│   ├── viewport.js        # Coordinate transformations, zoom/pan (6 functions)
+│   └── events.js          # Mouse, touch, keyboard handling (12 functions)
+├── items/
+│   ├── manager.js         # Selection, drag/drop, resize (12 functions)
+│   └── creators.js        # Item creation factories (8 functions)
+├── database/
+│   └── supabase.js        # All database operations (15 functions)
+├── ui/
+│   └── toolbars.js        # Toolbar & modal management (20 functions)
+├── features/
+│   └── drawing.js         # Drawing functionality (7 functions)
+├── auth/
+│   └── admin.js           # Authentication & admin features (15 functions)
+├── utils/
+│   └── performance.js     # Utilities & performance tools (15 functions)
+└── main.js               # Application coordinator & global state
+```
+
+### Module Dependencies
+- **main.js**: Initializes all modules and manages global state
+- **Core modules**: Provide fundamental canvas operations
+- **Feature modules**: Build on core functionality for specific features
+- **UI modules**: Handle user interface and interactions
+- **Database module**: Manages all persistence and real-time sync
 
 ### Key Components
 - **Canvas Management**: Infinite panning/zooming with mouse wheel and drag interactions
@@ -46,12 +75,29 @@ This project uses vanilla web technologies with CDN-loaded dependencies:
 - Supabase client loaded from cdn.jsdelivr.net
 
 ### Key Configuration
-- **Supabase credentials**: Located in script.js:2-3 (SUPABASE_URL, SUPABASE_KEY)
-- **Admin password**: Located in script.js:19 (ADMIN_PASSWORD)
+- **Supabase credentials**: Located in js/main.js:31-32 (SUPABASE_URL, SUPABASE_KEY)
+- **Admin password**: Located in js/main.js:30 (ADMIN_PASSWORD)
 
-### Debuggin
+### Modular Development Workflow
+
+#### Working with Modules
+- **Core changes**: Modify viewport.js or events.js for fundamental canvas behavior
+- **Feature additions**: Add new modules in appropriate directories (features/, ui/, etc.)
+- **Database changes**: All persistence logic isolated in database/supabase.js
+- **UI updates**: Toolbar and interface changes go in ui/toolbars.js
+
+#### Module Communication
+- **Global state**: Managed through window object (container, canvas, selectedItem, etc.)
+- **Cross-module calls**: Use ModuleName.functionName() pattern
+- **Event delegation**: Events bound in events.js, delegated to appropriate modules
+
+#### Debugging
 When debugging (creating console logs, etc) create a new file to add to index.html to prevent code contamination.
 Only add things to the main html, css, js files when asked directly to while trying to solve debugging issues.
+
+#### File Backup
+- **Original monolith**: Backed up as canvas.js.backup (27k+ lines)
+- **Load order**: Modules must load in dependency order (see index.html)
 
 ## Code Architecture Details
 
