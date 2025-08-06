@@ -434,6 +434,11 @@ body {
     cursor: grabbing;
 }
 
+/* Disable transitions during resize to prevent jumping */
+.canvas.resizing .canvas-item {
+    transition: none !important;
+}
+
 /* Image Items */
 .image-item {
     border-radius: var(--radius-lg);
@@ -757,9 +762,9 @@ body {
 .resize-handle.sw { bottom: -12px; left: 0px; cursor: sw-resize; }
 .resize-handle.se { bottom: -12px; right: -12px; cursor: se-resize; }
 .resize-handle.n { top: -1px; left: 50%; cursor: n-resize; }
-.resize-handle.s { bottom: -13px; left: 50%; cursor: s-resize; }
+.resize-handle.s { bottom: -12px; left: 50%; cursor: s-resize; }
 .resize-handle.w { top: 50%; left: -1px; cursor: w-resize; }
-.resize-handle.e { top: 50%; right: -13px; cursor: e-resize; }
+.resize-handle.e { top: 50%; right: -12px; cursor: e-resize; }
 
 /* Rotation Handle */
 .rotation-handle {

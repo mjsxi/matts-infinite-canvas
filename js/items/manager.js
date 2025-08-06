@@ -173,9 +173,8 @@ function startResize(e, direction) {
     canvas.classList.add('resizing');
     
     // Store initial dimensions and position
-    const rect = selectedItem.getBoundingClientRect();
-    const initialWidth = rect.width;
-    const initialHeight = rect.height;
+    const initialWidth = parseFloat(selectedItem.style.width) || selectedItem.offsetWidth;
+    const initialHeight = parseFloat(selectedItem.style.height) || selectedItem.offsetHeight;
     const initialLeft = parseFloat(selectedItem.style.left) || 0;
     const initialTop = parseFloat(selectedItem.style.top) || 0;
     
@@ -187,8 +186,11 @@ function startResize(e, direction) {
     const handleResize = (e) => {
         if (!isResizing || !selectedItem) return;
         
-        const deltaX = e.clientX - startX;
-        const deltaY = e.clientY - startY;
+        // Convert mouse movement to canvas coordinates
+        const startCanvasPos = ViewportModule.screenToCanvas(startX, startY);
+        const currentCanvasPos = ViewportModule.screenToCanvas(e.clientX, e.clientY);
+        const deltaX = currentCanvasPos.x - startCanvasPos.x;
+        const deltaY = currentCanvasPos.y - startCanvasPos.y;
         
         let newWidth = initialWidth;
         let newHeight = initialHeight;
