@@ -182,7 +182,7 @@ async function deleteItemFromDatabase(item) {
             .eq('id', item.dataset.id);
         
         if (error) throw error;
-        console.log('Item deleted:', item.dataset.id);
+        if (DEBUG_MODE) console.log('Item deleted:', item.dataset.id);
     } catch (error) {
         console.error('Error deleting item:', error);
         AppGlobals.showStatus('Failed to delete item - check console for details');
@@ -200,7 +200,7 @@ async function saveCenterPoint() {
             });
         
         if (error) throw error;
-        console.log('Center point saved:', centerPoint);
+        if (DEBUG_MODE) console.log('Center point saved:', centerPoint);
     } catch (error) {
         console.error('Error saving center point:', error);
         AppGlobals.showStatus('Failed to save center point - check console for details');
@@ -208,9 +208,11 @@ async function saveCenterPoint() {
 }
 
 async function loadCanvasData() {
-    console.log('Loading canvas data from Supabase...');
-    console.log('Canvas element:', canvas);
-    console.log('Container element:', container);
+    if (DEBUG_MODE) {
+        console.log('Loading canvas data from Supabase...');
+        console.log('Canvas element:', canvas);
+        console.log('Container element:', container);
+    }
     AppGlobals.showStatus('Loading canvas data...');
     
     try {
@@ -225,7 +227,7 @@ async function loadCanvasData() {
             return;
         }
         
-        console.log('Database connection successful');
+        if (DEBUG_MODE) console.log('Database connection successful');
         
         // Load items
         const { data: items, error: itemsError } = await supabaseClient
@@ -238,19 +240,21 @@ async function loadCanvasData() {
             throw itemsError;
         }
         
-        console.log('Items loaded:', items?.length || 0);
+        if (DEBUG_MODE) console.log('Items loaded:', items?.length || 0);
         
         // Store selection state before clearing items
         const wasItemSelected = selectedItem !== null;
         const selectedItemId = selectedItem ? selectedItem.dataset.id : null;
         const selectedItemType = selectedItem ? selectedItem.dataset.type : null;
         
-        console.log('Selection state before clearing:', {
-            wasItemSelected,
-            selectedItemId,
-            selectedItemType,
-            selectedItem: selectedItem
-        });
+        if (DEBUG_MODE) {
+            console.log('Selection state before clearing:', {
+                wasItemSelected,
+                selectedItemId,
+                selectedItemType,
+                selectedItem: selectedItem
+            });
+        }
         
         // Clear existing items
         const existingItems = canvas.querySelectorAll('.canvas-item');
@@ -260,12 +264,12 @@ async function loadCanvasData() {
         const sortedItems = items?.sort((a, b) => (a.z_index || 0) - (b.z_index || 0)) || [];
         
         // Create items from database data
-        console.log('Creating items from database data:', sortedItems.length, 'items');
+        if (DEBUG_MODE) console.log('Creating items from database data:', sortedItems.length, 'items');
         sortedItems.forEach((itemData, index) => {
             try {
-                console.log(`Creating item ${index + 1}:`, itemData);
+                if (DEBUG_MODE) console.log(`Creating item ${index + 1}:`, itemData);
                 const item = createItemFromData(itemData);
-                console.log(`Item ${index + 1} created:`, item);
+                if (DEBUG_MODE) console.log(`Item ${index + 1} created:`, item);
             } catch (error) {
                 console.error('Error creating item from data:', error, itemData);
             }
@@ -274,32 +278,34 @@ async function loadCanvasData() {
         // Restore selection if an item was previously selected
         if (wasItemSelected && selectedItemId) {
             const newSelectedItem = canvas.querySelector(`[data-id="${selectedItemId}"]`);
-            console.log('Attempting to restore selection:', {
-                selectedItemId,
-                newSelectedItem,
-                newSelectedItemType: newSelectedItem ? newSelectedItem.dataset.type : null
-            });
+            if (DEBUG_MODE) {
+                console.log('Attempting to restore selection:', {
+                    selectedItemId,
+                    newSelectedItem,
+                    newSelectedItemType: newSelectedItem ? newSelectedItem.dataset.type : null
+                });
+            }
             
             if (newSelectedItem) {
                 // Small delay to ensure the item is fully created
                 setTimeout(() => {
-                    console.log('Restoring selection for item:', newSelectedItem);
+                    if (DEBUG_MODE) console.log('Restoring selection for item:', newSelectedItem);
                     ItemsModule.selectItem(newSelectedItem);
                     
                     // For text items, ensure they maintain selection
                     if (newSelectedItem.dataset.type === 'text') {
-                        console.log('Ensuring text item maintains selection');
+                        if (DEBUG_MODE) console.log('Ensuring text item maintains selection');
                         // Force the selection to stay
                         setTimeout(() => {
                             if (!newSelectedItem.classList.contains('selected')) {
-                                console.log('Text item selection lost, restoring...');
+                                if (DEBUG_MODE) console.log('Text item selection lost, restoring...');
                                 ItemsModule.selectItem(newSelectedItem);
                             }
                         }, 50);
                     }
                 }, 10);
             } else {
-                console.log('Could not find item to restore selection:', selectedItemId);
+                if (DEBUG_MODE) console.log('Could not find item to restore selection:', selectedItemId);
             }
         }
         
@@ -313,7 +319,7 @@ async function loadCanvasData() {
         if (centerError && centerError.code !== 'PGRST116') { // PGRST116 = not found
             console.error('Error loading center point:', centerError);
         } else if (center) {
-            console.log('Center point loaded:', center);
+            if (DEBUG_MODE) console.log('Center point loaded:', center);
             centerPoint = { x: center.x, y: center.y };
             // Center the canvas on the center point
             const containerRect = container.getBoundingClientRect();
@@ -363,15 +369,17 @@ function setupRealtimeSubscription() {
             // Attempt to reconnect after a delay
             setTimeout(() => {
                 if (isAuthenticated) {
-                    console.log('Attempting to reconnect real-time subscription...');
+                    if (DEBUG_MODE) console.log('Attempting to reconnect real-time subscription...');
                     setupRealtimeSubscription();
                 }
             }, 5000);
         })
         .subscribe((status) => {
-            console.log('Real-time subscription status:', status);
-            if (status === 'SUBSCRIBED') {
-                console.log('Successfully subscribed to real-time updates');
+            if (DEBUG_MODE) {
+                console.log('Real-time subscription status:', status);
+                if (status === 'SUBSCRIBED') {
+                    console.log('Successfully subscribed to real-time updates');
+                }
             }
         });
 }
@@ -379,7 +387,7 @@ function setupRealtimeSubscription() {
 function handleRealtimeInsert(payload) {
     const existingItem = canvas.querySelector(`[data-id="${payload.new.id}"]`);
     if (!existingItem) {
-        console.log('Real-time insert:', payload.new);
+        if (DEBUG_MODE) console.log('Real-time insert:', payload.new);
         // Mark as coming from real-time for entrance animation
         payload.new.fromRealtime = true;
         const newItem = createItemFromData(payload.new);
@@ -404,7 +412,7 @@ function handleRealtimeInsert(payload) {
         
         AppGlobals.showStatus('New item added by another user');
     } else {
-        console.log('Ignoring duplicate real-time insert for existing item:', payload.new.id);
+        if (DEBUG_MODE) console.log('Ignoring duplicate real-time insert for existing item:', payload.new.id);
     }
 }
 
@@ -413,14 +421,14 @@ function handleRealtimeUpdate(payload) {
     if (existingItem && !isDragging && !isResizing) {
         // Skip updates for items that are currently being edited locally
         if (existingItem === selectedItem && existingItem.classList.contains('editing') && document.activeElement === existingItem) {
-            console.log('Skipping real-time update for actively editing text item');
+            if (DEBUG_MODE) console.log('Skipping real-time update for actively editing text item');
             return;
         }
         
         // Store a flag to prevent real-time loops
         if (existingItem.dataset.lastSaveTime && 
             Date.now() - parseInt(existingItem.dataset.lastSaveTime) < 1000) {
-            console.log('Skipping real-time update - recent save detected');
+            if (DEBUG_MODE) console.log('Skipping real-time update - recent save detected');
             return;
         }
         
@@ -455,12 +463,14 @@ function handleRealtimeUpdate(payload) {
                     existingItem.appendChild(resizeHandles);
                 }
                 
-                console.log('Real-time text update:', {
-                    newContent: payload.new.content,
-                    itemTextContent: existingItem.textContent,
-                    itemInnerHTML: existingItem.innerHTML.substring(0, 100) + '...',
-                    hasResizeHandles: !!existingItem.querySelector('.resize-handles')
-                });
+                if (DEBUG_MODE) {
+                    console.log('Real-time text update:', {
+                        newContent: payload.new.content,
+                        itemTextContent: existingItem.textContent,
+                        itemInnerHTML: existingItem.innerHTML.substring(0, 100) + '...',
+                        hasResizeHandles: !!existingItem.querySelector('.resize-handles')
+                    });
+                }
                 
                 if (payload.new.font_family) existingItem.style.fontFamily = payload.new.font_family;
                 if (payload.new.font_size) existingItem.style.fontSize = payload.new.font_size + 'px';
@@ -481,11 +491,11 @@ function handleRealtimeUpdate(payload) {
                 
                 // Ensure selection state is maintained
                 if (wasSelected && !existingItem.classList.contains('selected')) {
-                    console.log('Restoring selection after real-time update');
+                    if (DEBUG_MODE) console.log('Restoring selection after real-time update');
                     ItemsModule.selectItem(existingItem);
                 }
                 
-                console.log('Updated selected text item content:', payload.new.content);
+                if (DEBUG_MODE) console.log('Updated selected text item content:', payload.new.content);
             }
         } else {
             // Update all properties for non-selected items
@@ -647,7 +657,7 @@ function updateItemFromData(item, data) {
                 setTimeout(() => {
                     if (video.paused && !video.ended) {
                         video.play().catch(e => {
-                            console.log('Video autoplay prevented for loaded video');
+                            if (DEBUG_MODE) console.log('Video autoplay prevented for loaded video');
                         });
                     }
                 }, 100);
@@ -700,26 +710,28 @@ function updateItemFromData(item, data) {
 }
 
 function getItemContent(item) {
-    console.log('=== GET ITEM CONTENT ===');
-    console.log('Getting content for item:', {
-        type: item.dataset.type,
-        id: item.dataset.id,
-        element: item,
-        textContent: item.textContent,
-        innerHTML: item.innerHTML
-    });
+    if (DEBUG_MODE) {
+        console.log('=== GET ITEM CONTENT ===');
+        console.log('Getting content for item:', {
+            type: item.dataset.type,
+            id: item.dataset.id,
+            element: item,
+            textContent: item.textContent,
+            innerHTML: item.innerHTML
+        });
+    }
     
     let content = '';
     switch (item.dataset.type) {
         case 'image':
             const img = item.querySelector('img');
             content = img ? img.src : '';
-            console.log('Image content:', { src: content, hasImg: !!img });
+            if (DEBUG_MODE) console.log('Image content:', { src: content, hasImg: !!img });
             break;
         case 'video':
             const video = item.querySelector('video');
             content = video ? video.src : '';
-            console.log('Video content:', { src: content, hasVideo: !!video });
+            if (DEBUG_MODE) console.log('Video content:', { src: content, hasVideo: !!video });
             break;
         case 'text':
             // Clone the item to remove resize handles before extracting content
@@ -729,36 +741,40 @@ function getItemContent(item) {
                 resizeHandles.remove();
             }
             content = tempItem.textContent;
-            console.log('Text content extraction:', { 
-                content: content.substring(0, 50) + '...', 
-                length: content.length,
-                textContent: content,
-                innerText: tempItem.innerText,
-                innerHTML: tempItem.innerHTML.substring(0, 100) + '...',
-                originalTextContent: item.textContent,
-                originalInnerHTML: item.innerHTML.substring(0, 100) + '...'
-            });
+            if (DEBUG_MODE) {
+                console.log('Text content extraction:', { 
+                    content: content.substring(0, 50) + '...', 
+                    length: content.length,
+                    textContent: content,
+                    innerText: tempItem.innerText,
+                    innerHTML: tempItem.innerHTML.substring(0, 100) + '...',
+                    originalTextContent: item.textContent,
+                    originalInnerHTML: item.innerHTML.substring(0, 100) + '...'
+                });
+            }
             break;
         case 'code':
             const iframe = item.querySelector('iframe');
             content = iframe ? iframe.srcdoc : '';
-            console.log('Code content:', { content: content.substring(0, 50) + '...', length: content.length, hasIframe: !!iframe });
+            if (DEBUG_MODE) console.log('Code content:', { content: content.substring(0, 50) + '...', length: content.length, hasIframe: !!iframe });
             break;
         case 'drawing':
             const path = item.querySelector('path');
             content = path ? path.getAttribute('d') : '';
-            console.log('Drawing content:', { content: content.substring(0, 50) + '...', length: content.length, hasPath: !!path });
+            if (DEBUG_MODE) console.log('Drawing content:', { content: content.substring(0, 50) + '...', length: content.length, hasPath: !!path });
             break;
         default:
             content = '';
-            console.log('Unknown item type:', item.dataset.type);
+            if (DEBUG_MODE) console.log('Unknown item type:', item.dataset.type);
     }
     
-    console.log('Final content for', item.dataset.type, ':', {
-        content: content.substring(0, 100) + '...',
-        length: content.length,
-        isEmpty: !content
-    });
+    if (DEBUG_MODE) {
+        console.log('Final content for', item.dataset.type, ':', {
+            content: content.substring(0, 100) + '...',
+            length: content.length,
+            isEmpty: !content
+        });
+    }
     
     return content;
 }

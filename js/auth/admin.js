@@ -36,7 +36,7 @@ function checkAuth() {
             if ((now - authData.timestamp) < expirationTime) {
                 isAuthenticated = true;
                 AppGlobals.showCanvas(true); // Show canvas in admin mode
-                console.log('Valid admin session found');
+                // Valid admin session found in localStorage
                 updateAuthBodyClass();
                 
                 // Show center indicator for admin users
@@ -206,7 +206,7 @@ async function clearDatabase() {
             .neq('id', 0); // Delete all items (using neq with impossible value)
         
         if (error) throw error;
-        console.log('Database cleared');
+        // Database successfully cleared of all items
     } catch (error) {
         console.error('Error clearing database:', error);
         ToolbarModule.showStatus('Failed to clear database - check console for details');
@@ -263,7 +263,7 @@ function extendSession() {
     if (isAuthenticated) {
         const timestamp = new Date().getTime();
         localStorage.setItem('canvas_admin_auth', JSON.stringify({ timestamp }));
-        console.log('Admin session extended');
+        // Admin session timestamp updated
     }
 }
 

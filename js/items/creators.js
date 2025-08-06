@@ -43,7 +43,7 @@ async function handleFileSelect(e) {
             .getPublicUrl(filename);
         
         if (urlData?.publicUrl) {
-            console.log(`${isVideo ? 'Video' : 'Image'} uploaded successfully:`, urlData.publicUrl);
+            // Upload successful - public URL obtained
             AppGlobals.showStatus(`${isVideo ? 'Video' : 'Image'} uploaded successfully`);
             
             if (isVideo) {
@@ -229,7 +229,7 @@ function createVideoItem(src, x = null, y = null, width = 400, height = 300, fro
     
     // Handle play events
     video.addEventListener('play', function() {
-        console.log('Video started playing');
+        // Video playback started successfully
     });
     
     video.addEventListener('pause', function() {
@@ -296,13 +296,13 @@ function attemptVideoPlay(video) {
         
         if (playPromise !== undefined) {
             playPromise.catch(error => {
-                console.log('Video autoplay prevented:', error.name);
+                // Video autoplay prevented - will retry on user interaction
                 
                 // For mobile, try again after user interaction
                 if (error.name === 'NotAllowedError') {
                     // Add a one-time click listener to start playback
                     const startPlayback = () => {
-                        video.play().catch(e => console.log('Still prevented'));
+                        video.play().catch(e => {/* Video still prevented */});
                         document.removeEventListener('touchstart', startPlayback);
                         document.removeEventListener('click', startPlayback);
                     };
@@ -374,7 +374,7 @@ function createTextItem(content = 'Double-click to edit text...', x = null, y = 
     
     // Double-click to enter text editing mode
     item.addEventListener('dblclick', (e) => {
-        console.log('🎯 DOUBLE CLICK ON TEXT ITEM!');
+        // Double-click event triggered on text item
         e.stopPropagation();
         
         // Temporarily hide resize handles during editing
@@ -387,7 +387,7 @@ function createTextItem(content = 'Double-click to edit text...', x = null, y = 
         item.focus();
         item.classList.add('editing');
         
-        console.log('📝 Text item now editable, focused, and has editing class');
+        // Text item entered editing mode
         
         // Select all text for easy editing
         const range = document.createRange();
@@ -399,31 +399,21 @@ function createTextItem(content = 'Double-click to edit text...', x = null, y = 
     
     // Handle text editing
     item.addEventListener('focus', () => {
-        console.log('🎯 TEXT ITEM FOCUSED!', {
-            isSelected: item.classList.contains('selected'),
-            isContentEditable: item.contentEditable === 'true',
-            hasEditingClass: item.classList.contains('editing')
-        });
+        // Text item focused - checking editing state
         // Only add editing class if the item is already selected and not just being clicked
         if (item.classList.contains('selected') && item.contentEditable === 'true') {
             item.classList.add('editing');
-            console.log('✅ Added editing class to text item');
+            // Added editing class to text item
         }
     });
     
     // Add input event to catch text changes
     item.addEventListener('input', () => {
-        console.log('⌨️ TEXT INPUT EVENT!', item.textContent);
+        // Text content changed during editing
     });
     
     item.addEventListener('blur', () => {
-        console.log('🔥 TEXT BLUR EVENT FIRED! 🔥');
-        console.log('Text blur triggered:', {
-            fromDatabase: fromDatabase,
-            textContent: item.textContent,
-            innerHTML: item.innerHTML,
-            id: item.dataset.id
-        });
+        // Text editing finished (blur event)
         
         item.classList.remove('editing');
         item.contentEditable = false;
@@ -435,18 +425,18 @@ function createTextItem(content = 'Double-click to edit text...', x = null, y = 
         }
         
         // Always save text changes, regardless of origin
-        console.log('🚀 Text blur event - triggering save for:', item.textContent);
+        // Saving text changes to database
         DatabaseModule.saveItemToDatabase(item);
     });
     
     // Also save when the user finishes editing (Enter key)
     item.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
-            console.log('🔥 ENTER KEY PRESSED! 🔥');
+            // Enter key pressed - finishing text editing
             e.preventDefault();
             item.blur();
             // Ensure save happens even if blur event is prevented
-            console.log('🚀 Text Enter key - saving to database:', item.textContent);
+            // Saving text changes via Enter key
             DatabaseModule.saveItemToDatabase(item);
         }
     });

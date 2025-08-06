@@ -77,7 +77,7 @@ function removeDrawingPreview() {
 }
 
 function createDrawingItem(pathData, strokeColor, strokeThickness, x, y, width, height, fromDatabase = false, viewBoxData = null) {
-    console.log('Creating drawing item:', { pathData: pathData.substring(0, 100) + '...', strokeColor, strokeThickness, x, y, width, height, fromDatabase, viewBoxData });
+    // Creating new drawing item with specified properties
     const item = document.createElement('div');
     item.className = 'canvas-item drawing-item';
     item.style.left = x + 'px';

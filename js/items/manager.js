@@ -6,7 +6,7 @@ let cachedResizeHandles = null;
 let lastSelectedItemId = null;
 
 function selectItem(item) {
-    console.log('Selecting item:', item, 'Type:', item.dataset.type);
+    // Removed console.log for performance
     clearSelection();
     selectedItem = item;
     item.classList.add('selected');
@@ -16,7 +16,7 @@ function selectItem(item) {
         item.classList.remove('dragging');
     }
     
-    console.log('Showing resize handles for item:', item);
+    // Removed console.log for performance
     showResizeHandles(item);
     
     // Disable draw mode when selecting any item
@@ -26,7 +26,7 @@ function selectItem(item) {
         drawBtn.style.backgroundColor = '';
         container.style.cursor = '';
         DrawingModule.removeDrawingPreview();
-        console.log('Draw mode disabled - item selected');
+        // Draw mode disabled when item selected
     }
     
     // Show move up/down buttons when item is selected (admin only)
@@ -51,11 +51,11 @@ function selectItem(item) {
         }
     }
     
-    console.log('Item selection complete. Selected item:', selectedItem, 'Has resize handles:', !!document.getElementById('resizeHandles'));
+    // Item selection complete
 }
 
 function clearSelection() {
-    console.log('Clearing selection. Current selectedItem:', selectedItem);
+    // Removed console.log for performance
     if (selectedItem) {
         selectedItem.classList.remove('selected');
         
@@ -66,17 +66,13 @@ function clearSelection() {
         
         // Reset text items to non-editing mode when deselected
         if (selectedItem.classList.contains('text-item')) {
-            console.log('🧹 CLEARING TEXT ITEM - calling blur()');
-            console.log('Text content before blur:', selectedItem.textContent);
-            
             // Save the text item before clearing selection
-            console.log('💾 SAVING TEXT ITEM FROM CLEAR SELECTION');
             DatabaseModule.saveItemToDatabase(selectedItem);
             
             selectedItem.classList.remove('editing');
             selectedItem.contentEditable = false;
             selectedItem.blur();
-            console.log('✅ Text item blur() called');
+            // Text item blur called
             
             // Show resize handles if they were hidden
             const resizeHandles = selectedItem.querySelector('.resize-handles');
@@ -99,7 +95,7 @@ function clearSelection() {
     // Hide draw toolbar
     ToolbarModule.hideDrawToolbar();
     
-    console.log('Selection cleared');
+    // Selection cleared
 }
 
 function showResizeHandles(item) {
@@ -373,7 +369,7 @@ function getSortedItems() {
 
 function syncZIndexesToDatabase() {
     const items = getSortedItems();
-    console.log('Syncing z-indexes for', items.length, 'items');
+    // Syncing z-indexes to database
     items.forEach(item => {
         DatabaseModule.debouncedSaveItem(item);
     });

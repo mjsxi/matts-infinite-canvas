@@ -34,7 +34,7 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 
 // Initialize the application
 function initializeApp() {
-    console.log('Initializing Canvas App...');
+    // Initializing Canvas App...
     
     // Cache DOM elements
     cacheElements();
@@ -74,7 +74,7 @@ function initializeApp() {
     // Add user interaction handler for mobile video autoplay
     setupMobileVideoAutoplay();
     
-    console.log('Canvas App initialized successfully');
+    // Canvas App initialized successfully
 }
 
 function createGlobalAliases() {
@@ -115,7 +115,7 @@ function handleVideoAutoplay() {
             const playPromise = video.play();
             if (playPromise !== undefined) {
                 playPromise.catch(e => {
-                    console.log('Video autoplay prevented on init');
+                    // Video autoplay prevented on init
                 });
             }
         }
@@ -126,7 +126,7 @@ function handleVideoAutoplay() {
                 const playPromise = video.play();
                 if (playPromise !== undefined) {
                     playPromise.catch(e => {
-                        console.log('Video play prevented on canplay');
+                        // Video play prevented on canplay
                     });
                 }
             }
@@ -139,7 +139,7 @@ function handleVideoAutoplay() {
                     const playPromise = video.play();
                     if (playPromise !== undefined) {
                         playPromise.catch(e => {
-                            console.log('Video resume prevented');
+                            // Video resume prevented
                         });
                     }
                 }, 500);
@@ -164,7 +164,7 @@ function setupMobileVideoAutoplay() {
                 const playPromise = video.play();
                 if (playPromise !== undefined) {
                     playPromise.catch(e => {
-                        console.log('Video autoplay still prevented after user interaction');
+                        // Video autoplay still prevented after user interaction
                     });
                 }
             }
@@ -180,7 +180,7 @@ function setupMobileVideoAutoplay() {
 
 function initializeSupabase() {
     window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    console.log('Supabase client initialized');
+    // Supabase client initialized
 }
 
 function checkAuth() {
@@ -206,7 +206,7 @@ function showCanvas(isAdmin = false) {
     
     if (canvasContainer) {
         canvasContainer.classList.remove('hidden');
-        console.log('Canvas container hidden class removed');
+        // Canvas container shown
     } else {
         console.error('Canvas container not found');
     }
@@ -241,7 +241,6 @@ function closeModal(modalId) {
 }
 
 function showStatus(message) {
-    console.log('Status:', message);
     // Could show toast notifications here
 }
 
@@ -269,7 +268,7 @@ window.AppGlobals = {
         if (isAuthenticated) {
             window.ToolbarModule?.showStatus?.(message);
         } else {
-            console.log('Status (admin only):', message);
+            // Status message (admin only)
         }
     },
     updateAuthBodyClass,

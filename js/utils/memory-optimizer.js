@@ -26,7 +26,7 @@ function initializeMemoryOptimizer() {
         }
     });
     
-    console.log('Memory optimizer initialized');
+    // Memory optimizer initialized
 }
 
 function checkMemoryUsage() {
@@ -43,7 +43,7 @@ function checkMemoryUsage() {
 }
 
 function performMemoryCleanup() {
-    console.log('Performing memory cleanup...');
+    // Performing memory cleanup
     
     // Clear object pools
     Object.keys(objectPools).forEach(poolName => {
@@ -62,7 +62,7 @@ function performMemoryCleanup() {
     }
     
     memoryStats.lastCleanup = Date.now();
-    console.log('Memory cleanup completed');
+    // Memory cleanup completed
 }
 
 function cleanupInactiveElements() {
@@ -104,7 +104,7 @@ function optimizeImageMemory() {
         
         // If image is more than 2x larger than display size, suggest optimization
         if (naturalWidth > displayWidth * 2 || naturalHeight > displayHeight * 2) {
-            console.log('Image could be optimized:', img.src, `${naturalWidth}x${naturalHeight} -> ${displayWidth}x${displayHeight}`);
+            // Image could be optimized (keeping console.warn for high memory usage)
         }
     });
 }

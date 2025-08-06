@@ -260,7 +260,7 @@ function closeModal(modalId) {
 }
 
 function showStatus(message, duration = 3000) {
-    console.log('Status:', message);
+    // Status message being displayed
     
     // Only show status messages for authenticated admin users
     if (!isAuthenticated) {
