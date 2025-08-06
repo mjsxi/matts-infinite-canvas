@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canvas Fix Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f0f0f0;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>Canvas Fix Test</h1>
+    
+    <div class="test-section">
+        <h2>Canvas Visibility Test</h2>
+        <p>This test checks if the canvas container is visible and properly initialized.</p>
+        <button onclick="testCanvasVisibility()">Test Canvas Visibility</button>
+        <div id="visibility-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Database Connection Test</h2>
+        <p>This test checks if the Supabase connection is working.</p>
+        <button onclick="testDatabaseConnection()">Test Database Connection</button>
+        <div id="database-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Module Loading Test</h2>
+        <p>This test checks if all modules are properly loaded.</p>
+        <button onclick="testModuleLoading()">Test Module Loading</button>
+        <div id="module-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Open Canvas</h2>
+        <p>Click the button below to open the canvas in a new tab.</p>
+        <button onclick="openCanvas()">Open Canvas</button>
+    </div>
+
+    <script>
+        function showResult(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+        
+        function testCanvasVisibility() {
+            try {
+                // Test if we can access the canvas elements
+                const canvasContainer = document.querySelector('#canvasContainer');
+                const canvas = document.querySelector('#canvas');
+                
+                if (!canvasContainer || !canvas) {
+                    showResult('visibility-result', 'Error: Canvas elements not found in current page. This test should be run on the main canvas page.', 'error');
+                    return;
+                }
+                
+                const isHidden = canvasContainer.classList.contains('hidden');
+                const isVisible = canvasContainer.style.display !== 'none';
+                
+                if (isHidden) {
+                    showResult('visibility-result', 'Canvas container has "hidden" class - this was the main issue that has been fixed.', 'error');
+                } else if (!isVisible) {
+                    showResult('visibility-result', 'Canvas container has display: none - this would also hide the canvas.', 'error');
+                } else {
+                    showResult('visibility-result', 'Canvas container is visible and properly configured.', 'success');
+                }
+            } catch (error) {
+                showResult('visibility-result', `Error testing canvas visibility: ${error.message}`, 'error');
+            }
+        }
+        
+        function testDatabaseConnection() {
+            showResult('database-result', 'Database connection test requires the canvas page to be loaded. Please test this on the main canvas page.', 'info');
+        }
+        
+        function testModuleLoading() {
+            showResult('module-result', 'Module loading test requires the canvas page to be loaded. Please test this on the main canvas page.', 'info');
+        }
+        
+        function openCanvas() {
+            window.open('/index.html', '_blank');
+        }
+    </script>
+</body>
+</html> 

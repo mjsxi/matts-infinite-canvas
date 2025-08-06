@@ -78,7 +78,8 @@ async function saveItemToDatabase(item) {
         x: itemData.x,
         y: itemData.y,
         content: itemData.content ? itemData.content.substring(0, 100) + '...' : null,
-        hasContent: !!itemData.content
+        hasContent: !!itemData.content,
+        fullContent: itemData.content // Log the full content for debugging
     });
 
     // Debug logging for drawing items
@@ -107,7 +108,7 @@ async function saveItemToDatabase(item) {
             throw error;
         }
 
-        console.log('Item saved successfully:', itemData.id, 'Type:', itemData.item_type);
+        console.log('Item saved successfully:', itemData.id, 'Type:', itemData.item_type, 'Content:', itemData.content);
     } catch (error) {
         console.error('Error saving item to database:', error);
         console.error('Failed item data:', itemData);
@@ -150,6 +151,8 @@ async function saveCenterPoint() {
 
 async function loadCanvasData() {
     console.log('Loading canvas data from Supabase...');
+    console.log('Canvas element:', canvas);
+    console.log('Container element:', container);
     AppGlobals.showStatus('Loading canvas data...');
     
     try {
@@ -179,6 +182,18 @@ async function loadCanvasData() {
         
         console.log('Items loaded:', items?.length || 0);
         
+        // Store selection state before clearing items
+        const wasItemSelected = selectedItem !== null;
+        const selectedItemId = selectedItem ? selectedItem.dataset.id : null;
+        const selectedItemType = selectedItem ? selectedItem.dataset.type : null;
+        
+        console.log('Selection state before clearing:', {
+            wasItemSelected,
+            selectedItemId,
+            selectedItemType,
+            selectedItem: selectedItem
+        });
+        
         // Clear existing items
         const existingItems = canvas.querySelectorAll('.canvas-item');
         existingItems.forEach(item => item.remove());
@@ -187,13 +202,48 @@ async function loadCanvasData() {
         const sortedItems = items?.sort((a, b) => (a.z_index || 0) - (b.z_index || 0)) || [];
         
         // Create items from database data
-        sortedItems.forEach(itemData => {
+        console.log('Creating items from database data:', sortedItems.length, 'items');
+        sortedItems.forEach((itemData, index) => {
             try {
-                createItemFromData(itemData);
+                console.log(`Creating item ${index + 1}:`, itemData);
+                const item = createItemFromData(itemData);
+                console.log(`Item ${index + 1} created:`, item);
             } catch (error) {
                 console.error('Error creating item from data:', error, itemData);
             }
         });
+        
+        // Restore selection if an item was previously selected
+        if (wasItemSelected && selectedItemId) {
+            const newSelectedItem = canvas.querySelector(`[data-id="${selectedItemId}"]`);
+            console.log('Attempting to restore selection:', {
+                selectedItemId,
+                newSelectedItem,
+                newSelectedItemType: newSelectedItem ? newSelectedItem.dataset.type : null
+            });
+            
+            if (newSelectedItem) {
+                // Small delay to ensure the item is fully created
+                setTimeout(() => {
+                    console.log('Restoring selection for item:', newSelectedItem);
+                    ItemsModule.selectItem(newSelectedItem);
+                    
+                    // For text items, ensure they maintain selection
+                    if (newSelectedItem.dataset.type === 'text') {
+                        console.log('Ensuring text item maintains selection');
+                        // Force the selection to stay
+                        setTimeout(() => {
+                            if (!newSelectedItem.classList.contains('selected')) {
+                                console.log('Text item selection lost, restoring...');
+                                ItemsModule.selectItem(newSelectedItem);
+                            }
+                        }, 50);
+                    }
+                }, 10);
+            } else {
+                console.log('Could not find item to restore selection:', selectedItemId);
+            }
+        }
         
         // Load center point
         const { data: center, error: centerError } = await supabaseClient
@@ -302,9 +352,70 @@ function handleRealtimeInsert(payload) {
 
 function handleRealtimeUpdate(payload) {
     const existingItem = canvas.querySelector(`[data-id="${payload.new.id}"]`);
-    if (existingItem && existingItem !== selectedItem && !isDragging) {
-        updateItemFromData(existingItem, payload.new);
-        AppGlobals.showStatus('Item updated by another user');
+    if (existingItem && !isDragging && !isResizing) {
+        // For selected items, only update content, not position/size to avoid conflicts
+        if (existingItem === selectedItem) {
+            const itemType = payload.new.item_type;
+            if (itemType === 'text') {
+                // Set flag to prevent blur event from saving during update
+                existingItem.dataset.isUpdating = 'true';
+                
+                // Store current selection state
+                const wasEditing = existingItem.classList.contains('editing');
+                const wasFocused = document.activeElement === existingItem;
+                const wasSelected = existingItem.classList.contains('selected');
+                
+                // Update text content in the text container
+                const textContainer = existingItem.querySelector('.text-content');
+                if (textContainer) {
+                    textContainer.textContent = payload.new.content;
+                } else {
+                    // Fallback for items without text container
+                    existingItem.textContent = payload.new.content;
+                }
+                
+                if (payload.new.font_family) existingItem.style.fontFamily = payload.new.font_family;
+                if (payload.new.font_size) existingItem.style.fontSize = payload.new.font_size + 'px';
+                if (payload.new.font_weight) existingItem.style.fontWeight = payload.new.font_weight;
+                if (payload.new.text_color) existingItem.style.color = payload.new.text_color;
+                if (payload.new.line_height) existingItem.style.lineHeight = payload.new.line_height;
+                
+                // Restore editing state if it was editing
+                if (wasEditing) {
+                    existingItem.classList.add('editing');
+                    if (textContainer) {
+                        textContainer.contentEditable = true;
+                    }
+                }
+                
+                // Restore focus if it was focused
+                if (wasFocused && textContainer) {
+                    textContainer.focus();
+                }
+                
+                // Ensure selection state is maintained
+                if (wasSelected && !existingItem.classList.contains('selected')) {
+                    console.log('Restoring selection after real-time update');
+                    ItemsModule.selectItem(existingItem);
+                }
+                
+                // Clear the updating flag after a short delay
+                setTimeout(() => {
+                    delete existingItem.dataset.isUpdating;
+                }, 100);
+                
+                console.log('Updated selected text item content:', payload.new.content);
+            }
+        } else {
+            // Update all properties for non-selected items
+            updateItemFromData(existingItem, payload.new);
+        }
+        
+        // Only show status if it's not the current user's own update
+        // This prevents showing "updated by another user" for our own changes
+        if (payload.new.user_id !== 'admin') {
+            AppGlobals.showStatus('Item updated by another user');
+        }
     }
 }
 
@@ -526,8 +637,20 @@ function getItemContent(item) {
             console.log('Video content:', { src: content, hasVideo: !!video });
             break;
         case 'text':
-            content = item.textContent;
-            console.log('Text content:', { content: content.substring(0, 50) + '...', length: content.length });
+            // Get text from the text container
+            const textContainer = item.querySelector('.text-content');
+            if (textContainer) {
+                content = textContainer.textContent;
+            } else {
+                // Fallback to item textContent for backward compatibility
+                content = item.textContent;
+            }
+            console.log('Text content extraction:', { 
+                content: content.substring(0, 50) + '...', 
+                length: content.length,
+                textContent: content,
+                hasTextContainer: !!textContainer
+            });
             break;
         case 'code':
             const iframe = item.querySelector('iframe');
@@ -588,6 +711,25 @@ window.DatabaseModule = {
         
         // Test full save
         return saveItemToDatabase(item);
+    },
+    
+    // Debug function to test text item specifically
+    testTextItemSave: function() {
+        console.log('=== TESTING TEXT ITEM SAVE ===');
+        const textItems = canvas.querySelectorAll('.text-item');
+        console.log('Found text items:', textItems.length);
+        
+        textItems.forEach((item, index) => {
+            console.log(`\n--- Text Item ${index + 1} ---`);
+            console.log('Text content:', item.textContent);
+            console.log('Inner text:', item.innerText);
+            console.log('Inner HTML:', item.innerHTML);
+            console.log('Content editable:', item.contentEditable);
+            console.log('Is editing:', item.classList.contains('editing'));
+            
+            // Test save
+            this.testSaveItem(item);
+        });
     },
     
     // Debug function to test saving all items on canvas

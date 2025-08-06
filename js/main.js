@@ -229,16 +229,14 @@ function updateAuthBodyClass() {
 }
 
 function showCanvas(isAdmin = false) {
-    // Hide login modal
-    closeModal('loginModal');
-    
     // Show canvas interface
-    const loginModal = document.getElementById('loginModal');
-    const canvasInterface = document.getElementById('canvasInterface');
+    const canvasContainer = document.getElementById('canvasContainer');
     
-    if (loginModal) loginModal.classList.add('hidden');
-    if (canvasInterface) {
-        canvasInterface.style.display = 'block';
+    if (canvasContainer) {
+        canvasContainer.classList.remove('hidden');
+        console.log('Canvas container hidden class removed');
+    } else {
+        console.error('Canvas container not found');
     }
     
     // Show/hide admin buttons based on authentication status

@@ -67,6 +67,11 @@ function handleMouseDown(e) {
         
         // Only allow item interaction for authenticated admin users
         if (isAuthenticated) {
+            // Only clear selection if clicking on a different item
+            if (selectedItem !== item) {
+                ItemsModule.clearSelection();
+            }
+            
             ItemsModule.selectItem(item);
             
             // Don't start dragging if clicking on resize handles or rotation handle

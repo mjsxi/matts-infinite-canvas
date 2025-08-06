@@ -2,9 +2,17 @@
 // Handles item selection, manipulation, dragging, resizing
 
 function selectItem(item) {
+    console.log('Selecting item:', item, 'Type:', item.dataset.type);
     clearSelection();
     selectedItem = item;
     item.classList.add('selected');
+    
+    // Ensure dragging class is removed when selecting an item
+    if (item.classList.contains('dragging')) {
+        item.classList.remove('dragging');
+    }
+    
+    console.log('Showing resize handles for item:', item);
     showResizeHandles(item);
     
     // Disable draw mode when selecting any item
@@ -38,9 +46,12 @@ function selectItem(item) {
             document.getElementById('strokeThickness').value = path.getAttribute('stroke-width') || '4';
         }
     }
+    
+    console.log('Item selection complete. Selected item:', selectedItem, 'Has resize handles:', !!document.getElementById('resizeHandles'));
 }
 
 function clearSelection() {
+    console.log('Clearing selection. Current selectedItem:', selectedItem);
     if (selectedItem) {
         selectedItem.classList.remove('selected');
         
@@ -68,6 +79,8 @@ function clearSelection() {
     
     // Hide draw toolbar
     ToolbarModule.hideDrawToolbar();
+    
+    console.log('Selection cleared');
 }
 
 function showResizeHandles(item) {

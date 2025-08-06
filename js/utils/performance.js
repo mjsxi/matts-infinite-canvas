@@ -43,9 +43,7 @@ function updatePerformanceMetrics() {
     performanceMetrics.domNodeCount = document.querySelectorAll('*').length;
     
     // Log performance issues
-    if (frameTime > 16.67) { // More than 60fps threshold
-        console.warn(`Frame time exceeded 16.67ms: ${frameTime.toFixed(2)}ms`);
-    }
+    // Frame time warning disabled
     
     if (performanceMetrics.domNodeCount > 1000) {
         console.warn(`High DOM node count: ${performanceMetrics.domNodeCount}`);
@@ -291,4 +289,4 @@ window.PerformanceModule = {
     clearStorageItems,
     cachedElements,
     performanceMetrics
-};
+};// Cache busting: Wed Aug  6 04:10:47 EDT 2025

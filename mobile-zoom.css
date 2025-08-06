@@ -11,5 +11,18 @@
     .canvas-container {
         touch-action: pinch-zoom pan-x pan-y;
     }
+    
+    /* Ensure text items maintain proper letter spacing on mobile */
+    .text-item {
+        letter-spacing: -2.5px !important;
+        text-rendering: optimizeLegibility !important;
+        -webkit-font-smoothing: antialiased !important;
+        -moz-osx-font-smoothing: grayscale !important;
+    }
+    
+    /* Prevent mobile browsers from adjusting letter spacing */
+    .text-item * {
+        letter-spacing: inherit !important;
+    }
 }
 

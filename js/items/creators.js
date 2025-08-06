@@ -307,7 +307,13 @@ function createTextItem(content = 'Double-click to edit text...', x = null, y = 
     item.style.left = x + 'px';
     item.style.top = y + 'px';
     item.contentEditable = false; // Start in non-editing mode
-    item.textContent = content;
+    
+    // Create a text container for editing
+    const textContainer = document.createElement('div');
+    textContainer.className = 'text-content';
+    textContainer.textContent = content;
+    textContainer.contentEditable = false;
+    item.appendChild(textContainer);
     
     // Set default text styling
     item.style.fontFamily = 'Antarctica';
@@ -341,30 +347,44 @@ function createTextItem(content = 'Double-click to edit text...', x = null, y = 
     // Double-click to enter text editing mode
     item.addEventListener('dblclick', (e) => {
         e.stopPropagation();
-        item.contentEditable = true;
-        item.focus();
+        textContainer.contentEditable = true;
+        textContainer.focus();
         item.classList.add('editing');
         
         // Select all text for easy editing
         const range = document.createRange();
-        range.selectNodeContents(item);
+        range.selectNodeContents(textContainer);
         const selection = window.getSelection();
         selection.removeAllRanges();
         selection.addRange(range);
     });
     
     // Handle text editing
-    item.addEventListener('focus', () => item.classList.add('editing'));
-    item.addEventListener('blur', () => {
+    textContainer.addEventListener('focus', () => {
+        // Only add editing class if the item is already selected and not just being clicked
+        if (item.classList.contains('selected') && textContainer.contentEditable === 'true') {
+            item.classList.add('editing');
+        }
+    });
+    textContainer.addEventListener('blur', () => {
         item.classList.remove('editing');
-        item.contentEditable = false;
-        DatabaseModule.saveItemToDatabase(item);
+        textContainer.contentEditable = false;
+        // Save to database if not from database recreation and not during real-time updates
+        // But allow saving if the user actually edited the content
+        if (!fromDatabase && !item.dataset.isUpdating) {
+            DatabaseModule.saveItemToDatabase(item);
+        }
     });
     
-    item.addEventListener('keydown', (e) => {
+    // Also save when the user finishes editing (Enter key)
+    textContainer.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            item.blur();
+            textContainer.blur();
+            // Ensure save happens even if blur event is prevented
+            if (!fromDatabase && !item.dataset.isUpdating) {
+                DatabaseModule.saveItemToDatabase(item);
+            }
         }
     });
     
