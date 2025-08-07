@@ -74,6 +74,14 @@ function initializeApp() {
     // Add user interaction handler for mobile video autoplay
     setupMobileVideoAutoplay();
     
+    // Update existing code items with new interaction system
+    setTimeout(() => {
+        if (window.CreatorsModule) {
+            window.CreatorsModule.updateExistingCodeItems();
+            window.CreatorsModule.setupCodeItemAutoPause();
+        }
+    }, 2000); // Wait 2 seconds for canvas data to load
+    
     // Canvas App initialized successfully
 }
 
@@ -257,6 +265,8 @@ window.clearAll = () => window.AdminModule?.clearAll();
 window.goToCenter = () => window.ViewportModule?.goToCenter();
 window.bringToFront = () => window.AdminModule?.bringToFront();
 window.sendToBack = () => window.AdminModule?.sendToBack();
+window.updateCodeItems = () => window.CreatorsModule?.updateExistingCodeItems();
+window.debugCodeItems = () => window.CreatorsModule?.debugCodeItemState();
 
 // Export global functions and variables for modules to use
 window.AppGlobals = {

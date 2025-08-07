@@ -535,17 +535,11 @@ function createCodeItem(htmlContent, x = null, y = null, width = 400, height = 3
     iframe.style.pointerEvents = 'none';
     iframe.srcdoc = htmlContent;
     
-    // Double-click to enable interactivity
-    item.addEventListener('dblclick', (e) => {
-        e.stopPropagation();
-        if (isAuthenticated) {
-            item.classList.add('interactive');
-            iframe.style.pointerEvents = 'auto';
-        }
-    });
-    
     item.appendChild(iframe);
     canvas.appendChild(item);
+    
+    // Add the interaction overlay after the item is in the DOM
+    addInteractionOverlay(item);
     
     if (!fromDatabase) {
         ItemsModule.selectItem(item);
@@ -553,6 +547,293 @@ function createCodeItem(htmlContent, x = null, y = null, width = 400, height = 3
     }
     
     return item;
+}
+
+// Function to update existing code items with new interaction system
+function updateExistingCodeItems() {
+    const existingCodeItems = document.querySelectorAll('.code-item');
+    
+    existingCodeItems.forEach(item => {
+        // Remove any existing interaction overlay
+        const existingOverlay = item.querySelector('.code-interaction-overlay');
+        if (existingOverlay) {
+            existingOverlay.remove();
+        }
+        
+        // Remove old double-click event listeners by cloning the element
+        const newItem = item.cloneNode(true);
+        item.parentNode.replaceChild(newItem, item);
+        
+        // Add new interaction overlay to existing items
+        addInteractionOverlay(newItem);
+    });
+    
+    console.log(`Updated ${existingCodeItems.length} existing code items with new interaction system`);
+}
+
+// Helper function to add interaction overlay (extracted from createCodeItem)
+function addInteractionOverlay(item) {
+    const iframe = item.querySelector('iframe');
+    if (!iframe) return;
+    
+    // Create centered interaction overlay with Figma design
+    const interactionOverlay = document.createElement('div');
+    interactionOverlay.className = 'code-interaction-overlay';
+    interactionOverlay.style.cssText = `
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        backdrop-filter: blur(50px);
+        background: rgba(0, 0, 0, 0.5);
+        border-radius: 1000px;
+        cursor: pointer;
+        z-index: 10;
+        transition: all 0.2s ease;
+        opacity: 0.9;
+        padding: 3px;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    `;
+    
+    // Inner button container
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.cssText = `
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 50px;
+        padding: 11px 23px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        white-space: nowrap;
+    `;
+    
+    // Text content
+    buttonContainer.innerHTML = `
+        <span style="
+            font-family: 'Antarctica', sans-serif;
+            font-size: 16px;
+            color: white;
+            line-height: 1;
+            font-weight: 400;
+        ">Play With Me</span>
+    `;
+    
+    interactionOverlay.appendChild(buttonContainer);
+    
+    // Toggle interaction on overlay click/touch
+    function toggleInteractivity(e) {
+        e.stopPropagation();
+        e.preventDefault(); // Fix desktop click issue
+        
+        if (item.classList.contains('interactive')) {
+            // Disable interaction - show button again
+            item.classList.remove('interactive');
+            iframe.style.pointerEvents = 'none';
+            interactionOverlay.style.display = 'flex';
+            interactionOverlay.style.opacity = '0.9';
+            interactionOverlay.style.visibility = 'visible';
+            interactionOverlay.style.pointerEvents = 'auto';
+        } else {
+            // Enable interaction - hide button completely
+            pauseAllOtherCodeItems(item); // Pause other active code items
+            item.classList.add('interactive');
+            iframe.style.pointerEvents = 'auto';
+            interactionOverlay.style.display = 'none';
+            interactionOverlay.style.visibility = 'hidden';
+            interactionOverlay.style.pointerEvents = 'none';
+        }
+    }
+    
+    // Universal click/touch events for all devices
+    interactionOverlay.addEventListener('click', toggleInteractivity);
+    interactionOverlay.addEventListener('touchend', (e) => {
+        e.preventDefault(); // Prevent double-tap zoom
+        toggleInteractivity(e);
+    });
+    
+    // Show overlay behavior - always visible but with hover effects on desktop
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                     (navigator.maxTouchPoints && navigator.maxTouchPoints > 2);
+    
+    if (isMobile) {
+        // Always fully visible on mobile
+        interactionOverlay.style.opacity = '0.9';
+    } else {
+        // Show on hover for desktop with subtle default visibility
+        interactionOverlay.style.opacity = '0.6';
+        item.addEventListener('mouseenter', () => {
+            interactionOverlay.style.opacity = '1';
+            interactionOverlay.style.transform = 'translate(-50%, -50%) scale(1.05)';
+        });
+        item.addEventListener('mouseleave', () => {
+            interactionOverlay.style.opacity = '0.6';
+            interactionOverlay.style.transform = 'translate(-50%, -50%) scale(1)';
+        });
+    }
+    
+    item.appendChild(interactionOverlay);
+}
+
+// Function to pause all other active code items
+function pauseAllOtherCodeItems(currentItem) {
+    const allCodeItems = document.querySelectorAll('.code-item.interactive');
+    allCodeItems.forEach(codeItem => {
+        if (codeItem !== currentItem) {
+            // Pause this item
+            codeItem.classList.remove('interactive');
+            const iframe = codeItem.querySelector('iframe');
+            if (iframe) {
+                iframe.style.pointerEvents = 'none';
+            }
+            
+            // Show the play button again
+            const overlay = codeItem.querySelector('.code-interaction-overlay');
+            if (overlay) {
+                overlay.style.display = 'flex';
+                overlay.style.opacity = '0.9';
+                overlay.style.visibility = 'visible';
+                overlay.style.pointerEvents = 'auto';
+            }
+        }
+    });
+}
+
+// Auto-pause code items when scrolling/panning away or clicking elsewhere
+function setupCodeItemAutoPause() {
+    let pauseTimeout;
+    
+    const pauseActiveCodeItems = () => {
+        const activeCodeItems = document.querySelectorAll('.code-item.interactive');
+        console.log('🔄 PAUSING ITEMS:', activeCodeItems.length, 'active code items found');
+        
+        activeCodeItems.forEach((item, index) => {
+            console.log(`🔄 Pausing item ${index + 1}:`, {
+                id: item.dataset.id,
+                hasOverlay: !!item.querySelector('.code-interaction-overlay')
+            });
+            
+            // Pause this item
+            item.classList.remove('interactive');
+            const iframe = item.querySelector('iframe');
+            if (iframe) {
+                iframe.style.pointerEvents = 'none';
+            }
+            
+            // Show the play button again
+            const overlay = item.querySelector('.code-interaction-overlay');
+            if (overlay) {
+                console.log('✅ Restoring button for item:', item.dataset.id);
+                overlay.style.display = 'flex';
+                overlay.style.opacity = '0.9';
+                overlay.style.visibility = 'visible';
+                overlay.style.pointerEvents = 'auto';
+                
+                // Force a style recalculation
+                overlay.offsetHeight; // Trigger reflow
+            } else {
+                console.log('❌ No overlay found for item:', item.dataset.id);
+            }
+        });
+    };
+    
+    const checkAndPauseDistantItems = () => {
+        const viewportCenter = ViewportModule?.getViewportCenter() || { x: 0, y: 0 };
+        const viewportBounds = getViewportBoundsForCodeItems(viewportCenter);
+        const activeCodeItems = document.querySelectorAll('.code-item.interactive');
+        
+        activeCodeItems.forEach(item => {
+            const rect = item.getBoundingClientRect();
+            const itemCenterX = parseFloat(item.style.left) + parseFloat(item.style.width) / 2;
+            const itemCenterY = parseFloat(item.style.top) + parseFloat(item.style.height) / 2;
+            
+            // Check if item is far from viewport
+            const isOutOfView = (
+                itemCenterX < viewportBounds.left - 500 ||
+                itemCenterX > viewportBounds.right + 500 ||
+                itemCenterY < viewportBounds.top - 500 ||
+                itemCenterY > viewportBounds.bottom + 500
+            );
+            
+            if (isOutOfView) {
+                pauseActiveCodeItems();
+            }
+        });
+    };
+    
+    const scheduleAutoPause = () => {
+        clearTimeout(pauseTimeout);
+        pauseTimeout = setTimeout(checkAndPauseDistantItems, 1000); // Check after 1 second of no movement
+    };
+    
+    // Listen for viewport changes (scrolling/panning)
+    if (window.ViewportModule) {
+        const originalUpdateTransform = window.ViewportModule.updateCanvasTransform;
+        window.ViewportModule.updateCanvasTransform = function() {
+            const result = originalUpdateTransform.call(this);
+            scheduleAutoPause();
+            return result;
+        };
+    }
+    
+    // Listen for clicks outside of code items (clicking away) - DEBUG VERSION
+    document.addEventListener('click', (e) => {
+        console.log('🔍 CLICK DEBUG:', {
+            target: e.target,
+            targetClass: e.target.className,
+            targetId: e.target.id,
+            clickedCodeItem: e.target.closest('.code-item'),
+            activeCodeItems: document.querySelectorAll('.code-item.interactive').length,
+            eventType: 'click'
+        });
+        
+        // Check if the click is outside any interactive code item
+        const clickedCodeItem = e.target.closest('.code-item');
+        const activeCodeItems = document.querySelectorAll('.code-item.interactive');
+        
+        if (activeCodeItems.length > 0 && !clickedCodeItem) {
+            console.log('✅ PAUSING: Clicked outside all code items');
+            pauseActiveCodeItems();
+        } else if (clickedCodeItem && !clickedCodeItem.classList.contains('interactive')) {
+            console.log('✅ PAUSING: Clicked different code item');
+            pauseActiveCodeItems();
+        } else {
+            console.log('❌ NOT PAUSING: Click inside active code item or no active items');
+        }
+    }, true); // Use capture phase to catch events before canvas handlers
+    
+    // Listen for touches outside of code items (mobile)
+    document.addEventListener('touchstart', (e) => {
+        const clickedCodeItem = e.target.closest('.code-item');
+        const activeCodeItems = document.querySelectorAll('.code-item.interactive');
+        
+        if (activeCodeItems.length > 0 && !clickedCodeItem) {
+            // Touched outside all code items - pause all active ones
+            pauseActiveCodeItems();
+        } else if (clickedCodeItem && !clickedCodeItem.classList.contains('interactive')) {
+            // Touched on a different (inactive) code item - pause all active ones
+            pauseActiveCodeItems();
+        }
+    });
+}
+
+// Helper function to get viewport bounds for code items
+function getViewportBoundsForCodeItems(center) {
+    const containerRect = ViewportModule?.getContainerRect() || { width: 1000, height: 800 };
+    const scale = canvasTransform?.scale || 1;
+    
+    const viewportWidth = containerRect.width / scale;
+    const viewportHeight = containerRect.height / scale;
+    
+    return {
+        left: center.x - viewportWidth / 2,
+        right: center.x + viewportWidth / 2,
+        top: center.y - viewportHeight / 2,
+        bottom: center.y + viewportHeight / 2
+    };
 }
 
 // Progressive image loading helper functions
@@ -674,6 +955,38 @@ function getCachedImageDimensions(src) {
     return null;
 }
 
+// Debug helper function
+function debugCodeItemState() {
+    const allCodeItems = document.querySelectorAll('.code-item');
+    const activeCodeItems = document.querySelectorAll('.code-item.interactive');
+    
+    console.log('📊 CODE ITEM DEBUG REPORT:');
+    console.log(`Total code items: ${allCodeItems.length}`);
+    console.log(`Active code items: ${activeCodeItems.length}`);
+    
+    allCodeItems.forEach((item, index) => {
+        const overlay = item.querySelector('.code-interaction-overlay');
+        const iframe = item.querySelector('iframe');
+        
+        console.log(`📋 Item ${index + 1}:`, {
+            id: item.dataset.id,
+            isActive: item.classList.contains('interactive'),
+            hasOverlay: !!overlay,
+            overlayVisible: overlay ? overlay.style.display : 'no overlay',
+            overlayOpacity: overlay ? overlay.style.opacity : 'no overlay',
+            iframePointerEvents: iframe ? iframe.style.pointerEvents : 'no iframe',
+            elementVisible: item.style.visibility,
+            boundingRect: item.getBoundingClientRect()
+        });
+    });
+    
+    return {
+        total: allCodeItems.length,
+        active: activeCodeItems.length,
+        items: allCodeItems
+    };
+}
+
 // Export module
 window.CreatorsModule = {
     addImage,
@@ -684,5 +997,10 @@ window.CreatorsModule = {
     createTextItem,
     addCode,
     insertCode,
-    createCodeItem
+    createCodeItem,
+    updateExistingCodeItems,
+    addInteractionOverlay,
+    pauseAllOtherCodeItems,
+    setupCodeItemAutoPause,
+    debugCodeItemState
 };

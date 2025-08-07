@@ -699,24 +699,7 @@ body {
     pointer-events: none;
 }
 
-.code-item:not(.interactive):after {
-    content: '🖱️ Double-click to interact';
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    background: rgba(0, 0, 0, 0.8);
-    color: white;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 11px;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.2s;
-}
-
-.code-item:hover:not(.interactive):after {
-    opacity: 1;
-}
+/* Removed hover tooltip since we now have a visible centered play button */
 
 /* Resize Handles - Easy to customize */
 :root {

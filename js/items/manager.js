@@ -18,6 +18,15 @@ function selectItem(item) {
             if (iframe) {
                 iframe.style.pointerEvents = 'none';
             }
+            
+            // Restore the play button overlay
+            const overlay = codeItem.querySelector('.code-interaction-overlay');
+            if (overlay) {
+                overlay.style.display = 'flex';
+                overlay.style.opacity = '0.9';
+                overlay.style.visibility = 'visible';
+                overlay.style.pointerEvents = 'auto';
+            }
         }
     });
     
@@ -73,6 +82,15 @@ function clearSelection() {
         if (iframe) {
             iframe.style.pointerEvents = 'none';
         }
+        
+        // Restore the play button overlay
+        const overlay = codeItem.querySelector('.code-interaction-overlay');
+        if (overlay) {
+            overlay.style.display = 'flex';
+            overlay.style.opacity = '0.9';
+            overlay.style.visibility = 'visible';
+            overlay.style.pointerEvents = 'auto';
+        }
     });
     
     // Removed console.log for performance
@@ -85,6 +103,15 @@ function clearSelection() {
             const iframe = selectedItem.querySelector('iframe');
             if (iframe) {
                 iframe.style.pointerEvents = 'none';
+            }
+            
+            // Restore the play button overlay
+            const overlay = selectedItem.querySelector('.code-interaction-overlay');
+            if (overlay) {
+                overlay.style.display = 'flex';
+                overlay.style.opacity = '0.9';
+                overlay.style.visibility = 'visible';
+                overlay.style.pointerEvents = 'auto';
             }
         }
         
