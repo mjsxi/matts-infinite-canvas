@@ -85,6 +85,10 @@ function createDrawingItem(pathData, strokeColor, strokeThickness, x, y, width, 
     item.style.width = width + 'px';
     item.style.height = height + 'px';
     
+    // Start completely hidden to prevent flashing before content loads
+    item.style.opacity = '0';
+    item.style.visibility = 'hidden';
+    
 
     
     // Set default border radius as CSS variable
