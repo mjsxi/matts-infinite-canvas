@@ -41,6 +41,12 @@
         saveCameraToCookie();
     }
     
+    // Touch throttling for smooth performance
+    let touchUpdateFrame = null;
+    let pendingTouchUpdate = null;
+    let lastTouchUpdateTime = 0;
+    const TOUCH_THROTTLE_INTERVAL = 16; // 60fps throttling
+
     // Mobile touch handlers with zoom limits
     function mobileHandleTouchStart(e) {
         if (e.touches.length === 1) {
@@ -157,7 +163,7 @@
         // Add mobile-specific event listeners
         canvasContainer.addEventListener('wheel', mobileHandleWheel, { passive: false });
         canvasContainer.addEventListener('touchstart', mobileHandleTouchStart, { passive: false });
-        canvasContainer.addEventListener('touchmove', mobileHandleTouchMove, { passive: false });
+        canvasContainer.addEventListener('touchmove', mobileHandleTouchMoveThrottled, { passive: false });
         canvasContainer.addEventListener('touchend', mobileHandleTouchEnd, { passive: false });
         
         // Clamp current scale to mobile limits if needed
