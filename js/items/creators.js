@@ -4,6 +4,9 @@
 // Reusable animation function that preserves transforms
 function startFadeInAnimation(item, delay = 0) {
     setTimeout(() => {
+        // Make item visible and start animation
+        item.style.visibility = 'visible';
+        
         // Get existing transform (rotation) before animation
         const existingTransform = item.style.transform || '';
         const rotation = existingTransform.match(/rotate\([^)]+\)/) ? existingTransform.match(/rotate\([^)]+\)/)[0] : '';
@@ -134,6 +137,10 @@ function createImageItem(src, x = null, y = null, width = 200, height = 150, fro
     item.style.width = width + 'px';
     item.style.height = height + 'px';
     
+    // Start completely hidden to prevent flashing before content loads
+    item.style.opacity = '0';
+    item.style.visibility = 'hidden';
+    
     // Set default border radius as CSS variable
     item.style.setProperty('--item-border-radius', '0px');
     
@@ -251,6 +258,10 @@ function createVideoItem(src, x = null, y = null, width = 400, height = 300, fro
     item.style.top = y + 'px';
     item.style.width = width + 'px';
     item.style.height = height + 'px';
+    
+    // Start completely hidden to prevent flashing before content loads
+    item.style.opacity = '0';
+    item.style.visibility = 'hidden';
     
     // Set default border radius as CSS variable
     item.style.setProperty('--item-border-radius', '0px');
@@ -443,6 +454,10 @@ function createTextItem(content = 'Double-click to edit text...', x = null, y = 
     item.contentEditable = false; // Start in non-editing mode
     item.textContent = content;
     
+    // Start completely hidden to prevent flashing before content loads
+    item.style.opacity = '0';
+    item.style.visibility = 'hidden';
+    
     // Set default text styling
     item.style.fontFamily = 'Antarctica';
     item.style.fontSize = '24px';
@@ -625,6 +640,10 @@ function createCodeItem(htmlContent, x = null, y = null, width = 400, height = 3
     item.style.top = y + 'px';
     item.style.width = width + 'px';
     item.style.height = height + 'px';
+    
+    // Start completely hidden to prevent flashing before content loads
+    item.style.opacity = '0';
+    item.style.visibility = 'hidden';
     
     // Set default border radius as CSS variable
     item.style.setProperty('--item-border-radius', '0px');
