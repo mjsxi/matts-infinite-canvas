@@ -313,9 +313,11 @@ async function loadCanvasData() {
         window.currentBatch = 0;
         window.totalBatches = batches.length;
         
-        // Load batches with progressive delays (ripple effect)
-        batches.forEach((batch, batchIndex) => {
-            const batchDelay = batchIndex * 40; // 40ms between batches
+        // Add 500ms delay before starting animations to let database fully load
+        setTimeout(() => {
+            // Load batches with progressive delays (ripple effect)
+            batches.forEach((batch, batchIndex) => {
+            const batchDelay = batchIndex * 150; // 150ms between batches
             
             setTimeout(() => {
                 window.currentBatch = batchIndex;
@@ -336,15 +338,16 @@ async function loadCanvasData() {
                     }
                 });
             }, batchDelay);
-        });
-        
-        // Clear the initial load flags after all batches
-        const totalLoadTime = batches.length * 40 + 200;
-        setTimeout(() => {
-            window.isInitialLoad = false;
-            window.currentBatch = 0;
-            window.totalBatches = 0;
-        }, totalLoadTime);
+            });
+            
+            // Clear the initial load flags after all batches
+            const totalLoadTime = batches.length * 150 + 200;
+            setTimeout(() => {
+                window.isInitialLoad = false;
+                window.currentBatch = 0;
+                window.totalBatches = 0;
+            }, totalLoadTime);
+        }, 500); // 500ms delay before starting initial load animations
         
         // Setup lazy loading observer for remaining items
         setupLazyItemLoading();
