@@ -411,7 +411,7 @@ body {
     }
 }
 
-/* Canvas item fade-in animation */
+/* Canvas item fade-in animation - opacity only to preserve transforms */
 @keyframes canvas-item-fade-in {
     0% {
         opacity: 0;
@@ -422,7 +422,7 @@ body {
 }
 
 .canvas-item.fade-in-animation {
-    animation: canvas-item-fade-in 0.5s ease-out forwards;
+    animation: canvas-item-fade-in 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
     opacity: 0;
 }
 

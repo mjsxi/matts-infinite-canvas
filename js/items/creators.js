@@ -154,22 +154,74 @@ function createImageItem(src, x = null, y = null, width = 200, height = 150, fro
     item.appendChild(img);
     canvas.appendChild(item);
     
-    // Add fade-in animation with subtle staggered delay
+    // Add enhanced fade-in animation with multiple approaches
     let delay = 0;
     
     if (window.isInitialLoad) {
-        // Very subtle stagger for initial load - much faster
-        delay = window.initialLoadIndex * 15; // Just 15ms between each item
+        // Batch-based ripple effect with subtle variation within batches
+        const batchProgress = window.currentBatch / Math.max(1, window.totalBatches - 1);
+        const itemVariation = window.itemIndexInBatch * 8; // 8ms between items in batch
+        const distanceDelay = Math.min(50, batchProgress * 50); // Progressive delay based on distance
+        delay = distanceDelay + itemVariation;
     } else {
-        // Minimal delay for all other items to keep it responsive
-        delay = Math.random() * 20; // Random 0-20ms delay for natural feel
+        // Smooth delay for other items (user-created or lazy-loaded)
+        const baseDelay = fromDatabase ? 30 : 10;
+        const variation = Math.random() * 15;
+        delay = baseDelay + variation;
     }
     
     setTimeout(() => {
+        // Get existing transform (rotation) before animation
+        const existingTransform = item.style.transform || '';
+        const rotation = existingTransform.match(/rotate\([^)]+\)/) ? existingTransform.match(/rotate\([^)]+\)/)[0] : '';
+        
+        // Apply initial scale with preserved rotation
+        const initialTransform = rotation ? `${rotation} translateZ(0) scale(0.95)` : 'translateZ(0) scale(0.95)';
+        item.style.transform = initialTransform;
+        
+        // Start fade-in animation
         item.classList.add('fade-in-animation');
-        setTimeout(() => {
-            item.classList.remove('fade-in-animation');
-        }, 500);
+        
+        // Animate scale manually with rotation preserved
+        const startTime = performance.now();
+        const duration = 600;
+        
+        const animateScale = (currentTime) => {
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            
+            // Cubic bezier easing: (0.25, 0.46, 0.45, 0.94)
+            const easeProgress = progress < 0.5 
+                ? 2 * progress * progress 
+                : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+                
+            // Scale progression: 0.95 -> 1.02 -> 1.0
+            let scale;
+            if (easeProgress < 0.6) {
+                // 0 to 0.6: scale from 0.95 to 1.02
+                const scaleProgress = easeProgress / 0.6;
+                scale = 0.95 + (0.07 * scaleProgress); // 0.95 to 1.02
+            } else {
+                // 0.6 to 1.0: scale from 1.02 to 1.0
+                const scaleProgress = (easeProgress - 0.6) / 0.4;
+                scale = 1.02 - (0.02 * scaleProgress); // 1.02 to 1.0
+            }
+            
+            // Apply transform with preserved rotation
+            const newTransform = rotation ? `${rotation} translateZ(0) scale(${scale})` : `translateZ(0) scale(${scale})`;
+            item.style.transform = newTransform;
+            
+            if (progress < 1) {
+                requestAnimationFrame(animateScale);
+            } else {
+                // Animation complete - restore original transform or apply final transform
+                const finalTransform = rotation ? `${rotation} translateZ(0)` : 'translateZ(0)';
+                item.style.transform = finalTransform;
+                item.classList.remove('fade-in-animation');
+            }
+        };
+        
+        requestAnimationFrame(animateScale);
     }, delay);
     
     if (!fromDatabase) {
@@ -295,22 +347,74 @@ function createVideoItem(src, x = null, y = null, width = 400, height = 300, fro
     item.appendChild(video);
     canvas.appendChild(item);
     
-    // Add fade-in animation with subtle staggered delay
+    // Add enhanced fade-in animation with multiple approaches
     let delay = 0;
     
     if (window.isInitialLoad) {
-        // Very subtle stagger for initial load - much faster
-        delay = window.initialLoadIndex * 15; // Just 15ms between each item
+        // Batch-based ripple effect with subtle variation within batches
+        const batchProgress = window.currentBatch / Math.max(1, window.totalBatches - 1);
+        const itemVariation = window.itemIndexInBatch * 8; // 8ms between items in batch
+        const distanceDelay = Math.min(50, batchProgress * 50); // Progressive delay based on distance
+        delay = distanceDelay + itemVariation;
     } else {
-        // Minimal delay for all other items to keep it responsive
-        delay = Math.random() * 20; // Random 0-20ms delay for natural feel
+        // Smooth delay for other items (user-created or lazy-loaded)
+        const baseDelay = fromDatabase ? 30 : 10;
+        const variation = Math.random() * 15;
+        delay = baseDelay + variation;
     }
     
     setTimeout(() => {
+        // Get existing transform (rotation) before animation
+        const existingTransform = item.style.transform || '';
+        const rotation = existingTransform.match(/rotate\([^)]+\)/) ? existingTransform.match(/rotate\([^)]+\)/)[0] : '';
+        
+        // Apply initial scale with preserved rotation
+        const initialTransform = rotation ? `${rotation} translateZ(0) scale(0.95)` : 'translateZ(0) scale(0.95)';
+        item.style.transform = initialTransform;
+        
+        // Start fade-in animation
         item.classList.add('fade-in-animation');
-        setTimeout(() => {
-            item.classList.remove('fade-in-animation');
-        }, 500);
+        
+        // Animate scale manually with rotation preserved
+        const startTime = performance.now();
+        const duration = 600;
+        
+        const animateScale = (currentTime) => {
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            
+            // Cubic bezier easing: (0.25, 0.46, 0.45, 0.94)
+            const easeProgress = progress < 0.5 
+                ? 2 * progress * progress 
+                : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+                
+            // Scale progression: 0.95 -> 1.02 -> 1.0
+            let scale;
+            if (easeProgress < 0.6) {
+                // 0 to 0.6: scale from 0.95 to 1.02
+                const scaleProgress = easeProgress / 0.6;
+                scale = 0.95 + (0.07 * scaleProgress); // 0.95 to 1.02
+            } else {
+                // 0.6 to 1.0: scale from 1.02 to 1.0
+                const scaleProgress = (easeProgress - 0.6) / 0.4;
+                scale = 1.02 - (0.02 * scaleProgress); // 1.02 to 1.0
+            }
+            
+            // Apply transform with preserved rotation
+            const newTransform = rotation ? `${rotation} translateZ(0) scale(${scale})` : `translateZ(0) scale(${scale})`;
+            item.style.transform = newTransform;
+            
+            if (progress < 1) {
+                requestAnimationFrame(animateScale);
+            } else {
+                // Animation complete - restore original transform or apply final transform
+                const finalTransform = rotation ? `${rotation} translateZ(0)` : 'translateZ(0)';
+                item.style.transform = finalTransform;
+                item.classList.remove('fade-in-animation');
+            }
+        };
+        
+        requestAnimationFrame(animateScale);
     }, delay);
     
     // Ensure video autoplay works on mobile with multiple attempts
@@ -500,22 +604,74 @@ function createTextItem(content = 'Double-click to edit text...', x = null, y = 
     
     canvas.appendChild(item);
     
-    // Add fade-in animation with subtle staggered delay
+    // Add enhanced fade-in animation with multiple approaches
     let delay = 0;
     
     if (window.isInitialLoad) {
-        // Very subtle stagger for initial load - much faster
-        delay = window.initialLoadIndex * 15; // Just 15ms between each item
+        // Batch-based ripple effect with subtle variation within batches
+        const batchProgress = window.currentBatch / Math.max(1, window.totalBatches - 1);
+        const itemVariation = window.itemIndexInBatch * 8; // 8ms between items in batch
+        const distanceDelay = Math.min(50, batchProgress * 50); // Progressive delay based on distance
+        delay = distanceDelay + itemVariation;
     } else {
-        // Minimal delay for all other items to keep it responsive
-        delay = Math.random() * 20; // Random 0-20ms delay for natural feel
+        // Smooth delay for other items (user-created or lazy-loaded)
+        const baseDelay = fromDatabase ? 30 : 10;
+        const variation = Math.random() * 15;
+        delay = baseDelay + variation;
     }
     
     setTimeout(() => {
+        // Get existing transform (rotation) before animation
+        const existingTransform = item.style.transform || '';
+        const rotation = existingTransform.match(/rotate\([^)]+\)/) ? existingTransform.match(/rotate\([^)]+\)/)[0] : '';
+        
+        // Apply initial scale with preserved rotation
+        const initialTransform = rotation ? `${rotation} translateZ(0) scale(0.95)` : 'translateZ(0) scale(0.95)';
+        item.style.transform = initialTransform;
+        
+        // Start fade-in animation
         item.classList.add('fade-in-animation');
-        setTimeout(() => {
-            item.classList.remove('fade-in-animation');
-        }, 500);
+        
+        // Animate scale manually with rotation preserved
+        const startTime = performance.now();
+        const duration = 600;
+        
+        const animateScale = (currentTime) => {
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            
+            // Cubic bezier easing: (0.25, 0.46, 0.45, 0.94)
+            const easeProgress = progress < 0.5 
+                ? 2 * progress * progress 
+                : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+                
+            // Scale progression: 0.95 -> 1.02 -> 1.0
+            let scale;
+            if (easeProgress < 0.6) {
+                // 0 to 0.6: scale from 0.95 to 1.02
+                const scaleProgress = easeProgress / 0.6;
+                scale = 0.95 + (0.07 * scaleProgress); // 0.95 to 1.02
+            } else {
+                // 0.6 to 1.0: scale from 1.02 to 1.0
+                const scaleProgress = (easeProgress - 0.6) / 0.4;
+                scale = 1.02 - (0.02 * scaleProgress); // 1.02 to 1.0
+            }
+            
+            // Apply transform with preserved rotation
+            const newTransform = rotation ? `${rotation} translateZ(0) scale(${scale})` : `translateZ(0) scale(${scale})`;
+            item.style.transform = newTransform;
+            
+            if (progress < 1) {
+                requestAnimationFrame(animateScale);
+            } else {
+                // Animation complete - restore original transform or apply final transform
+                const finalTransform = rotation ? `${rotation} translateZ(0)` : 'translateZ(0)';
+                item.style.transform = finalTransform;
+                item.classList.remove('fade-in-animation');
+            }
+        };
+        
+        requestAnimationFrame(animateScale);
     }, delay);
     
     // Center the text item if it's not from database and using viewport center
@@ -592,22 +748,74 @@ function createCodeItem(htmlContent, x = null, y = null, width = 400, height = 3
     item.appendChild(iframe);
     canvas.appendChild(item);
     
-    // Add fade-in animation with subtle staggered delay
+    // Add enhanced fade-in animation with multiple approaches
     let delay = 0;
     
     if (window.isInitialLoad) {
-        // Very subtle stagger for initial load - much faster
-        delay = window.initialLoadIndex * 15; // Just 15ms between each item
+        // Batch-based ripple effect with subtle variation within batches
+        const batchProgress = window.currentBatch / Math.max(1, window.totalBatches - 1);
+        const itemVariation = window.itemIndexInBatch * 8; // 8ms between items in batch
+        const distanceDelay = Math.min(50, batchProgress * 50); // Progressive delay based on distance
+        delay = distanceDelay + itemVariation;
     } else {
-        // Minimal delay for all other items to keep it responsive
-        delay = Math.random() * 20; // Random 0-20ms delay for natural feel
+        // Smooth delay for other items (user-created or lazy-loaded)
+        const baseDelay = fromDatabase ? 30 : 10;
+        const variation = Math.random() * 15;
+        delay = baseDelay + variation;
     }
     
     setTimeout(() => {
+        // Get existing transform (rotation) before animation
+        const existingTransform = item.style.transform || '';
+        const rotation = existingTransform.match(/rotate\([^)]+\)/) ? existingTransform.match(/rotate\([^)]+\)/)[0] : '';
+        
+        // Apply initial scale with preserved rotation
+        const initialTransform = rotation ? `${rotation} translateZ(0) scale(0.95)` : 'translateZ(0) scale(0.95)';
+        item.style.transform = initialTransform;
+        
+        // Start fade-in animation
         item.classList.add('fade-in-animation');
-        setTimeout(() => {
-            item.classList.remove('fade-in-animation');
-        }, 500);
+        
+        // Animate scale manually with rotation preserved
+        const startTime = performance.now();
+        const duration = 600;
+        
+        const animateScale = (currentTime) => {
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            
+            // Cubic bezier easing: (0.25, 0.46, 0.45, 0.94)
+            const easeProgress = progress < 0.5 
+                ? 2 * progress * progress 
+                : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+                
+            // Scale progression: 0.95 -> 1.02 -> 1.0
+            let scale;
+            if (easeProgress < 0.6) {
+                // 0 to 0.6: scale from 0.95 to 1.02
+                const scaleProgress = easeProgress / 0.6;
+                scale = 0.95 + (0.07 * scaleProgress); // 0.95 to 1.02
+            } else {
+                // 0.6 to 1.0: scale from 1.02 to 1.0
+                const scaleProgress = (easeProgress - 0.6) / 0.4;
+                scale = 1.02 - (0.02 * scaleProgress); // 1.02 to 1.0
+            }
+            
+            // Apply transform with preserved rotation
+            const newTransform = rotation ? `${rotation} translateZ(0) scale(${scale})` : `translateZ(0) scale(${scale})`;
+            item.style.transform = newTransform;
+            
+            if (progress < 1) {
+                requestAnimationFrame(animateScale);
+            } else {
+                // Animation complete - restore original transform or apply final transform
+                const finalTransform = rotation ? `${rotation} translateZ(0)` : 'translateZ(0)';
+                item.style.transform = finalTransform;
+                item.classList.remove('fade-in-animation');
+            }
+        };
+        
+        requestAnimationFrame(animateScale);
     }, delay);
     
     // Add the interaction overlay after the item is in the DOM

@@ -284,32 +284,67 @@ async function loadCanvasData() {
         // Get viewport-aware items to load initially
         const itemsToLoad = getInitialItemsToLoad(sortedItems);
         
-        // Create items from database data with viewport optimization
+        // Create items from database data with distance-based ripple effect
         if (DEBUG_MODE) console.log(`Creating ${itemsToLoad.length} of ${sortedItems.length} items initially`);
         
-        // Set a global flag to indicate we're loading initial items
-        window.isInitialLoad = true;
-        window.initialLoadIndex = 0;
+        // Get viewport center for distance calculations
+        const viewportCenter = ViewportModule.getViewportCenter();
         
-        itemsToLoad.forEach((itemData, index) => {
-            try {
-                if (DEBUG_MODE) console.log(`Creating initial item ${index + 1}:`, itemData);
-                window.initialLoadIndex = index; // Track current item index
-                const item = createItemFromData(itemData);
-                if (item) {
-                    loadedItems.add(itemData.id);
-                }
-                if (DEBUG_MODE) console.log(`Item ${index + 1} created:`, item);
-            } catch (error) {
-                console.error('Error creating item from data:', error, itemData);
-            }
+        // Sort items by distance from center for ripple effect
+        const itemsWithDistance = itemsToLoad.map(itemData => {
+            const itemX = itemData.x + (itemData.width / 2);
+            const itemY = itemData.y + (itemData.height / 2);
+            const distance = Math.sqrt(
+                Math.pow(itemX - viewportCenter.x, 2) + 
+                Math.pow(itemY - viewportCenter.y, 2)
+            );
+            return { ...itemData, distance };
+        }).sort((a, b) => a.distance - b.distance);
+        
+        // Create distance-based batches for smooth ripple effect
+        const batchSize = Math.max(1, Math.min(3, Math.ceil(itemsWithDistance.length / 8)));
+        const batches = [];
+        for (let i = 0; i < itemsWithDistance.length; i += batchSize) {
+            batches.push(itemsWithDistance.slice(i, i + batchSize));
+        }
+        
+        // Set global flags for enhanced animation
+        window.isInitialLoad = true;
+        window.currentBatch = 0;
+        window.totalBatches = batches.length;
+        
+        // Load batches with progressive delays (ripple effect)
+        batches.forEach((batch, batchIndex) => {
+            const batchDelay = batchIndex * 40; // 40ms between batches
+            
+            setTimeout(() => {
+                window.currentBatch = batchIndex;
+                
+                batch.forEach((itemData, indexInBatch) => {
+                    try {
+                        window.itemIndexInBatch = indexInBatch;
+                        window.batchSize = batch.length;
+                        
+                        if (DEBUG_MODE) console.log(`Creating item in batch ${batchIndex + 1}/${batches.length}, item ${indexInBatch + 1}/${batch.length}:`, itemData);
+                        
+                        const item = createItemFromData(itemData);
+                        if (item) {
+                            loadedItems.add(itemData.id);
+                        }
+                    } catch (error) {
+                        console.error('Error creating item from data:', error, itemData);
+                    }
+                });
+            }, batchDelay);
         });
         
-        // Clear the initial load flag after a delay
+        // Clear the initial load flags after all batches
+        const totalLoadTime = batches.length * 40 + 200;
         setTimeout(() => {
             window.isInitialLoad = false;
-            window.initialLoadIndex = 0;
-        }, 100);
+            window.currentBatch = 0;
+            window.totalBatches = 0;
+        }, totalLoadTime);
         
         // Setup lazy loading observer for remaining items
         setupLazyItemLoading();
