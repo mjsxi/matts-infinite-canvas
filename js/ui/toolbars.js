@@ -4,10 +4,12 @@
 // Get toolbar elements
 const textToolbar = document.getElementById('textToolbar');
 const drawToolbar = document.getElementById('drawToolbar');
+const codeToolbar = document.getElementById('codeToolbar');
 
 // Text toolbar debounced save
 let textUpdateTimeout = null;
 let drawingUpdateTimeout = null;
+let codeUpdateTimeout = null;
 
 function debouncedSaveTextItem() {
     if (textUpdateTimeout) {
@@ -260,6 +262,85 @@ function bindDrawToolbarEvents() {
     if (strokeThickness) strokeThickness.addEventListener('input', handleStrokeThicknessChange);
 }
 
+function debouncedSaveCodeItem() {
+    if (codeUpdateTimeout) {
+        clearTimeout(codeUpdateTimeout);
+    }
+    codeUpdateTimeout = setTimeout(() => {
+        if (selectedItem && selectedItem.dataset.type === 'code') {
+            DatabaseModule.saveItemToDatabase(selectedItem);
+        }
+    }, 300);
+}
+
+// Code Toolbar Functions
+function showCodeToolbar(codeItem) {
+    if (!isAuthenticated || !codeItem.classList.contains('code-item')) return;
+    
+    // Hide other toolbars
+    hideTextToolbar();
+    hideDrawToolbar();
+    
+    // Get current play button visibility setting
+    const showPlayButton = codeItem.dataset.showPlayButton !== 'false'; // default to true
+    
+    // Set dropdown value
+    const showPlayButtonSelect = document.getElementById('showPlayButton');
+    if (showPlayButtonSelect) {
+        showPlayButtonSelect.value = showPlayButton ? 'true' : 'false';
+    }
+    
+    codeToolbar.classList.remove('hidden');
+    
+    // Bind events if not already bound
+    bindCodeToolbarEvents();
+}
+
+function hideCodeToolbar() {
+    codeToolbar.classList.add('hidden');
+}
+
+function handleShowPlayButtonChange(e) {
+    if (selectedItem && selectedItem.dataset.type === 'code') {
+        const showPlayButton = e.target.value === 'true';
+        selectedItem.dataset.showPlayButton = showPlayButton;
+        
+        // Update the overlay visibility immediately
+        const overlay = selectedItem.querySelector('.code-interaction-overlay');
+        if (overlay) {
+            if (showPlayButton) {
+                // Show the play button overlay
+                overlay.style.display = 'flex';
+                overlay.style.visibility = 'visible';
+                overlay.style.pointerEvents = 'auto';
+            } else {
+                // Hide the play button overlay permanently
+                overlay.style.display = 'none';
+                overlay.style.visibility = 'hidden';
+                overlay.style.pointerEvents = 'none';
+                // Also ensure the item is not interactive
+                selectedItem.classList.remove('interactive');
+                const iframe = selectedItem.querySelector('iframe');
+                if (iframe) {
+                    iframe.style.pointerEvents = 'none';
+                }
+            }
+        }
+        
+        debouncedSaveCodeItem();
+    }
+}
+
+function bindCodeToolbarEvents() {
+    // Remove existing listeners to prevent duplicates
+    const showPlayButton = document.getElementById('showPlayButton');
+    
+    if (showPlayButton) showPlayButton.removeEventListener('change', handleShowPlayButtonChange);
+    
+    // Add new listeners
+    if (showPlayButton) showPlayButton.addEventListener('change', handleShowPlayButtonChange);
+}
+
 // Move Buttons Functions
 function showMoveButtons() {
     const bringToFrontBtn = document.getElementById('bringToFrontBtn');
@@ -404,6 +485,11 @@ function cleanupEventListeners() {
     
     if (strokeColor) strokeColor.removeEventListener('input', handleStrokeColorChange);
     if (strokeThickness) strokeThickness.removeEventListener('input', handleStrokeThicknessChange);
+    
+    // Remove code toolbar listeners
+    const showPlayButton = document.getElementById('showPlayButton');
+    
+    if (showPlayButton) showPlayButton.removeEventListener('change', handleShowPlayButtonChange);
 }
 
 // Export module
@@ -412,6 +498,8 @@ window.ToolbarModule = {
     hideTextToolbar,
     showDrawToolbar,
     hideDrawToolbar,
+    showCodeToolbar,
+    hideCodeToolbar,
     showMoveButtons,
     hideMoveButtons,
     handleFontFamilyChange,
@@ -425,12 +513,15 @@ window.ToolbarModule = {
     handleLineHeightChange,
     handleStrokeColorChange,
     handleStrokeThicknessChange,
+    handleShowPlayButtonChange,
     bindTextToolbarEvents,
     bindDrawToolbarEvents,
+    bindCodeToolbarEvents,
     closeModal,
     showStatus,
     cleanupEventListeners,
     rgbToHex,
     debouncedSaveTextItem,
-    debouncedSaveDrawingItem
+    debouncedSaveDrawingItem,
+    debouncedSaveCodeItem
 };

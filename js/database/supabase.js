@@ -97,7 +97,8 @@ async function saveItemToDatabase(item) {
         line_height: parseFloat(item.style.lineHeight) || 1.15,
         html_content: item.dataset.type === 'code' ? getItemContent(item) : (isDrawingItem ? item.dataset.viewBox : null),
         stroke_thickness: isDrawingItem ? parseFloat(item.querySelector('path')?.getAttribute('stroke-width')) || 4 : null,
-        stroke_color: isDrawingItem ? item.querySelector('path')?.getAttribute('stroke') || '#333333' : null
+        stroke_color: isDrawingItem ? item.querySelector('path')?.getAttribute('stroke') || '#333333' : null,
+        true_or_false: item.dataset.type === 'code' ? (item.dataset.showPlayButton !== 'false') : null
     };
 
     // Remove null values to avoid unnecessary database columns
@@ -585,6 +586,17 @@ function createItemFromData(data) {
             // Use html_content if available, fallback to content
             const codeContent = data.html_content || data.content;
             item = CreatorsModule.createCodeItem(codeContent, data.x, data.y, data.width, data.height, true);
+            // Set show play button setting from database
+            if (data.true_or_false !== null && data.true_or_false !== undefined) {
+                item.dataset.showPlayButton = data.true_or_false;
+                // Update overlay visibility based on setting
+                const overlay = item.querySelector('.code-interaction-overlay');
+                if (overlay && !data.true_or_false) {
+                    overlay.style.display = 'none';
+                    overlay.style.visibility = 'hidden';
+                    overlay.style.pointerEvents = 'none';
+                }
+            }
             break;
         case 'drawing':
             item = DrawingModule.createDrawingItem(data.content, data.stroke_color || '#333333', data.stroke_thickness || 4, data.x, data.y, data.width, data.height, true, data.html_content);

@@ -19,9 +19,9 @@ function selectItem(item) {
                 iframe.style.pointerEvents = 'none';
             }
             
-            // Restore the play button overlay
+            // Restore the play button overlay (only if showPlayButton is not disabled)
             const overlay = codeItem.querySelector('.code-interaction-overlay');
-            if (overlay) {
+            if (overlay && codeItem.dataset.showPlayButton !== 'false') {
                 overlay.style.display = 'flex';
                 overlay.style.opacity = '0.9';
                 overlay.style.visibility = 'visible';
@@ -70,6 +70,11 @@ function selectItem(item) {
         }
     }
     
+    // Show code toolbar if this is a code item and user is admin
+    if (item.classList.contains('code-item') && isAuthenticated) {
+        ToolbarModule.showCodeToolbar(item);
+    }
+    
     // Item selection complete
 }
 
@@ -83,9 +88,9 @@ function clearSelection() {
             iframe.style.pointerEvents = 'none';
         }
         
-        // Restore the play button overlay
+        // Restore the play button overlay (only if showPlayButton is not disabled)
         const overlay = codeItem.querySelector('.code-interaction-overlay');
-        if (overlay) {
+        if (overlay && codeItem.dataset.showPlayButton !== 'false') {
             overlay.style.display = 'flex';
             overlay.style.opacity = '0.9';
             overlay.style.visibility = 'visible';
@@ -105,9 +110,9 @@ function clearSelection() {
                 iframe.style.pointerEvents = 'none';
             }
             
-            // Restore the play button overlay
+            // Restore the play button overlay (only if showPlayButton is not disabled)
             const overlay = selectedItem.querySelector('.code-interaction-overlay');
-            if (overlay) {
+            if (overlay && selectedItem.dataset.showPlayButton !== 'false') {
                 overlay.style.display = 'flex';
                 overlay.style.opacity = '0.9';
                 overlay.style.visibility = 'visible';
@@ -145,6 +150,9 @@ function clearSelection() {
     
     // Hide draw toolbar
     ToolbarModule.hideDrawToolbar();
+    
+    // Hide code toolbar
+    ToolbarModule.hideCodeToolbar();
     
     // Selection cleared
 }

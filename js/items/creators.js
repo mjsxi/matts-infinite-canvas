@@ -676,6 +676,13 @@ function addInteractionOverlay(item) {
     }
     
     item.appendChild(interactionOverlay);
+    
+    // Check if play button should be hidden based on item setting
+    if (item.dataset.showPlayButton === 'false') {
+        interactionOverlay.style.display = 'none';
+        interactionOverlay.style.visibility = 'hidden';
+        interactionOverlay.style.pointerEvents = 'none';
+    }
 }
 
 // Function to pause all other active code items
@@ -690,9 +697,9 @@ function pauseAllOtherCodeItems(currentItem) {
                 iframe.style.pointerEvents = 'none';
             }
             
-            // Show the play button again
+            // Show the play button again (only if showPlayButton is not disabled)
             const overlay = codeItem.querySelector('.code-interaction-overlay');
-            if (overlay) {
+            if (overlay && codeItem.dataset.showPlayButton !== 'false') {
                 overlay.style.display = 'flex';
                 overlay.style.opacity = '0.9';
                 overlay.style.visibility = 'visible';
@@ -723,9 +730,9 @@ function setupCodeItemAutoPause() {
                 iframe.style.pointerEvents = 'none';
             }
             
-            // Show the play button again
+            // Show the play button again (only if showPlayButton is not disabled)
             const overlay = item.querySelector('.code-interaction-overlay');
-            if (overlay) {
+            if (overlay && item.dataset.showPlayButton !== 'false') {
                 console.log('✅ Restoring button for item:', item.dataset.id);
                 overlay.style.display = 'flex';
                 overlay.style.opacity = '0.9';
@@ -735,7 +742,11 @@ function setupCodeItemAutoPause() {
                 // Force a style recalculation
                 overlay.offsetHeight; // Trigger reflow
             } else {
-                console.log('❌ No overlay found for item:', item.dataset.id);
+                if (overlay && item.dataset.showPlayButton === 'false') {
+                    console.log('🚫 Play button disabled for item:', item.dataset.id);
+                } else {
+                    console.log('❌ No overlay found for item:', item.dataset.id);
+                }
             }
         });
     };

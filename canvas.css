@@ -1305,3 +1305,37 @@ body {
         will-change: transform;
     }
 }
+
+/* Code Toolbar Specific Styles */
+.code-play-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 88px;
+}
+
+.code-dropdown {
+    background: transparent;
+    border: none;
+    color: #ffffff;
+    font-family: 'Antarctica VAR', sans-serif;
+    font-size: 16px;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    cursor: pointer;
+    padding: 0;
+    margin: 0;
+    width: 60px;
+}
+
+.code-dropdown option {
+    background: #333;
+    color: white;
+}
+
+/* Override width for code toolbar items */
+.code-play-toggle .text-control-item {
+    width: 88px;
+}
