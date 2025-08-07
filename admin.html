@@ -3,55 +3,113 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Admin Login - Infinite Canvas</title>
+    <title>Login - Infinite Canvas</title>
     <link rel="stylesheet" href="canvas.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-    <!-- Admin Login -->
+    <!-- Enhanced Login Page -->
     <div class="admin-login">
         <div class="login-form">
-            <h2>Admin Login</h2>
-            <div class="input-container">
-                <div class="password-input">
-                    <input type="password" id="adminPassword" placeholder="Password">
-                </div>
-                <div class="login-button">
-                    <button onclick="login()">Login</button>
+            <!-- Simple Admin Login -->
+            <div id="adminLoginForm" class="auth-form-container">
+                <h2>Admin Access</h2>
+                <div class="input-container">
+                    <input type="password" id="adminPassword" placeholder="Admin Password">
+                    <button onclick="adminLogin()" class="login-btn">Login</button>
                 </div>
             </div>
+
+            <!-- Status Messages -->
+            <div id="statusMessage" class="status-message"></div>
         </div>
     </div>
 
     <script>
-        // Admin password (same as in canvas.js)
-        const ADMIN_PASSWORD = 'canvas123';
+        function showStatus(message, isError = false) {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.textContent = message;
+            statusEl.className = isError ? 'status-message error' : 'status-message success';
+        }
         
-        function login() {
+        function clearStatus() {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.textContent = '';
+            statusEl.className = 'status-message';
+        }
+        
+        // Secure Admin Login via server
+        async function adminLogin() {
             const password = document.getElementById('adminPassword').value;
-            if (password === ADMIN_PASSWORD) {
-                // Set authentication in localStorage
-                localStorage.setItem('canvas_admin_auth', 'true');
+            
+            if (!password) {
+                showStatus('Please enter password', true);
+                return;
+            }
+            
+            try {
+                showStatus('Verifying password...');
                 
-                // Redirect to main canvas with admin parameter
-                window.location.href = '/index.html?admin=true';
-            } else {
-                alert('Invalid password');
+                const response = await fetch('/api/auth/admin-login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ password })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showStatus('Login successful! Redirecting...');
+                    setTimeout(() => {
+                        window.location.href = '/index.html';
+                    }, 1000);
+                } else {
+                    showStatus(data.error || 'Invalid password', true);
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                showStatus('Network error - please try again', true);
             }
         }
         
-        // Handle Enter key
+        // Handle Enter key for admin login
         document.addEventListener('keydown', function(e) {
             if (e.target.id === 'adminPassword' && e.key === 'Enter') {
-                login();
+                adminLogin();
             }
         });
         
-        // Check if already authenticated
-        if (localStorage.getItem('canvas_admin_auth') === 'true') {
-            // Already logged in, redirect to main canvas
-            window.location.href = '/index.html?admin=true';
+        // Check if already authenticated on page load
+        async function checkExistingAuth() {
+            try {
+                const response = await fetch('/api/auth/verify', {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+                
+                const data = await response.json();
+                
+                if (data.authenticated && data.isAdmin) {
+                    showStatus('Already logged in! Redirecting...');
+                    setTimeout(() => {
+                        window.location.href = '/index.html';
+                    }, 1000);
+                    return;
+                }
+            } catch (error) {
+                console.log('Auth check failed, showing login form');
+            }
         }
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            checkExistingAuth();
+            // Focus on password input
+            document.getElementById('adminPassword').focus();
+        });
     </script>
 </body>
 </html> 

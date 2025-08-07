@@ -7,23 +7,15 @@
     }
   },
   "env": {
-    "SUPABASE_URL": "@supabase_url",
-    "SUPABASE_SERVICE_KEY": "@supabase_service_key",
+    "ADMIN_PASSWORD_HASH": "@admin_password_hash",
     "JWT_SECRET": "@jwt_secret"
   },
   "build": {
     "env": {
-      "SUPABASE_URL": "@supabase_url",
-      "SUPABASE_SERVICE_KEY": "@supabase_service_key", 
+      "ADMIN_PASSWORD_HASH": "@admin_password_hash",
       "JWT_SECRET": "@jwt_secret"
     }
   },
-  "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "/api/$1"
-    }
-  ],
   "headers": [
     {
       "source": "/(.*)",
@@ -55,7 +47,7 @@
         },
         {
           "key": "Access-Control-Allow-Methods",
-          "value": "GET,OPTIONS,PATCH,DELETE,POST,PUT"
+          "value": "GET,OPTIONS,POST"
         },
         {
           "key": "Access-Control-Allow-Headers",

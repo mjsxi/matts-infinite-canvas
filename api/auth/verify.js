@@ -1,4 +1,4 @@
-// Vercel serverless function to verify authentication status
+// Vercel serverless function to verify admin authentication
 import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -9,27 +9,36 @@ export default async function handler(req, res) {
   }
 
   try {
-    const token = req.cookies['auth-token'];
+    const token = req.cookies['admin-token'];
 
     if (!token) {
-      return res.status(401).json({ authenticated: false });
+      return res.status(200).json({ authenticated: false });
+    }
+
+    if (!JWT_SECRET) {
+      console.error('Missing JWT_SECRET environment variable');
+      return res.status(500).json({ error: 'Server configuration error' });
     }
 
     // Verify JWT token
     const decoded = jwt.verify(token, JWT_SECRET);
 
-    return res.status(200).json({
-      authenticated: true,
-      user: {
-        id: decoded.userId,
-        username: decoded.username,
-        role: decoded.role,
-        isAdmin: decoded.isAdmin
-      }
-    });
+    if (decoded.role === 'admin') {
+      return res.status(200).json({
+        authenticated: true,
+        isAdmin: true,
+        role: 'admin'
+      });
+    } else {
+      return res.status(200).json({ authenticated: false });
+    }
 
   } catch (error) {
+    if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
+      return res.status(200).json({ authenticated: false });
+    }
+    
     console.error('Token verification error:', error);
-    return res.status(401).json({ authenticated: false });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 }

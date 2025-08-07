@@ -1,49 +1,33 @@
 // Authentication and admin functionality module
 // Handles login/logout, admin features, center point management
 
-function checkAuth() {
-    // Priority 1: Check server-side authentication first
-    if (window.ServerAuth) {
-        window.ServerAuth.checkServerAuth().then(authenticated => {
-            if (authenticated) {
-                // Server auth successful, no need for legacy checks
-                return;
-            } else {
-                // Fall back to legacy authentication checks
-                checkLegacyAuth();
-            }
+async function checkAuth() {
+    try {
+        // Check server-side authentication first
+        const response = await fetch('/api/auth/verify', {
+            method: 'GET',
+            credentials: 'include'
         });
-    } else {
-        // Server auth not available, use legacy auth
-        checkLegacyAuth();
-    }
-}
-
-function checkLegacyAuth() {
-    // Check for admin parameter (from admin.html redirect)
-    const urlParams = new URLSearchParams(window.location.search);
-    const adminParam = urlParams.get('admin');
-    if (adminParam === 'true') {
-        // Auto-login from admin page
-        isAuthenticated = true;
-        const timestamp = new Date().getTime();
-        localStorage.setItem('canvas_admin_auth', JSON.stringify({ timestamp }));
         
-        // Redirect to root page (removing the parameter from URL)
-        window.history.replaceState({}, '', '/');
+        const data = await response.json();
         
-        updateAuthBodyClass();
-        AppGlobals.showCanvas(true); // Show canvas in admin mode
-        ToolbarModule.showStatus('Logged in via admin page');
-        
-        // Show center indicator for admin users
-        if (centerPoint && window.AdminModule) {
-            window.AdminModule.showCenterIndicator(centerPoint.x, centerPoint.y);
+        if (data.authenticated && data.isAdmin) {
+            isAuthenticated = true;
+            updateAuthBodyClass();
+            AppGlobals.showCanvas(true); // Show canvas in admin mode
+            ToolbarModule.showStatus('Logged in as admin');
+            
+            // Show center indicator for admin users
+            if (centerPoint && window.AdminModule) {
+                window.AdminModule.showCenterIndicator(centerPoint.x, centerPoint.y);
+            }
+            return;
         }
-        return;
+    } catch (error) {
+        console.log('Server auth check failed, checking legacy auth');
     }
     
-    // Fall back to localStorage authentication
+    // Fall back to localStorage authentication for backward compatibility
     const storedAuth = localStorage.getItem('canvas_admin_auth');
     if (storedAuth) {
         try {
@@ -54,8 +38,8 @@ function checkLegacyAuth() {
             if ((now - authData.timestamp) < expirationTime) {
                 isAuthenticated = true;
                 AppGlobals.showCanvas(true); // Show canvas in admin mode
-                // Valid admin session found in localStorage
                 updateAuthBodyClass();
+                ToolbarModule.showStatus('Logged in via legacy auth');
                 
                 // Show center indicator for admin users
                 if (centerPoint && window.AdminModule) {
@@ -65,6 +49,7 @@ function checkLegacyAuth() {
             }
         } catch (e) {
             console.error('Error parsing stored auth:', e);
+            localStorage.removeItem('canvas_admin_auth');
         }
     }
     
@@ -138,33 +123,43 @@ function login() {
     }
 }
 
-function logout() {
-    // Use server logout if available, otherwise use legacy logout
-    if (window.ServerAuth && window.ServerAuth.getCurrentUser()) {
-        window.ServerAuth.serverLogout();
-    } else {
-        // Legacy logout
-        isAuthenticated = false;
-        localStorage.removeItem('canvas_admin_auth');
-        updateAuthBodyClass();
-        
-        // Clean up real-time subscription
-        if (realtimeChannel) {
-            supabaseClient.removeChannel(realtimeChannel);
-            realtimeChannel = null;
-        }
-        
-        // Clean up any selected items
-        ItemsModule.clearSelection();
-        
-        // Remove center indicator when logging out
-        const existingIndicator = document.querySelector('.center-indicator');
-        if (existingIndicator) {
-            existingIndicator.remove();
-        }
-        
-        ToolbarModule.showStatus('Logged out');
+async function logout() {
+    try {
+        // Try server-side logout first
+        await fetch('/api/auth/logout', {
+            method: 'POST',
+            credentials: 'include'
+        });
+    } catch (error) {
+        console.log('Server logout failed, using local logout');
     }
+    
+    // Clean up client-side state
+    isAuthenticated = false;
+    localStorage.removeItem('canvas_admin_auth');
+    updateAuthBodyClass();
+    
+    // Clean up real-time subscription
+    if (realtimeChannel) {
+        supabaseClient.removeChannel(realtimeChannel);
+        realtimeChannel = null;
+    }
+    
+    // Clean up any selected items
+    ItemsModule.clearSelection();
+    
+    // Remove center indicator when logging out
+    const existingIndicator = document.querySelector('.center-indicator');
+    if (existingIndicator) {
+        existingIndicator.remove();
+    }
+    
+    ToolbarModule.showStatus('Logged out');
+    
+    // Redirect to login page after a short delay
+    setTimeout(() => {
+        window.location.href = '/admin.html';
+    }, 1000);
 }
 
 function goToAdminPage() {
@@ -274,21 +269,17 @@ function sendToBack() {
 function showAdminInterface() {
     const adminButtons = document.getElementById('adminButtons');
     const centerBtn = document.getElementById('centerBtn');
-    const loginBtn = document.getElementById('loginBtn');
     
     if (adminButtons) adminButtons.classList.remove('hidden');
     if (centerBtn) centerBtn.classList.add('hidden');
-    if (loginBtn) loginBtn.classList.add('hidden');
 }
 
 function showGuestInterface() {
     const adminButtons = document.getElementById('adminButtons');
     const centerBtn = document.getElementById('centerBtn');
-    const loginBtn = document.getElementById('loginBtn');
     
     if (adminButtons) adminButtons.classList.add('hidden');
     if (centerBtn) centerBtn.classList.remove('hidden');
-    if (loginBtn) loginBtn.classList.remove('hidden');
 }
 
 // Session Management

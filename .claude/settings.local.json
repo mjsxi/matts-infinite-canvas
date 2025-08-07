@@ -14,7 +14,9 @@
       "mcp__figma-dev-mode-mcp-server__get_image",
       "Bash(mkdir:*)",
       "Bash(open -a \"Google Chrome\" index.html)",
-      "Bash(open:*)"
+      "Bash(open:*)",
+      "Bash(npm install)",
+      "Bash(git rm:*)"
     ],
     "deny": []
   }

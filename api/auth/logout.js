@@ -1,4 +1,4 @@
-// Vercel serverless function for user logout
+// Vercel serverless function for admin logout
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -6,9 +6,12 @@ export default async function handler(req, res) {
 
   // Clear authentication cookies
   res.setHeader('Set-Cookie', [
-    'auth-token=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0',
-    'user-role=; Secure; SameSite=Strict; Path=/; Max-Age=0'
+    'admin-token=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0',
+    'admin-role=; Secure; SameSite=Strict; Path=/; Max-Age=0'
   ]);
 
-  return res.status(200).json({ success: true, message: 'Logged out successfully' });
+  return res.status(200).json({ 
+    success: true, 
+    message: 'Admin logged out successfully' 
+  });
 }
