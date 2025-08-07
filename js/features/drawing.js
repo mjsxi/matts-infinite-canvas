@@ -136,6 +136,35 @@ function createDrawingItem(pathData, strokeColor, strokeThickness, x, y, width, 
     
     canvas.appendChild(item);
     
+    // Add enhanced fade-in animation with multiple approaches
+    let delay = 0;
+    
+    if (window.isInitialLoad) {
+        // Batch-based ripple effect with subtle variation within batches
+        const batchProgress = window.currentBatch / Math.max(1, window.totalBatches - 1);
+        const itemVariation = window.itemIndexInBatch * 8; // 8ms between items in batch
+        const distanceDelay = Math.min(50, batchProgress * 50); // Progressive delay based on distance
+        delay = distanceDelay + itemVariation;
+    } else {
+        // Smooth delay for other items (user-created or lazy-loaded)
+        const baseDelay = fromDatabase ? 30 : 10;
+        const variation = Math.random() * 15;
+        delay = baseDelay + variation;
+    }
+    
+    // Use the shared animation function from CreatorsModule
+    if (window.CreatorsModule && window.CreatorsModule.startFadeInAnimation) {
+        window.CreatorsModule.startFadeInAnimation(item, delay);
+    } else {
+        // Fallback if function not available
+        setTimeout(() => {
+            item.classList.add('fade-in-animation');
+            setTimeout(() => {
+                item.classList.remove('fade-in-animation');
+            }, 600);
+        }, delay);
+    }
+    
     if (!fromDatabase) {
         ItemsModule.selectItem(item);
         DatabaseModule.saveItemToDatabase(item);

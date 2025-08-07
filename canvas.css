@@ -411,6 +411,21 @@ body {
     }
 }
 
+/* Canvas item fade-in animation - opacity only to preserve transforms */
+@keyframes canvas-item-fade-in {
+    0% {
+        opacity: 0;
+    }
+    100% {
+        opacity: 1;
+    }
+}
+
+.canvas-item.fade-in-animation {
+    animation: canvas-item-fade-in 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+    opacity: 0;
+}
+
 .canvas-item:hover {
     border-color: var(--canvas-item-border-hover);
     box-shadow: var(--canvas-item-shadow-hover);
