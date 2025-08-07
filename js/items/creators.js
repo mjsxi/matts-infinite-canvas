@@ -154,6 +154,24 @@ function createImageItem(src, x = null, y = null, width = 200, height = 150, fro
     item.appendChild(img);
     canvas.appendChild(item);
     
+    // Add fade-in animation with subtle staggered delay
+    let delay = 0;
+    
+    if (window.isInitialLoad) {
+        // Very subtle stagger for initial load - much faster
+        delay = window.initialLoadIndex * 15; // Just 15ms between each item
+    } else {
+        // Minimal delay for all other items to keep it responsive
+        delay = Math.random() * 20; // Random 0-20ms delay for natural feel
+    }
+    
+    setTimeout(() => {
+        item.classList.add('fade-in-animation');
+        setTimeout(() => {
+            item.classList.remove('fade-in-animation');
+        }, 500);
+    }, delay);
+    
     if (!fromDatabase) {
         ItemsModule.selectItem(item);
         // Save immediately with initial dimensions
@@ -276,6 +294,24 @@ function createVideoItem(src, x = null, y = null, width = 400, height = 300, fro
     
     item.appendChild(video);
     canvas.appendChild(item);
+    
+    // Add fade-in animation with subtle staggered delay
+    let delay = 0;
+    
+    if (window.isInitialLoad) {
+        // Very subtle stagger for initial load - much faster
+        delay = window.initialLoadIndex * 15; // Just 15ms between each item
+    } else {
+        // Minimal delay for all other items to keep it responsive
+        delay = Math.random() * 20; // Random 0-20ms delay for natural feel
+    }
+    
+    setTimeout(() => {
+        item.classList.add('fade-in-animation');
+        setTimeout(() => {
+            item.classList.remove('fade-in-animation');
+        }, 500);
+    }, delay);
     
     // Ensure video autoplay works on mobile with multiple attempts
     setTimeout(() => {
@@ -464,6 +500,24 @@ function createTextItem(content = 'Double-click to edit text...', x = null, y = 
     
     canvas.appendChild(item);
     
+    // Add fade-in animation with subtle staggered delay
+    let delay = 0;
+    
+    if (window.isInitialLoad) {
+        // Very subtle stagger for initial load - much faster
+        delay = window.initialLoadIndex * 15; // Just 15ms between each item
+    } else {
+        // Minimal delay for all other items to keep it responsive
+        delay = Math.random() * 20; // Random 0-20ms delay for natural feel
+    }
+    
+    setTimeout(() => {
+        item.classList.add('fade-in-animation');
+        setTimeout(() => {
+            item.classList.remove('fade-in-animation');
+        }, 500);
+    }, delay);
+    
     // Center the text item if it's not from database and using viewport center
     if (!fromDatabase && x !== null && y !== null) {
         // Force layout calculation to get actual dimensions
@@ -537,6 +591,24 @@ function createCodeItem(htmlContent, x = null, y = null, width = 400, height = 3
     
     item.appendChild(iframe);
     canvas.appendChild(item);
+    
+    // Add fade-in animation with subtle staggered delay
+    let delay = 0;
+    
+    if (window.isInitialLoad) {
+        // Very subtle stagger for initial load - much faster
+        delay = window.initialLoadIndex * 15; // Just 15ms between each item
+    } else {
+        // Minimal delay for all other items to keep it responsive
+        delay = Math.random() * 20; // Random 0-20ms delay for natural feel
+    }
+    
+    setTimeout(() => {
+        item.classList.add('fade-in-animation');
+        setTimeout(() => {
+            item.classList.remove('fade-in-animation');
+        }, 500);
+    }, delay);
     
     // Add the interaction overlay after the item is in the DOM
     addInteractionOverlay(item);

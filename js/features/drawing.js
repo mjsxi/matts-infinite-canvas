@@ -136,6 +136,24 @@ function createDrawingItem(pathData, strokeColor, strokeThickness, x, y, width, 
     
     canvas.appendChild(item);
     
+    // Add fade-in animation with subtle staggered delay
+    let delay = 0;
+    
+    if (window.isInitialLoad) {
+        // Very subtle stagger for initial load - much faster
+        delay = window.initialLoadIndex * 15; // Just 15ms between each item
+    } else {
+        // Minimal delay for all other items to keep it responsive
+        delay = Math.random() * 20; // Random 0-20ms delay for natural feel
+    }
+    
+    setTimeout(() => {
+        item.classList.add('fade-in-animation');
+        setTimeout(() => {
+            item.classList.remove('fade-in-animation');
+        }, 500);
+    }, delay);
+    
     if (!fromDatabase) {
         ItemsModule.selectItem(item);
         DatabaseModule.saveItemToDatabase(item);

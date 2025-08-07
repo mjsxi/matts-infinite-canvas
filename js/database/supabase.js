@@ -286,9 +286,15 @@ async function loadCanvasData() {
         
         // Create items from database data with viewport optimization
         if (DEBUG_MODE) console.log(`Creating ${itemsToLoad.length} of ${sortedItems.length} items initially`);
+        
+        // Set a global flag to indicate we're loading initial items
+        window.isInitialLoad = true;
+        window.initialLoadIndex = 0;
+        
         itemsToLoad.forEach((itemData, index) => {
             try {
                 if (DEBUG_MODE) console.log(`Creating initial item ${index + 1}:`, itemData);
+                window.initialLoadIndex = index; // Track current item index
                 const item = createItemFromData(itemData);
                 if (item) {
                     loadedItems.add(itemData.id);
@@ -298,6 +304,12 @@ async function loadCanvasData() {
                 console.error('Error creating item from data:', error, itemData);
             }
         });
+        
+        // Clear the initial load flag after a delay
+        setTimeout(() => {
+            window.isInitialLoad = false;
+            window.initialLoadIndex = 0;
+        }, 100);
         
         // Setup lazy loading observer for remaining items
         setupLazyItemLoading();
