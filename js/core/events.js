@@ -43,12 +43,14 @@ function bindEvents() {
 }
 
 function handleMouseDown(e) {
+    // Check for center setting first - allow clicking anywhere on canvas including items
+    if (isSettingCenter) {
+        const canvasPos = ViewportModule.screenToCanvas(e.clientX, e.clientY);
+        setCenterPoint(canvasPos.x, canvasPos.y);
+        return;
+    }
+    
     if (e.target === container || e.target === canvas) {
-        if (isSettingCenter) {
-            const canvasPos = ViewportModule.screenToCanvas(e.clientX, e.clientY);
-            setCenterPoint(canvasPos.x, canvasPos.y);
-            return;
-        }
         
         if (isDrawMode && isAuthenticated) {
             // Start drawing
@@ -254,6 +256,15 @@ function handleWheel(e) {
 
 function handleTouchStart(e) {
     if (e.touches.length === 1) {
+        // Check for center setting first - allow touching anywhere on canvas including items
+        if (isSettingCenter) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const canvasPos = ViewportModule.screenToCanvas(touch.clientX, touch.clientY);
+            setCenterPoint(canvasPos.x, canvasPos.y);
+            return;
+        }
+        
         // Single finger - handle panning
         e.preventDefault();
         
