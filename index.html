@@ -29,6 +29,20 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
+    <!-- Mobile Loading Screen -->
+    <div id="mobileLoader" class="mobile-loader">
+        <div class="mobile-loader-content">
+            <!-- Favicon Icon -->
+            <div class="mobile-loader-icon">
+                <img src="icons/favicon.svg" alt="Loading" />
+            </div>
+            <!-- Progress Bar -->
+            <div class="mobile-loader-progress-bg">
+                <div class="mobile-loader-progress-fill"></div>
+            </div>
+        </div>
+    </div>
+
     <!-- Main Canvas -->
     <div id="canvasContainer" class="canvas-container hidden">
         <div id="canvas" class="canvas">

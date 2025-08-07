@@ -11,6 +11,11 @@
     }
     
     if (!isMobileDevice()) {
+        // Hide loader immediately on desktop
+        const loader = document.getElementById('mobileLoader');
+        if (loader) {
+            loader.remove();
+        }
         return; // Exit if not mobile
     }
     
@@ -47,8 +52,28 @@
     let lastTouchUpdateTime = 0;
     const TOUCH_THROTTLE_INTERVAL = 16; // 60fps throttling
 
+    // Function to hide the mobile loader
+    function hideMobileLoader() {
+        const loader = document.getElementById('mobileLoader');
+        if (loader) {
+            loader.classList.add('fade-out');
+            setTimeout(() => {
+                loader.remove();
+            }, 500);
+        }
+    }
+
+    // Track if canvas is ready for touch
+    let canvasReady = false;
+
     // Mobile touch handlers with zoom limits
     function mobileHandleTouchStart(e) {
+        // Hide loader on first touch - canvas is now ready
+        if (!canvasReady) {
+            canvasReady = true;
+            hideMobileLoader();
+        }
+        
         if (e.touches.length === 1) {
             e.preventDefault();
             const touch = e.touches[0];
@@ -218,4 +243,12 @@
     } else {
         initMobileZoomLimits();
     }
+    
+    // Fallback: hide loader after 3 seconds if still visible
+    setTimeout(() => {
+        if (!canvasReady) {
+            canvasReady = true;
+            hideMobileLoader();
+        }
+    }, 3000);
 })();

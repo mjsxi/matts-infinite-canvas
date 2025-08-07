@@ -1,3 +1,85 @@
+/* Mobile loading screen */
+.mobile-loader {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #ffffff;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 1;
+    transition: opacity 0.5s ease-out;
+}
+
+.mobile-loader.fade-out {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.mobile-loader-content {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.mobile-loader-icon {
+    position: absolute;
+    top: calc(50% - 1.5px);
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 28px;
+    height: 28px;
+    overflow: hidden;
+}
+
+.mobile-loader-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.mobile-loader-progress-bg {
+    position: absolute;
+    top: calc(50% + 15px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: 20px;
+    height: 2px;
+    background-color: #e3e3e3;
+    border-radius: 1px;
+    overflow: hidden;
+}
+
+.mobile-loader-progress-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 5px;
+    background-color: #222222;
+    border-radius: 1px;
+    animation: mobile-loading 1.2s infinite linear;
+}
+
+@keyframes mobile-loading {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(500%);
+    }
+}
+
+/* Hide loader on desktop */
+@media only screen and (min-width: 769px) {
+    .mobile-loader {
+        display: none;
+    }
+}
+
 /* Mobile-specific zoom limits using CSS */
 
 @media only screen and (max-width: 768px), 
