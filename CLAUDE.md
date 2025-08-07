@@ -62,12 +62,10 @@ js/
 Since this is a vanilla HTML/CSS/JS application, simply open `index.html` in a web browser or serve it with a local web server:
 
 ```bash
-# Local development server (preferred)
-# Application runs on http://localhost:3000
 
 # Option 1: Simple HTTP server
-python -m http.server 8000
-# Then open http://localhost:8000
+# User always has project running on a localhost
+# Then open http://localhost:3000
 
 # Option 2: Node.js http-server
 npx http-server
