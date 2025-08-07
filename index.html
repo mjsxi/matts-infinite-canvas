@@ -165,6 +165,11 @@
             <img src="icons/center.svg" alt="Center">
         </button>
         
+        <!-- Login button - visible for guests -->
+        <button id="loginBtn" onclick="ServerAuth.showServerLoginModal()" class="toolbar-btn login-btn">
+            <img src="icons/login.svg" alt="Login">
+        </button>
+        
         <!-- Admin-only buttons - hidden for guests -->
         <div id="adminButtons" class="admin-buttons hidden">
             <button onclick="addImage()" class="toolbar-btn first-btn">
@@ -194,6 +199,41 @@
         </div>
     </div>
 
+    <!-- Server Auth Modal -->
+    <div id="serverLoginModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-tabs">
+                <button id="loginTab" class="tab-button active" onclick="ServerAuth.switchToLogin()">Login</button>
+                <button id="registerTab" class="tab-button" onclick="ServerAuth.switchToRegister()">Register</button>
+            </div>
+            
+            <!-- Login Form -->
+            <div id="loginForm" class="auth-form">
+                <form id="serverLoginForm" onsubmit="ServerAuth.handleServerLogin(event)">
+                    <input type="text" id="serverUsername" placeholder="Username" required>
+                    <input type="password" id="serverPassword" placeholder="Password" required>
+                    <div class="modal-buttons">
+                        <button type="submit">Login</button>
+                        <button type="button" onclick="ServerAuth.closeServerLoginModal()">Cancel</button>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Register Form -->
+            <div id="registerForm" class="auth-form hidden">
+                <form id="serverRegisterForm" onsubmit="ServerAuth.handleServerRegister(event)">
+                    <input type="text" id="registerUsername" placeholder="Username" required>
+                    <input type="email" id="registerEmail" placeholder="Email (optional)">
+                    <input type="password" id="registerPassword" placeholder="Password (min 6 chars)" required>
+                    <div class="modal-buttons">
+                        <button type="submit">Register</button>
+                        <button type="button" onclick="ServerAuth.closeServerLoginModal()">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- Code Modal -->
     <div id="codeModal" class="modal hidden">
         <div class="modal-content">
@@ -220,6 +260,7 @@
     
     <!-- Authentication and admin features -->
     <script src="js/auth/admin.js"></script>
+    <script src="js/auth/server-auth.js"></script>
     
     <!-- Database operations -->
     <script src="js/database/supabase.js"></script>

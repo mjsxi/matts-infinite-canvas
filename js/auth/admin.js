@@ -2,6 +2,24 @@
 // Handles login/logout, admin features, center point management
 
 function checkAuth() {
+    // Priority 1: Check server-side authentication first
+    if (window.ServerAuth) {
+        window.ServerAuth.checkServerAuth().then(authenticated => {
+            if (authenticated) {
+                // Server auth successful, no need for legacy checks
+                return;
+            } else {
+                // Fall back to legacy authentication checks
+                checkLegacyAuth();
+            }
+        });
+    } else {
+        // Server auth not available, use legacy auth
+        checkLegacyAuth();
+    }
+}
+
+function checkLegacyAuth() {
     // Check for admin parameter (from admin.html redirect)
     const urlParams = new URLSearchParams(window.location.search);
     const adminParam = urlParams.get('admin');
@@ -67,6 +85,9 @@ function updateAuthBodyClass() {
         document.body.classList.add('authenticated');
         document.body.classList.remove('guest');
         
+        // Show admin buttons, hide login button
+        showAdminInterface();
+        
         // Show center indicator for admin users
         if (centerPoint && window.AdminModule) {
             window.AdminModule.showCenterIndicator(centerPoint.x, centerPoint.y);
@@ -74,6 +95,9 @@ function updateAuthBodyClass() {
     } else {
         document.body.classList.add('guest');
         document.body.classList.remove('authenticated');
+        
+        // Hide admin buttons, show login button  
+        showGuestInterface();
         
         // Remove center indicator for guest users
         const existingIndicator = document.querySelector('.center-indicator');
@@ -115,27 +139,32 @@ function login() {
 }
 
 function logout() {
-    isAuthenticated = false;
-    localStorage.removeItem('canvas_admin_auth');
-    updateAuthBodyClass();
-    
-    // Clean up real-time subscription
-    if (realtimeChannel) {
-        supabaseClient.removeChannel(realtimeChannel);
-        realtimeChannel = null;
+    // Use server logout if available, otherwise use legacy logout
+    if (window.ServerAuth && window.ServerAuth.getCurrentUser()) {
+        window.ServerAuth.serverLogout();
+    } else {
+        // Legacy logout
+        isAuthenticated = false;
+        localStorage.removeItem('canvas_admin_auth');
+        updateAuthBodyClass();
+        
+        // Clean up real-time subscription
+        if (realtimeChannel) {
+            supabaseClient.removeChannel(realtimeChannel);
+            realtimeChannel = null;
+        }
+        
+        // Clean up any selected items
+        ItemsModule.clearSelection();
+        
+        // Remove center indicator when logging out
+        const existingIndicator = document.querySelector('.center-indicator');
+        if (existingIndicator) {
+            existingIndicator.remove();
+        }
+        
+        ToolbarModule.showStatus('Logged out');
     }
-    
-    // Clean up any selected items
-    ItemsModule.clearSelection();
-    
-    // Remove center indicator when logging out
-    const existingIndicator = document.querySelector('.center-indicator');
-    if (existingIndicator) {
-        existingIndicator.remove();
-    }
-    
-    // Redirect to root page
-    window.location.href = '/index.html';
 }
 
 function goToAdminPage() {
@@ -245,17 +274,21 @@ function sendToBack() {
 function showAdminInterface() {
     const adminButtons = document.getElementById('adminButtons');
     const centerBtn = document.getElementById('centerBtn');
+    const loginBtn = document.getElementById('loginBtn');
     
     if (adminButtons) adminButtons.classList.remove('hidden');
     if (centerBtn) centerBtn.classList.add('hidden');
+    if (loginBtn) loginBtn.classList.add('hidden');
 }
 
 function showGuestInterface() {
     const adminButtons = document.getElementById('adminButtons');
     const centerBtn = document.getElementById('centerBtn');
+    const loginBtn = document.getElementById('loginBtn');
     
     if (adminButtons) adminButtons.classList.add('hidden');
     if (centerBtn) centerBtn.classList.remove('hidden');
+    if (loginBtn) loginBtn.classList.remove('hidden');
 }
 
 // Session Management

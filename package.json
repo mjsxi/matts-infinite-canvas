@@ -1,0 +1,36 @@
+{
+  "name": "matts-infinite-canvas",
+  "version": "1.0.0",
+  "description": "A collaborative infinite canvas application with real-time sync",
+  "main": "index.html",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'Static site - no build step needed'",
+    "deploy": "vercel --prod"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "bcryptjs": "^2.4.3"
+  },
+  "devDependencies": {
+    "vercel": "^32.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "author": "Matt",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/matts-infinite-canvas.git"
+  },
+  "keywords": [
+    "canvas",
+    "collaboration",
+    "real-time",
+    "infinite",
+    "drawing",
+    "supabase"
+  ]
+}

@@ -1178,6 +1178,77 @@ body {
     background: #e2e8f0;
 }
 
+/* Authentication Modal Styles */
+.modal-tabs {
+    display: flex;
+    border-bottom: 2px solid var(--color-border);
+    margin-bottom: var(--spacing-xl);
+}
+
+.tab-button {
+    flex: 1;
+    padding: var(--spacing-lg) var(--spacing-xl);
+    background: transparent;
+    border: none;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--color-text-secondary);
+    transition: all 0.2s ease;
+    border-bottom: 2px solid transparent;
+}
+
+.tab-button:hover {
+    color: var(--color-text-primary);
+    background: var(--color-secondary);
+}
+
+.tab-button.active {
+    color: var(--color-primary);
+    border-bottom-color: var(--color-primary);
+}
+
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+}
+
+.auth-form input {
+    width: 100%;
+    padding: var(--input-padding);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: 16px;
+    transition: border-color 0.2s ease;
+    box-sizing: border-box;
+}
+
+.auth-form input:focus {
+    outline: none;
+    border-color: var(--color-border-focus);
+}
+
+.auth-form input:invalid {
+    border-color: var(--color-error);
+}
+
+.auth-form button[type="submit"] {
+    background: var(--gradient-primary);
+    color: white;
+    border: none;
+    padding: var(--spacing-lg) var(--spacing-xl);
+    border-radius: var(--radius-md);
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.auth-form button[type="submit"]:hover {
+    transform: translateY(-1px);
+}
+
 /* Center Indicator */
 .center-indicator {
     position: absolute;
