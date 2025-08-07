@@ -200,9 +200,9 @@ function optimizeCanvas() {
 
 // Memory management and viewport culling
 const CULLING_CONFIG = {
-    VIEWPORT_MARGIN: 1500,      // Pixels margin around viewport
-    DISTANT_ITEM_THRESHOLD: 3000, // Items beyond this distance are pooled
-    MAX_VISIBLE_ITEMS: 100,     // Maximum visible items at once
+    VIEWPORT_MARGIN: 2000,      // Pixels margin around viewport
+    DISTANT_ITEM_THRESHOLD: 8000, // Items beyond this distance are pooled (increased)
+    MAX_VISIBLE_ITEMS: 200,     // Maximum visible items at once (increased)
     MEMORY_PRESSURE_THRESHOLD: 80 * 1024 * 1024, // 80MB
     CLEANUP_INTERVAL: 10000     // Cleanup every 10 seconds
 };
@@ -263,15 +263,19 @@ function performViewportCulling() {
         if (isSelected) {
             itemsToShow.push(item);
             visibleItemCount++;
-        } else if (distanceFromViewport > CULLING_CONFIG.DISTANT_ITEM_THRESHOLD) {
-            // Items very far from viewport should be pooled
+        } else if (distanceFromViewport > CULLING_CONFIG.DISTANT_ITEM_THRESHOLD && checkMemoryPressure()) {
+            // Only pool items under memory pressure
             itemsToPool.push(item);
-        } else if (!isInViewport || visibleItemCount >= CULLING_CONFIG.MAX_VISIBLE_ITEMS) {
-            // Items outside viewport or exceeding max visible items
+        } else if (!isInViewport && visibleItemCount >= CULLING_CONFIG.MAX_VISIBLE_ITEMS) {
+            // Items outside viewport and exceeding max visible items
             itemsToHide.push(item);
-        } else {
+        } else if (isInViewport || visibleItemCount < CULLING_CONFIG.MAX_VISIBLE_ITEMS) {
+            // Show items that are in viewport or within visible limit
             itemsToShow.push(item);
             visibleItemCount++;
+        } else {
+            // Hide items that are outside viewport but don't pool them
+            itemsToHide.push(item);
         }
     });
     
@@ -297,8 +301,12 @@ function performViewportCulling() {
             });
         },
         () => {
-            // Pool very distant items to free memory
+            // Pool very distant items to free memory (only under memory pressure)
             itemsToPool.forEach(item => poolItem(item));
+        },
+        () => {
+            // Check if we need to restore any pooled items
+            checkAndRestorePooledItems(viewportCenter);
         }
     ]);
     
@@ -369,6 +377,46 @@ function unpoolItem(itemType, itemData) {
     }
     
     return null;
+}
+
+function checkAndRestorePooledItems(viewportCenter) {
+    // Check all pooled items to see if any should be restored based on current viewport
+    Object.keys(itemPool).forEach(itemType => {
+        const pooledItems = itemPool[itemType];
+        const itemsToRestore = [];
+        
+        for (let i = pooledItems.length - 1; i >= 0; i--) {
+            const pooledItem = pooledItems[i];
+            const itemData = pooledItem.data;
+            
+            // Calculate distance from viewport center to pooled item
+            const itemCenterX = itemData.x + (itemData.width / 2);
+            const itemCenterY = itemData.y + (itemData.height / 2);
+            const distanceFromViewport = Math.sqrt(
+                Math.pow(itemCenterX - viewportCenter.x, 2) + 
+                Math.pow(itemCenterY - viewportCenter.y, 2)
+            );
+            
+            // If item is now within reasonable distance, restore it
+            if (distanceFromViewport < CULLING_CONFIG.DISTANT_ITEM_THRESHOLD) {
+                itemsToRestore.push({ index: i, data: itemData });
+            }
+        }
+        
+        // Restore items that are back in range
+        itemsToRestore.forEach(({ index, data }) => {
+            // Remove from pool
+            itemPool[itemType].splice(index, 1);
+            
+            // Recreate the item
+            if (window.DatabaseModule && window.DatabaseModule.createItemFromData) {
+                const restoredItem = window.DatabaseModule.createItemFromData(data);
+                if (restoredItem && DEBUG_MODE) {
+                    console.log(`Restored ${itemType} item from pool:`, data.id);
+                }
+            }
+        });
+    });
 }
 
 function extractItemData(item) {
@@ -587,6 +635,7 @@ window.PerformanceModule = {
     // Memory management functions
     poolItem,
     unpoolItem,
+    checkAndRestorePooledItems,
     extractItemData,
     cleanupItemResources,
     checkMemoryPressure,
