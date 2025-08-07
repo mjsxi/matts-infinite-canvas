@@ -92,13 +92,26 @@ function createImageItem(src, x = null, y = null, width = 200, height = 150, fro
     const img = document.createElement('img');
     img.loading = 'lazy'; // Enable lazy loading
     img.decoding = 'async'; // Enable async decoding
-    img.src = src;
+    
+    // Progressive loading: check if we should load thumbnail first
+    const shouldUseProgressiveLoading = !fromDatabase && isLargeImage(src);
+    
+    if (shouldUseProgressiveLoading) {
+        // Load thumbnail first, then full resolution
+        setupProgressiveImageLoading(img, src, item);
+    } else {
+        // Standard loading
+        img.src = src;
+    }
     
     // Set a default aspect ratio initially
     item.dataset.aspectRatio = width / height;
     
     // Add loading state
     item.classList.add('loading');
+    
+    // Store original source for progressive loading
+    item.dataset.originalSrc = src;
     
     img.onload = function() {
         // Calculate and store the correct aspect ratio
@@ -540,6 +553,125 @@ function createCodeItem(htmlContent, x = null, y = null, width = 400, height = 3
     }
     
     return item;
+}
+
+// Progressive image loading helper functions
+function isLargeImage(src) {
+    // Consider Supabase storage URLs as potentially large
+    return src.includes('supabase') || src.includes('canvas-media');
+}
+
+function setupProgressiveImageLoading(img, fullSrc, item) {
+    // For now, load full resolution immediately but with better optimization
+    // In future, could implement thumbnail generation on upload
+    
+    // Add progressive loading class for styling
+    item.classList.add('progressive-loading');
+    
+    // Create a low-quality placeholder while loading
+    const placeholder = document.createElement('div');
+    placeholder.className = 'image-placeholder';
+    placeholder.style.cssText = `
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(45deg, #f0f0f0 25%, transparent 25%),
+                    linear-gradient(-45deg, #f0f0f0 25%, transparent 25%),
+                    linear-gradient(45deg, transparent 75%, #f0f0f0 75%),
+                    linear-gradient(-45deg, transparent 75%, #f0f0f0 75%);
+        background-size: 20px 20px;
+        background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+        opacity: 0.3;
+        border-radius: inherit;
+        z-index: 1;
+    `;
+    
+    item.appendChild(placeholder);
+    
+    // Load full resolution with intersection observer for viewport optimization
+    if (window.IntersectionObserver) {
+        const imageObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    loadFullResolutionImage(img, fullSrc, item, placeholder);
+                    imageObserver.unobserve(entry.target);
+                }
+            });
+        }, {
+            rootMargin: '200px' // Start loading 200px before entering viewport
+        });
+        
+        imageObserver.observe(item);
+    } else {
+        // Fallback for browsers without IntersectionObserver
+        setTimeout(() => {
+            loadFullResolutionImage(img, fullSrc, item, placeholder);
+        }, 100);
+    }
+}
+
+function loadFullResolutionImage(img, src, item, placeholder) {
+    // Add fade transition for smooth loading
+    img.style.transition = 'opacity 0.3s ease-in-out';
+    img.style.opacity = '0';
+    
+    img.onload = function() {
+        // Remove placeholder and fade in image
+        if (placeholder && placeholder.parentNode) {
+            placeholder.remove();
+        }
+        
+        img.style.opacity = '1';
+        item.classList.remove('progressive-loading');
+        
+        // Trigger the existing onload handler logic
+        const existingOnload = img.onload;
+        img.onload = existingOnload;
+        if (existingOnload) existingOnload.call(this);
+    };
+    
+    img.onerror = function() {
+        // Remove placeholder on error
+        if (placeholder && placeholder.parentNode) {
+            placeholder.remove();
+        }
+        
+        item.classList.remove('progressive-loading');
+        
+        // Trigger existing error handler
+        const existingOnerror = img.onerror;
+        img.onerror = existingOnerror;
+        if (existingOnerror) existingOnerror.call(this);
+    };
+    
+    // Start loading full resolution
+    img.src = src;
+}
+
+// Image dimension caching to prevent layout shifts
+const imageDimensionCache = new Map();
+
+function cacheImageDimensions(src, width, height) {
+    imageDimensionCache.set(src, { width, height, timestamp: Date.now() });
+    
+    // Clean old entries (older than 1 hour)
+    const oneHour = 60 * 60 * 1000;
+    const now = Date.now();
+    for (const [key, value] of imageDimensionCache.entries()) {
+        if (now - value.timestamp > oneHour) {
+            imageDimensionCache.delete(key);
+        }
+    }
+}
+
+function getCachedImageDimensions(src) {
+    const cached = imageDimensionCache.get(src);
+    if (cached && Date.now() - cached.timestamp < 60 * 60 * 1000) {
+        return { width: cached.width, height: cached.height };
+    }
+    return null;
 }
 
 // Export module
