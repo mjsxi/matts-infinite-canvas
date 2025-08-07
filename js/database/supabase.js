@@ -208,9 +208,21 @@ async function saveCenterPoint() {
     }
 }
 
+// Viewport-based loading configuration
+const VIEWPORT_LOADING_CONFIG = {
+    INITIAL_LOAD_RADIUS: 2000, // Load items within 2000px of center initially
+    LAZY_LOAD_RADIUS: 1500,    // Load items within 1500px of viewport
+    PRELOAD_RADIUS: 500,       // Preload items within 500px of viewport
+    MAX_INITIAL_ITEMS: 50      // Maximum items to load on startup
+};
+
+// Track loaded items to prevent duplicates
+let loadedItems = new Set();
+let allItemsData = null; // Cache all item data
+
 async function loadCanvasData() {
     if (DEBUG_MODE) {
-        console.log('Loading canvas data from Supabase...');
+        console.log('Loading canvas data with viewport optimization...');
         console.log('Canvas element:', canvas);
         console.log('Container element:', container);
     }
@@ -230,7 +242,7 @@ async function loadCanvasData() {
         
         if (DEBUG_MODE) console.log('Database connection successful');
         
-        // Load items
+        // Load all items data for viewport filtering
         const { data: items, error: itemsError } = await supabaseClient
             .from('canvas_items')
             .select('*');
@@ -241,7 +253,10 @@ async function loadCanvasData() {
             throw itemsError;
         }
         
-        if (DEBUG_MODE) console.log('Items loaded:', items?.length || 0);
+        // Cache all items data for lazy loading
+        allItemsData = items || [];
+        
+        if (DEBUG_MODE) console.log('Total items in database:', allItemsData.length);
         
         // Store selection state before clearing items
         const wasItemSelected = selectedItem !== null;
@@ -257,24 +272,36 @@ async function loadCanvasData() {
             });
         }
         
-        // Clear existing items
+        // Clear existing items and reset loaded items tracking
         const existingItems = canvas.querySelectorAll('.canvas-item');
         existingItems.forEach(item => item.remove());
+        loadedItems.clear();
         
         // Sort items by z_index to ensure proper layering
-        const sortedItems = items?.sort((a, b) => (a.z_index || 0) - (b.z_index || 0)) || [];
+        const sortedItems = allItemsData.sort((a, b) => (a.z_index || 0) - (b.z_index || 0));
         
-        // Create items from database data
-        if (DEBUG_MODE) console.log('Creating items from database data:', sortedItems.length, 'items');
-        sortedItems.forEach((itemData, index) => {
+        // Get viewport-aware items to load initially
+        const itemsToLoad = getInitialItemsToLoad(sortedItems);
+        
+        // Create items from database data with viewport optimization
+        if (DEBUG_MODE) console.log(`Creating ${itemsToLoad.length} of ${sortedItems.length} items initially`);
+        itemsToLoad.forEach((itemData, index) => {
             try {
-                if (DEBUG_MODE) console.log(`Creating item ${index + 1}:`, itemData);
+                if (DEBUG_MODE) console.log(`Creating initial item ${index + 1}:`, itemData);
                 const item = createItemFromData(itemData);
+                if (item) {
+                    loadedItems.add(itemData.id);
+                }
                 if (DEBUG_MODE) console.log(`Item ${index + 1} created:`, item);
             } catch (error) {
                 console.error('Error creating item from data:', error, itemData);
             }
         });
+        
+        // Setup lazy loading observer for remaining items
+        setupLazyItemLoading();
+        
+        if (DEBUG_MODE) console.log(`Loaded ${itemsToLoad.length} items, ${sortedItems.length - itemsToLoad.length} items available for lazy loading`);
         
         // Restore selection if an item was previously selected
         if (wasItemSelected && selectedItemId) {
@@ -825,6 +852,13 @@ window.DatabaseModule = {
     getItemContent,
     processBatchSave,
     
+    // Viewport-aware loading functions
+    getInitialItemsToLoad,
+    setupLazyItemLoading,
+    performLazyItemLoading,
+    preloadItemsNearPoint,
+    getViewportBoundsFromCenter,
+    
     // Debug function to test saving different item types
     testSaveItem: function(item) {
         console.log('=== TESTING ITEM SAVE ===');
@@ -1036,3 +1070,319 @@ window.DatabaseModule = {
         console.log('=== DATABASE SCHEMA TEST COMPLETE ===');
     }
 };
+
+// Viewport-aware loading functions
+function getInitialItemsToLoad(allItems) {
+    // Get current viewport center (more accurate than canvas center)
+    const viewportCenter = ViewportModule?.getViewportCenter() || { x: centerPoint.x || 0, y: centerPoint.y || 0 };
+    
+    // Get viewport bounds to understand current view area
+    const viewportBounds = getViewportBoundsFromCenter(viewportCenter);
+    
+    // Calculate enhanced distance scoring that prioritizes viewport coverage
+    const itemsWithScore = allItems.map(item => {
+        const deltaX = item.x - viewportCenter.x;
+        const deltaY = item.y - viewportCenter.y;
+        
+        // Basic distance from viewport center
+        const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+        
+        // Check if item is within visible viewport bounds
+        const isInViewport = (
+            item.x >= viewportBounds.left && 
+            item.x <= viewportBounds.right &&
+            item.y >= viewportBounds.top && 
+            item.y <= viewportBounds.bottom
+        );
+        
+        // Check if item is in the extended left area (prioritize left coverage)
+        const isInLeftArea = item.x < viewportCenter.x && 
+                            item.x >= (viewportCenter.x - VIEWPORT_LOADING_CONFIG.INITIAL_LOAD_RADIUS * 1.2) &&
+                            Math.abs(item.y - viewportCenter.y) <= VIEWPORT_LOADING_CONFIG.INITIAL_LOAD_RADIUS;
+        
+        // Scoring system
+        let score = distance;
+        
+        if (isInViewport) {
+            score *= 0.1; // Highest priority for viewport items
+        } else if (isInLeftArea) {
+            score *= 0.3; // High priority for left area to fix the coverage issue
+        } else if (distance <= VIEWPORT_LOADING_CONFIG.INITIAL_LOAD_RADIUS) {
+            score *= 0.6; // Normal priority for nearby items
+        } else {
+            score *= 2.0; // Low priority for distant items
+        }
+        
+        // Additional boost for items on the left side
+        if (deltaX < 0) {
+            score *= 0.8; // 20% boost for items to the left
+        }
+        
+        return {
+            ...item,
+            distance,
+            score,
+            isInViewport,
+            isInLeftArea,
+            deltaX,
+            deltaY
+        };
+    });
+    
+    // Filter items that should be loaded initially
+    const candidateItems = itemsWithScore.filter(item => 
+        item.isInViewport || 
+        item.isInLeftArea || 
+        item.distance <= VIEWPORT_LOADING_CONFIG.INITIAL_LOAD_RADIUS
+    );
+    
+    // Sort by score (lower is better) and ensure balanced coverage
+    const sortedItems = candidateItems.sort((a, b) => a.score - b.score);
+    
+    // Ensure we have balanced left/right coverage
+    const selectedItems = [];
+    const leftItems = sortedItems.filter(item => item.deltaX < 0);
+    const rightItems = sortedItems.filter(item => item.deltaX >= 0);
+    const centerItems = sortedItems.filter(item => Math.abs(item.deltaX) < 200); // Items near center
+    
+    // Prioritize selection to ensure left coverage
+    let leftCount = 0;
+    let rightCount = 0;
+    let centerCount = 0;
+    const maxItems = VIEWPORT_LOADING_CONFIG.MAX_INITIAL_ITEMS;
+    const targetLeftRatio = 0.4; // Aim for 40% left coverage
+    const targetCenterRatio = 0.2; // 20% center
+    const targetRightRatio = 0.4; // 40% right
+    
+    // Add center items first (highest priority)
+    for (const item of centerItems) {
+        if (selectedItems.length >= maxItems) break;
+        if (centerCount < maxItems * targetCenterRatio) {
+            selectedItems.push(item);
+            centerCount++;
+        }
+    }
+    
+    // Add left items with high priority to fix the coverage issue
+    for (const item of leftItems) {
+        if (selectedItems.length >= maxItems) break;
+        if (leftCount < maxItems * targetLeftRatio || selectedItems.length < maxItems * 0.7) {
+            if (!selectedItems.find(s => s.id === item.id)) { // Avoid duplicates
+                selectedItems.push(item);
+                leftCount++;
+            }
+        }
+    }
+    
+    // Fill remaining slots with right items and any remaining left items
+    for (const item of [...rightItems, ...leftItems]) {
+        if (selectedItems.length >= maxItems) break;
+        if (!selectedItems.find(s => s.id === item.id)) { // Avoid duplicates
+            selectedItems.push(item);
+            if (item.deltaX >= 0) rightCount++;
+            else leftCount++;
+        }
+    }
+    
+    if (DEBUG_MODE) {
+        console.log(`Initial loading balance: ${leftCount} left, ${centerCount} center, ${rightCount} right (${selectedItems.length} total)`);
+    }
+    
+    return selectedItems;
+}
+
+// Helper function to get viewport bounds from center point
+function getViewportBoundsFromCenter(center) {
+    const containerRect = ViewportModule?.getContainerRect() || { width: 1000, height: 800 };
+    const scale = canvasTransform?.scale || 1;
+    
+    // Calculate viewport size in canvas coordinates
+    const viewportWidth = containerRect.width / scale;
+    const viewportHeight = containerRect.height / scale;
+    
+    return {
+        left: center.x - viewportWidth / 2,
+        right: center.x + viewportWidth / 2,
+        top: center.y - viewportHeight / 2,
+        bottom: center.y + viewportHeight / 2
+    };
+}
+
+function setupLazyItemLoading() {
+    // Throttled lazy loading check
+    let lazyLoadTimeout = null;
+    const checkLazyLoading = () => {
+        if (lazyLoadTimeout) return;
+        
+        lazyLoadTimeout = setTimeout(() => {
+            performLazyItemLoading();
+            lazyLoadTimeout = null;
+        }, 250); // Check every 250ms maximum
+    };
+    
+    // Listen for viewport changes
+    if (window.ViewportModule) {
+        // Hook into existing transform updates
+        const originalUpdateTransform = window.ViewportModule.updateCanvasTransform;
+        window.ViewportModule.updateCanvasTransform = function() {
+            const result = originalUpdateTransform.call(this);
+            checkLazyLoading();
+            return result;
+        };
+    }
+    
+    // Initial lazy load check
+    setTimeout(checkLazyLoading, 1000);
+}
+
+function performLazyItemLoading() {
+    if (!allItemsData) return;
+    
+    const viewportCenter = ViewportModule?.getViewportCenter() || centerPoint;
+    const viewportBounds = getViewportBoundsFromCenter(viewportCenter);
+    const itemsToLoad = [];
+    
+    // Find unloaded items with balanced left/right priority
+    allItemsData.forEach(itemData => {
+        if (loadedItems.has(itemData.id)) return; // Already loaded
+        
+        const deltaX = itemData.x - viewportCenter.x;
+        const deltaY = itemData.y - viewportCenter.y;
+        const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+        
+        // Check if item is in the extended viewport area
+        const extendedBounds = {
+            left: viewportBounds.left - VIEWPORT_LOADING_CONFIG.LAZY_LOAD_RADIUS,
+            right: viewportBounds.right + VIEWPORT_LOADING_CONFIG.LAZY_LOAD_RADIUS,
+            top: viewportBounds.top - VIEWPORT_LOADING_CONFIG.LAZY_LOAD_RADIUS,
+            bottom: viewportBounds.bottom + VIEWPORT_LOADING_CONFIG.LAZY_LOAD_RADIUS
+        };
+        
+        const isInExtendedViewport = (
+            itemData.x >= extendedBounds.left && 
+            itemData.x <= extendedBounds.right &&
+            itemData.y >= extendedBounds.top && 
+            itemData.y <= extendedBounds.bottom
+        );
+        
+        // Prioritize left side items that were missed
+        const isLeftSide = deltaX < 0;
+        const leftSidePriority = isLeftSide ? 0.7 : 1.0; // 30% boost for left items
+        
+        if (isInExtendedViewport || distance <= VIEWPORT_LOADING_CONFIG.LAZY_LOAD_RADIUS) {
+            itemsToLoad.push({ 
+                ...itemData, 
+                distance,
+                priority: distance * leftSidePriority,
+                isLeftSide,
+                deltaX,
+                deltaY
+            });
+        }
+    });
+    
+    // Sort by priority (lower is better) and ensure balanced left/right loading
+    const sortedItems = itemsToLoad.sort((a, b) => a.priority - b.priority);
+    
+    // Select items with balanced approach (prioritize left side)
+    const selectedItems = [];
+    const leftItems = sortedItems.filter(item => item.isLeftSide);
+    const rightItems = sortedItems.filter(item => !item.isLeftSide);
+    
+    let leftLoaded = 0;
+    let rightLoaded = 0;
+    const maxLoad = 10;
+    const leftTargetRatio = 0.6; // Load 60% left items to compensate
+    
+    // Load left items first to fix coverage issue
+    for (const item of leftItems) {
+        if (selectedItems.length >= maxLoad) break;
+        if (leftLoaded < maxLoad * leftTargetRatio) {
+            selectedItems.push(item);
+            leftLoaded++;
+        }
+    }
+    
+    // Fill remaining slots with right items and any remaining left items
+    for (const item of [...rightItems, ...leftItems.slice(leftLoaded)]) {
+        if (selectedItems.length >= maxLoad) break;
+        if (!selectedItems.find(s => s.id === item.id)) {
+            selectedItems.push(item);
+            if (item.isLeftSide) leftLoaded++;
+            else rightLoaded++;
+        }
+    }
+    
+    // Load the selected items
+    selectedItems.forEach(itemData => {
+        try {
+            if (DEBUG_MODE) {
+                console.log('Lazy loading item:', itemData.id, 
+                           'distance:', itemData.distance.toFixed(0), 
+                           'side:', itemData.isLeftSide ? 'left' : 'right');
+            }
+            const item = createItemFromData(itemData);
+            if (item) {
+                loadedItems.add(itemData.id);
+                // Add fade-in animation for lazy loaded items
+                item.style.opacity = '0';
+                item.style.transition = 'opacity 0.3s ease-in';
+                setTimeout(() => {
+                    item.style.opacity = '1';
+                }, 10);
+            }
+        } catch (error) {
+            console.error('Error lazy loading item:', error, itemData);
+        }
+    });
+    
+    if (selectedItems.length > 0 && DEBUG_MODE) {
+        console.log(`Lazy loaded ${selectedItems.length} items: ${leftLoaded} left, ${rightLoaded} right`);
+    }
+}
+
+// Function to preload items near a specific point (like center)
+function preloadItemsNearPoint(x, y, radius = VIEWPORT_LOADING_CONFIG.PRELOAD_RADIUS) {
+    if (!allItemsData) return;
+    
+    const itemsToPreload = allItemsData.filter(itemData => {
+        if (loadedItems.has(itemData.id)) return false; // Already loaded
+        
+        const distance = Math.sqrt(
+            Math.pow(itemData.x - x, 2) + 
+            Math.pow(itemData.y - y, 2)
+        );
+        
+        return distance <= radius;
+    });
+    
+    // Load items in small batches to prevent blocking
+    const batchSize = 5;
+    let batchIndex = 0;
+    
+    const loadNextBatch = () => {
+        const batch = itemsToPreload.slice(batchIndex, batchIndex + batchSize);
+        
+        batch.forEach(itemData => {
+            try {
+                const item = createItemFromData(itemData);
+                if (item) {
+                    loadedItems.add(itemData.id);
+                }
+            } catch (error) {
+                console.error('Error preloading item:', error, itemData);
+            }
+        });
+        
+        batchIndex += batchSize;
+        
+        if (batchIndex < itemsToPreload.length) {
+            setTimeout(loadNextBatch, 50); // Small delay between batches
+        }
+    };
+    
+    if (itemsToPreload.length > 0) {
+        if (DEBUG_MODE) console.log(`Preloading ${itemsToPreload.length} items near point (${x}, ${y})`);
+        setTimeout(loadNextBatch, 100); // Start after a small delay
+    }
+}

@@ -73,6 +73,11 @@ function goToCenter() {
         window.AdminModule.showCenterIndicator(centerPoint.x, centerPoint.y);
     }
     
+    // Preload items near the center point
+    if (window.DatabaseModule) {
+        window.DatabaseModule.preloadItemsNearPoint(centerPoint.x, centerPoint.y, 1000);
+    }
+    
     // Remove transition after animation
     setTimeout(() => {
         canvas.style.transition = '';

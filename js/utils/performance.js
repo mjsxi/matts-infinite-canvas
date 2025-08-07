@@ -198,15 +198,39 @@ function optimizeCanvas() {
     }
 }
 
+// Memory management and viewport culling
+const CULLING_CONFIG = {
+    VIEWPORT_MARGIN: 1500,      // Pixels margin around viewport
+    DISTANT_ITEM_THRESHOLD: 3000, // Items beyond this distance are pooled
+    MAX_VISIBLE_ITEMS: 100,     // Maximum visible items at once
+    MEMORY_PRESSURE_THRESHOLD: 80 * 1024 * 1024, // 80MB
+    CLEANUP_INTERVAL: 10000     // Cleanup every 10 seconds
+};
+
+// Item pooling for memory efficiency
+const itemPool = {
+    images: [],
+    videos: [],
+    text: [],
+    code: [],
+    drawing: []
+};
+
+const hiddenItems = new Map(); // Track items that are hidden but not pooled
+
 function performViewportCulling() {
-    // Remove invisible items (outside viewport with significant margin)
+    if (!canvas) return;
+    
     const items = canvas.querySelectorAll('.canvas-item');
     const viewportBounds = getViewportBounds();
-    const margin = 1000; // 1000px margin
+    const viewportCenter = ViewportModule?.getViewportCenter() || { x: 0, y: 0 };
     
-    // Batch DOM operations
+    // Batch DOM operations for better performance
     const itemsToHide = [];
     const itemsToShow = [];
+    const itemsToPool = [];
+    
+    let visibleItemCount = 0;
     
     items.forEach(item => {
         const rect = item.getBoundingClientRect();
@@ -217,25 +241,71 @@ function performViewportCulling() {
             bottom: rect.bottom
         };
         
-        const isVisible = !(
-            itemBounds.right < viewportBounds.left - margin ||
-            itemBounds.left > viewportBounds.right + margin ||
-            itemBounds.bottom < viewportBounds.top - margin ||
-            itemBounds.top > viewportBounds.bottom + margin
+        // Calculate distance from viewport center
+        const itemCenterX = parseFloat(item.style.left) + parseFloat(item.style.width) / 2;
+        const itemCenterY = parseFloat(item.style.top) + parseFloat(item.style.height) / 2;
+        const distanceFromViewport = Math.sqrt(
+            Math.pow(itemCenterX - viewportCenter.x, 2) + 
+            Math.pow(itemCenterY - viewportCenter.y, 2)
         );
         
-        if (!isVisible && !item.classList.contains('selected')) {
+        // Check if item is within viewport with margin
+        const isInViewport = !(
+            itemBounds.right < viewportBounds.left - CULLING_CONFIG.VIEWPORT_MARGIN ||
+            itemBounds.left > viewportBounds.right + CULLING_CONFIG.VIEWPORT_MARGIN ||
+            itemBounds.bottom < viewportBounds.top - CULLING_CONFIG.VIEWPORT_MARGIN ||
+            itemBounds.top > viewportBounds.bottom + CULLING_CONFIG.VIEWPORT_MARGIN
+        );
+        
+        // Never hide selected items
+        const isSelected = item.classList.contains('selected');
+        
+        if (isSelected) {
+            itemsToShow.push(item);
+            visibleItemCount++;
+        } else if (distanceFromViewport > CULLING_CONFIG.DISTANT_ITEM_THRESHOLD) {
+            // Items very far from viewport should be pooled
+            itemsToPool.push(item);
+        } else if (!isInViewport || visibleItemCount >= CULLING_CONFIG.MAX_VISIBLE_ITEMS) {
+            // Items outside viewport or exceeding max visible items
             itemsToHide.push(item);
         } else {
             itemsToShow.push(item);
+            visibleItemCount++;
         }
     });
     
-    // Apply changes in batches
+    // Apply changes in batches for optimal performance
     batchDOMOperations([
-        () => itemsToHide.forEach(item => item.style.visibility = 'hidden'),
-        () => itemsToShow.forEach(item => item.style.visibility = 'visible')
+        () => {
+            itemsToHide.forEach(item => {
+                if (item.style.visibility !== 'hidden') {
+                    item.style.visibility = 'hidden';
+                    hiddenItems.set(item.dataset.id, {
+                        element: item,
+                        timestamp: Date.now()
+                    });
+                }
+            });
+        },
+        () => {
+            itemsToShow.forEach(item => {
+                if (item.style.visibility !== 'visible') {
+                    item.style.visibility = 'visible';
+                    hiddenItems.delete(item.dataset.id);
+                }
+            });
+        },
+        () => {
+            // Pool very distant items to free memory
+            itemsToPool.forEach(item => poolItem(item));
+        }
     ]);
+    
+    // Log performance metrics
+    if (DEBUG_MODE && (itemsToHide.length > 0 || itemsToPool.length > 0)) {
+        console.log(`Viewport culling: ${visibleItemCount} visible, ${itemsToHide.length} hidden, ${itemsToPool.length} pooled`);
+    }
 }
 
 function getViewportBounds() {
@@ -246,6 +316,195 @@ function getViewportBounds() {
         right: rect.width,
         bottom: rect.height
     };
+}
+
+// Item pooling functions for memory management
+function poolItem(item) {
+    if (!item || !item.dataset.type) return;
+    
+    const itemType = item.dataset.type;
+    
+    // Store item data before pooling
+    const itemData = extractItemData(item);
+    
+    // Remove from DOM
+    if (item.parentNode) {
+        item.parentNode.removeChild(item);
+    }
+    
+    // Clear heavy resources
+    cleanupItemResources(item);
+    
+    // Add to appropriate pool
+    if (itemPool[itemType]) {
+        itemPool[itemType].push({
+            data: itemData,
+            timestamp: Date.now()
+        });
+        
+        // Limit pool size to prevent memory leaks
+        if (itemPool[itemType].length > 20) {
+            itemPool[itemType].shift();
+        }
+    }
+    
+    // Remove from tracking
+    hiddenItems.delete(item.dataset.id);
+    
+    if (DEBUG_MODE) {
+        console.log(`Pooled ${itemType} item:`, item.dataset.id);
+    }
+}
+
+function unpoolItem(itemType, itemData) {
+    if (!itemPool[itemType] || itemPool[itemType].length === 0) {
+        return null; // No pooled items available
+    }
+    
+    const pooledItem = itemPool[itemType].pop();
+    
+    // Create new item from pooled data (reusing the creation logic)
+    if (window.DatabaseModule && window.DatabaseModule.createItemFromData) {
+        return window.DatabaseModule.createItemFromData(itemData || pooledItem.data);
+    }
+    
+    return null;
+}
+
+function extractItemData(item) {
+    return {
+        id: item.dataset.id,
+        x: parseFloat(item.style.left) || 0,
+        y: parseFloat(item.style.top) || 0,
+        width: parseFloat(item.style.width) || 100,
+        height: parseFloat(item.style.height) || 100,
+        item_type: item.dataset.type,
+        content: getItemContentForPooling(item),
+        z_index: parseInt(item.style.zIndex) || 1,
+        rotation: parseFloat(item.dataset.rotation) || 0,
+        border_radius: parseFloat(item.style.getPropertyValue('--item-border-radius')) || 0,
+        aspect_ratio: parseFloat(item.dataset.aspectRatio) || 1,
+        original_width: item.dataset.originalWidth,
+        original_height: item.dataset.originalHeight,
+        // Text-specific properties
+        font_family: item.style.fontFamily || 'Antarctica',
+        font_size: parseInt(item.style.fontSize) || 24,
+        font_weight: item.style.fontWeight || 'normal',
+        text_color: item.style.color || '#333333',
+        line_height: parseFloat(item.style.lineHeight) || 1.15
+    };
+}
+
+function getItemContentForPooling(item) {
+    switch (item.dataset.type) {
+        case 'image':
+            const img = item.querySelector('img');
+            return img ? img.src : '';
+        case 'video':
+            const video = item.querySelector('video');
+            return video ? video.src : '';
+        case 'text':
+            // Remove resize handles before extracting text
+            const textClone = item.cloneNode(true);
+            const handles = textClone.querySelector('.resize-handles');
+            if (handles) handles.remove();
+            return textClone.textContent;
+        case 'code':
+            const iframe = item.querySelector('iframe');
+            return iframe ? iframe.srcdoc : '';
+        case 'drawing':
+            const path = item.querySelector('path');
+            return path ? path.getAttribute('d') : '';
+        default:
+            return '';
+    }
+}
+
+function cleanupItemResources(item) {
+    // Clean up heavy resources to prevent memory leaks
+    const images = item.querySelectorAll('img');
+    images.forEach(img => {
+        if (img.src && img.src.startsWith('blob:')) {
+            URL.revokeObjectURL(img.src);
+        }
+        img.src = '';
+    });
+    
+    const videos = item.querySelectorAll('video');
+    videos.forEach(video => {
+        video.pause();
+        if (video.src && video.src.startsWith('blob:')) {
+            URL.revokeObjectURL(video.src);
+        }
+        video.src = '';
+        video.load(); // Reset video element
+    });
+    
+    // Clear any custom properties that might hold references
+    item.style.cssText = '';
+    item.innerHTML = '';
+}
+
+// Memory pressure detection and cleanup
+function checkMemoryPressure() {
+    if (!performance.memory) return false;
+    
+    const usedMemory = performance.memory.usedJSHeapSize;
+    const memoryLimit = performance.memory.jsHeapSizeLimit;
+    
+    return usedMemory > CULLING_CONFIG.MEMORY_PRESSURE_THRESHOLD || 
+           (usedMemory / memoryLimit) > 0.8;
+}
+
+function performMemoryCleanup() {
+    if (!checkMemoryPressure()) return;
+    
+    console.log('Memory pressure detected, performing cleanup...');
+    
+    // Clean up old hidden items
+    const now = Date.now();
+    const oldItems = [];
+    
+    hiddenItems.forEach((value, key) => {
+        if (now - value.timestamp > 30000) { // 30 seconds
+            oldItems.push(value.element);
+        }
+    });
+    
+    // Pool old hidden items
+    oldItems.forEach(item => poolItem(item));
+    
+    // Limit pool sizes
+    Object.keys(itemPool).forEach(type => {
+        if (itemPool[type].length > 10) {
+            itemPool[type] = itemPool[type].slice(-10); // Keep only 10 most recent
+        }
+    });
+    
+    // Force garbage collection if available
+    if (window.gc) {
+        window.gc();
+    }
+    
+    console.log('Memory cleanup completed');
+}
+
+// Initialize memory monitoring
+function initializeMemoryOptimizer() {
+    // Periodic memory cleanup
+    setInterval(() => {
+        performMemoryCleanup();
+    }, CULLING_CONFIG.CLEANUP_INTERVAL);
+    
+    // Monitor memory usage
+    if (performance.memory) {
+        setInterval(() => {
+            const memory = performance.memory;
+            if (DEBUG_MODE) {
+                console.log(`Memory usage: ${(memory.usedJSHeapSize / 1024 / 1024).toFixed(2)}MB / ${(memory.jsHeapSizeLimit / 1024 / 1024).toFixed(2)}MB`);
+            }
+        }, 30000); // Log every 30 seconds
+    }
 }
 
 // Lazy loading utilities
@@ -323,5 +582,26 @@ window.PerformanceModule = {
     getStorageItem,
     clearStorageItems,
     cachedElements,
-    performanceMetrics
+    performanceMetrics,
+    
+    // Memory management functions
+    poolItem,
+    unpoolItem,
+    extractItemData,
+    cleanupItemResources,
+    checkMemoryPressure,
+    performMemoryCleanup,
+    initializeMemoryOptimizer,
+    
+    // Configuration
+    CULLING_CONFIG
+};
+
+// Add global access for debugging
+window.MemoryOptimizer = {
+    itemPool,
+    hiddenItems,
+    checkMemoryPressure,
+    performMemoryCleanup,
+    initializeMemoryOptimizer
 };

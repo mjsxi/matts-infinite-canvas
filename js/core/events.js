@@ -14,6 +14,12 @@ let lastPanTime = 0;
 let inertiaAnimationId = null;
 const MAX_PAN_POSITIONS = 5; // Limit array growth
 
+// Touch performance optimization
+let touchUpdateFrame = null;
+let pendingTouchUpdate = null;
+let lastTouchUpdateTime = 0;
+const TOUCH_THROTTLE_INTERVAL = 16; // 60fps throttling
+
 function bindEvents() {
     // Mouse events
     container.addEventListener('mousedown', handleMouseDown);
@@ -21,9 +27,9 @@ function bindEvents() {
     document.addEventListener('mouseup', handleMouseUp);
     container.addEventListener('wheel', handleWheel, { passive: false });
     
-    // Touch events for mobile/tablet
+    // Touch events for mobile/tablet with optimized passive settings
     container.addEventListener('touchstart', handleTouchStart, { passive: false });
-    container.addEventListener('touchmove', handleTouchMove, { passive: false });
+    container.addEventListener('touchmove', handleTouchMoveThrottled, { passive: false });
     container.addEventListener('touchend', handleTouchEnd, { passive: false });
     
     // File input
@@ -293,6 +299,34 @@ function handleTouchStart(e) {
     }
 }
 
+// Throttled touch move handler for 60fps performance
+function handleTouchMoveThrottled(e) {
+    // Store the latest touch event
+    pendingTouchUpdate = e;
+    
+    // Only process if enough time has passed
+    const now = performance.now();
+    if (now - lastTouchUpdateTime >= TOUCH_THROTTLE_INTERVAL) {
+        processTouchMove();
+    } else if (!touchUpdateFrame) {
+        // Schedule next update
+        touchUpdateFrame = requestAnimationFrame(() => {
+            processTouchMove();
+            touchUpdateFrame = null;
+        });
+    }
+}
+
+function processTouchMove() {
+    if (!pendingTouchUpdate) return;
+    
+    const e = pendingTouchUpdate;
+    lastTouchUpdateTime = performance.now();
+    
+    handleTouchMove(e);
+    pendingTouchUpdate = null;
+}
+
 function handleTouchMove(e) {
     if (e.touches.length === 1 && isSingleTouchPanning) {
         // Single finger panning
@@ -305,7 +339,8 @@ function handleTouchMove(e) {
         canvasTransform.x = touchStartTransform.x + deltaX;
         canvasTransform.y = touchStartTransform.y + deltaY;
         
-        ViewportModule.updateCanvasTransform();
+        // Use throttled canvas transform update
+        scheduleCanvasTransformUpdate();
         
         // Track velocity for touch inertia
         const now = Date.now();
@@ -354,7 +389,8 @@ function handleTouchMove(e) {
             canvasTransform.y = centerY - (centerY - touchStartTransform.y) * scaleRatio;
             canvasTransform.scale = newScale;
             
-            ViewportModule.updateCanvasTransform();
+            // Use throttled canvas transform update
+            scheduleCanvasTransformUpdate();
         }
     }
 }
@@ -457,6 +493,23 @@ function stopInertiaAnimation() {
     panVelocity = { x: 0, y: 0 };
 }
 
+// Throttled canvas transform updates for smooth 60fps performance
+let canvasTransformUpdateFrame = null;
+let pendingCanvasTransformUpdate = false;
+
+function scheduleCanvasTransformUpdate() {
+    if (canvasTransformUpdateFrame) return; // Already scheduled
+    
+    canvasTransformUpdateFrame = requestAnimationFrame(() => {
+        if (ViewportModule?.updateCanvasTransform) {
+            ViewportModule.updateCanvasTransform();
+        }
+        canvasTransformUpdateFrame = null;
+        pendingCanvasTransformUpdate = false;
+    });
+    pendingCanvasTransformUpdate = true;
+}
+
 // Export module
 window.EventsModule = {
     bindEvents,
@@ -466,8 +519,10 @@ window.EventsModule = {
     handleWheel,
     handleTouchStart,
     handleTouchMove,
+    handleTouchMoveThrottled,
     handleTouchEnd,
     handleKeyDown,
     startInertiaAnimation,
-    stopInertiaAnimation
+    stopInertiaAnimation,
+    scheduleCanvasTransformUpdate
 };
