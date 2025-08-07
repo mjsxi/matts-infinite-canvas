@@ -81,6 +81,34 @@
         }
     }
     
+    // Throttled touch move handler for 60fps performance
+    function mobileHandleTouchMoveThrottled(e) {
+        // Store the latest touch event
+        pendingTouchUpdate = e;
+        
+        // Only process if enough time has passed
+        const now = performance.now();
+        if (now - lastTouchUpdateTime >= TOUCH_THROTTLE_INTERVAL) {
+            processTouchMove();
+        } else if (!touchUpdateFrame) {
+            // Schedule next update
+            touchUpdateFrame = requestAnimationFrame(() => {
+                processTouchMove();
+                touchUpdateFrame = null;
+            });
+        }
+    }
+
+    function processTouchMove() {
+        if (!pendingTouchUpdate) return;
+        
+        const e = pendingTouchUpdate;
+        lastTouchUpdateTime = performance.now();
+        
+        mobileHandleTouchMove(e);
+        pendingTouchUpdate = null;
+    }
+
     function mobileHandleTouchMove(e) {
         if (e.touches.length === 1 && isSingleTouchPanning) {
             e.preventDefault();
