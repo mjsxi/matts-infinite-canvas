@@ -211,9 +211,9 @@ async function saveCenterPoint() {
 
 // Viewport-based loading configuration
 const VIEWPORT_LOADING_CONFIG = {
-    INITIAL_LOAD_RADIUS: 200,  // Load items within 500px of center initially (very tight for maximum discovery)
-    LAZY_LOAD_RADIUS: 50,     // Load items within 800px of viewport (reduced for more frequent animations)
-    PRELOAD_RADIUS: 50,       // Preload items within 150px of viewport (ultra-tight for maximum surprise)
+    INITIAL_LOAD_RADIUS: 300,  // Load items within 300px of center initially (very tight for maximum discovery)
+    LAZY_LOAD_RADIUS: 200,     // Load items within 200px of viewport (reduced for more frequent animations)
+    PRELOAD_RADIUS: 100,       // Preload items within 100px of viewport (ultra-tight for maximum surprise)
     MAX_INITIAL_ITEMS: 20      // Maximum items to load on startup (minimal for maximum discovery)
 };
 
