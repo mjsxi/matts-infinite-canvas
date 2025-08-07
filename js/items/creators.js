@@ -15,6 +15,11 @@ function startFadeInAnimation(item, delay = 0) {
         const initialTransform = rotation ? `${rotation} translateZ(0) scale(0.95)` : 'translateZ(0) scale(0.95)';
         item.style.transform = initialTransform;
         
+        // Reset visibility for all items during initial load animation
+        if (window.isInitialLoad) {
+            item.style.setProperty('visibility', 'visible', 'important');
+        }
+        
         // Start fade-in animation
         item.classList.add('fade-in-animation');
         

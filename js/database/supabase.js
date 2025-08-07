@@ -331,6 +331,9 @@ async function loadCanvasData() {
                         
                         const item = createItemFromData(itemData);
                         if (item) {
+                            // Force items to start completely hidden immediately
+                            item.style.setProperty('opacity', '0', 'important');
+                            item.style.setProperty('visibility', 'hidden', 'important');
                             loadedItems.add(itemData.id);
                         }
                     } catch (error) {
