@@ -120,8 +120,9 @@
     box-sizing: border-box;
 }
 
-/* Disable selection and pointer events for non-admin users */
-body.guest .canvas-item {
+/* Disable selection and pointer events for non-admin users
+   Allow code items to remain interactive so the Play button works for guests */
+body.guest .canvas-item:not(.code-item) {
     user-select: none;
     -webkit-user-select: none;
     -moz-user-select: none;
@@ -129,12 +130,19 @@ body.guest .canvas-item {
     pointer-events: none;
 }
 
-body.guest .canvas-item * {
+body.guest .canvas-item:not(.code-item) * {
     user-select: none;
     -webkit-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
     pointer-events: none;
+}
+
+/* Ensure the Play overlay is tappable on mobile for guests */
+body.guest .code-item .code-interaction-overlay {
+    pointer-events: auto;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
 }
 
 html {
