@@ -11,31 +11,36 @@
     <!-- Enhanced Login Page -->
     <div class="admin-login">
         <div class="login-form">
-            <!-- Simple Admin Login -->
-            <div id="adminLoginForm" class="auth-form-container">
-                <h2>Admin Login</h2>
-                <div class="input-container">
-                    <input type="password" id="adminPassword" placeholder="Admin Password">
-                    <button onclick="adminLogin()" class="login-btn">Login</button>
+            <!-- Login Icon -->
+            <div class="login-icon">
+                <img src="icons/center.svg" alt="Center">
+            </div>
+            
+            <!-- Admin Login Title -->
+            <h2>Admin Login</h2>
+            
+            <!-- Input Container -->
+            <div class="input-container">
+                <!-- Password Input -->
+                <div class="password-input">
+                    <input type="password" id="adminPassword" placeholder="Password">
+                </div>
+                
+                <!-- Login Button -->
+                <div class="login-button">
+                    <button onclick="adminLogin()">Login</button>
                 </div>
             </div>
-
-            <!-- Status Messages -->
-            <div id="statusMessage" class="status-message"></div>
         </div>
     </div>
 
     <script>
-        function showStatus(message, isError = false) {
-            const statusEl = document.getElementById('statusMessage');
-            statusEl.textContent = message;
-            statusEl.className = isError ? 'status-message error' : 'status-message success';
-        }
-        
-        function clearStatus() {
-            const statusEl = document.getElementById('statusMessage');
-            statusEl.textContent = '';
-            statusEl.className = 'status-message';
+        function shakeLoginForm() {
+            const loginForm = document.querySelector('.login-form');
+            loginForm.classList.add('shake');
+            setTimeout(() => {
+                loginForm.classList.remove('shake');
+            }, 600);
         }
         
         // Secure Admin Login via server
@@ -43,13 +48,11 @@
             const password = document.getElementById('adminPassword').value;
             
             if (!password) {
-                showStatus('Please enter password', true);
+                shakeLoginForm();
                 return;
             }
             
             try {
-                showStatus('Verifying password...');
-                
                 const response = await fetch('/api/auth/admin-login', {
                     method: 'POST',
                     headers: {
@@ -62,16 +65,15 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    showStatus('Login successful! Redirecting...');
                     setTimeout(() => {
                         window.location.href = '/index.html';
-                    }, 1000);
+                    }, 500);
                 } else {
-                    showStatus(data.error || 'Invalid password', true);
+                    shakeLoginForm();
                 }
             } catch (error) {
                 console.error('Login error:', error);
-                showStatus('Network error - please try again', true);
+                shakeLoginForm();
             }
         }
         
@@ -93,10 +95,9 @@
                 const data = await response.json();
                 
                 if (data.authenticated && data.isAdmin) {
-                    showStatus('Already logged in! Redirecting...');
                     setTimeout(() => {
                         window.location.href = '/index.html';
-                    }, 1000);
+                    }, 500);
                     return;
                 }
             } catch (error) {
