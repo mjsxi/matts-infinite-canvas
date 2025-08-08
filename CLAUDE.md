@@ -61,15 +61,8 @@ js/
 ### Running the Application
 Since this is a vanilla HTML/CSS/JS application, simply open `index.html` in a web browser or serve it with a local web server:
 
-```bash
-
-# Option 1: Simple HTTP server
-# User always has project running on a localhost
-# Then open http://localhost:3000
-
-# Option 2: Node.js http-server
-npx http-server
-```
+### Test with localhost
+Assume there is always a project running on localhost http://localhost:3000 if you need to test
 
 ### No Build Process
 This project uses vanilla web technologies with CDN-loaded dependencies:
