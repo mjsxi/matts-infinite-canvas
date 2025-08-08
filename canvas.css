@@ -133,13 +133,12 @@
     border: 0 !important;
 }
 
-/* Disable selection and pointer events for non-admin users */
+/* Disable selection for non-admin users (JS guards already block admin-only interactions) */
 body.guest .canvas-item {
     user-select: none;
     -webkit-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
-    pointer-events: none;
 }
 
 body.guest .canvas-item * {
@@ -147,7 +146,6 @@ body.guest .canvas-item * {
     -webkit-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
-    pointer-events: none;
 }
 
 html {

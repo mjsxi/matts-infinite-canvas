@@ -296,12 +296,20 @@ function handleTouchStart(e) {
         
         // Check if we're touching a canvas item
         const element = document.elementFromPoint(touch.clientX, touch.clientY);
+        // If tapping the code play overlay, do not start panning to allow tap to toggle interactivity
+        const codeOverlay = element?.closest('.code-interaction-overlay');
+        if (codeOverlay) {
+            isSingleTouchPanning = false;
+            return;
+        }
         const canvasItem = element?.closest('.canvas-item');
         
         if (canvasItem && !isSettingCenter) {
-            // If touching an item, select it instead of panning
-            ItemsModule.selectItem(canvasItem);
-            isSingleTouchPanning = false;
+            // Only select items for admins; guests should continue panning
+            if (isAuthenticated) {
+                ItemsModule.selectItem(canvasItem);
+                isSingleTouchPanning = false;
+            }
         }
     } else if (e.touches.length >= 2) {
         // Multi-touch - handle pinch-to-zoom
