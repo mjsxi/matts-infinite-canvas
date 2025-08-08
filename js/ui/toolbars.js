@@ -413,7 +413,7 @@ function closeModal(modalId) {
     }
 }
 
-function showStatus(message, duration = 3000) {
+function showStatus(message, duration = 5000) {
     // Status message being displayed
     
     // Only show status messages for authenticated admin users
@@ -421,43 +421,131 @@ function showStatus(message, duration = 3000) {
         return;
     }
     
-    // Remove existing status messages
-    const existingStatus = document.querySelector('.status-message');
-    if (existingStatus) {
-        existingStatus.remove();
+    // Create container if it doesn't exist
+    let statusContainer = document.querySelector('.status-container');
+    if (!statusContainer) {
+        statusContainer = document.createElement('div');
+        statusContainer.className = 'status-container';
+        statusContainer.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            pointer-events: none;
+        `;
+        document.body.appendChild(statusContainer);
     }
     
     // Create new status message
     const statusDiv = document.createElement('div');
     statusDiv.className = 'status-message';
-    statusDiv.textContent = message;
-    statusDiv.style.cssText = `
-        position: fixed;
-        top: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: rgba(0, 0, 0, 0.8);
-        color: white;
-        padding: 12px 20px;
-        border-radius: 6px;
-        font-size: 14px;
-        z-index: 10000;
-        transition: opacity 0.3s ease;
-        max-width: 300px;
-        word-wrap: break-word;
+    
+    // Create message content
+    const messageSpan = document.createElement('span');
+    messageSpan.textContent = message;
+    messageSpan.style.cssText = `
+        flex: 1;
+        margin-right: 8px;
     `;
     
-    document.body.appendChild(statusDiv);
+    // Create close button
+    const closeButton = document.createElement('button');
+    closeButton.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M18.5683 5.51347C18.808 5.04851 19.3791 4.86591 19.844 5.10547C20.3091 5.34523 20.4917 5.91624 20.252 6.38129C19.8632 7.1356 19.0569 8.35683 18.0891 9.75817C17.2367 10.9924 16.2277 12.4097 15.2055 13.8474C16.035 15.7367 16.8057 17.4973 17.6774 18.7953C18.6028 20.1731 19.4293 20.7144 20.2715 20.6595C20.5307 20.6425 20.7308 20.5096 20.8885 20.2829C20.9692 20.167 21.0285 20.0379 21.0652 19.9184C21.0833 19.8596 21.0947 19.8082 21.1004 19.7676C21.1031 19.7478 21.1045 19.732 21.105 19.7204C21.1055 19.709 21.105 19.7029 21.105 19.7029C21.0713 19.181 21.4667 18.7303 21.9885 18.6963C22.5106 18.6624 22.9621 19.0586 22.996 19.5807C23.0319 20.1357 22.8263 20.8154 22.4437 21.3654C22.0391 21.9466 21.3602 22.4874 20.3954 22.5505C18.4833 22.6756 17.1143 21.3551 16.1047 19.8518C15.3062 18.6629 14.6 17.1608 13.9288 15.6497C13.0361 16.911 12.1749 18.1373 11.4393 19.2264C10.4663 20.6668 9.7539 21.8037 9.45208 22.4525C9.23138 22.9269 8.66735 23.1321 8.19298 22.9114C7.71886 22.6905 7.51347 22.1274 7.73411 21.6531C8.10985 20.8455 8.90961 19.5859 9.86931 18.1652C10.7965 16.7927 11.9134 15.2112 13.0351 13.6319C12.282 11.9406 11.5382 10.378 10.6871 9.20769C9.71292 7.86817 8.77152 7.2689 7.72856 7.33699C7.46925 7.35395 7.26924 7.48775 7.1115 7.71446C7.031 7.83023 6.97145 7.95878 6.9348 8.07805C6.91677 8.1368 6.90535 8.18826 6.89965 8.22886C6.89684 8.24891 6.89556 8.26532 6.89502 8.27697C6.89449 8.28855 6.89505 8.29401 6.89502 8.29362C6.92892 8.81562 6.53343 9.26611 6.01152 9.30021C5.48951 9.33411 5.03809 8.93867 5.00406 8.41667C4.96802 7.86167 5.17367 7.18207 5.55636 6.63201C5.96085 6.05068 6.6397 5.50906 7.60459 5.44594C9.62179 5.314 11.1053 6.56147 12.2191 8.09286C12.9977 9.16343 13.6777 10.4854 14.3062 11.8417C15.1009 10.723 15.8643 9.64554 16.5302 8.68127C17.5124 7.25917 18.2452 6.14009 18.5683 5.51347Z" fill="white"/>
+        </svg>
+    `;
+    closeButton.style.cssText = `
+        background: none;
+        border: none;
+        color: white;
+        cursor: pointer;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 16px;
+        height: 16px;
+        flex-shrink: 0;
+        opacity: 0.8;
+        transition: opacity 0.2s ease;
+    `;
+    closeButton.onmouseover = () => closeButton.style.opacity = '1';
+    closeButton.onmouseout = () => closeButton.style.opacity = '0.8';
+    
+    // Add click handler to close button
+    closeButton.onclick = (e) => {
+        e.stopPropagation();
+        statusDiv.style.opacity = '0';
+        statusDiv.style.transform = 'translateX(100%)';
+        setTimeout(() => {
+            if (statusDiv.parentNode) {
+                statusDiv.parentNode.removeChild(statusDiv);
+            }
+        }, 300);
+    };
+    
+    // Style the main status div
+    statusDiv.style.cssText = `
+        background: rgba(30, 30, 30, 0.95);
+        color: white;
+        padding: 12px 16px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-weight: 400;
+        line-height: 1.4;
+        min-width: 200px;
+        max-width: 350px;
+        word-wrap: break-word;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        pointer-events: auto;
+        transition: all 0.3s ease;
+        transform: translateX(100%);
+        opacity: 0;
+    `;
+    
+    // Append elements
+    statusDiv.appendChild(messageSpan);
+    statusDiv.appendChild(closeButton);
+    statusContainer.appendChild(statusDiv);
+    
+    // Animate in
+    requestAnimationFrame(() => {
+        statusDiv.style.opacity = '1';
+        statusDiv.style.transform = 'translateX(0)';
+    });
     
     // Auto-remove after duration
-    setTimeout(() => {
+    const autoRemoveTimeout = setTimeout(() => {
         statusDiv.style.opacity = '0';
+        statusDiv.style.transform = 'translateX(100%)';
         setTimeout(() => {
             if (statusDiv.parentNode) {
                 statusDiv.parentNode.removeChild(statusDiv);
             }
         }, 300);
     }, duration);
+    
+    // Clear timeout if manually closed
+    closeButton.onclick = (e) => {
+        e.stopPropagation();
+        clearTimeout(autoRemoveTimeout);
+        statusDiv.style.opacity = '0';
+        statusDiv.style.transform = 'translateX(100%)';
+        setTimeout(() => {
+            if (statusDiv.parentNode) {
+                statusDiv.parentNode.removeChild(statusDiv);
+            }
+        }, 300);
+    };
 }
 
 // Cleanup function for event listeners
