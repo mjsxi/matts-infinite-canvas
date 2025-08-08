@@ -38,7 +38,7 @@
 <body>
     <div id="ariaLive" class="sr-only" aria-live="polite" aria-atomic="true"></div>
     <!-- Mobile Loading Screen -->
-    <div id="mobileLoader" class="mobile-loader">
+    <div id="mobileLoader" class="mobile-loader" onload="window.mobileLoaderShownAt = performance.now();">
         <div class="mobile-loader-content">
             <!-- Favicon Icon -->
             <div class="mobile-loader-icon">

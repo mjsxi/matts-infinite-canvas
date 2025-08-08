@@ -21,6 +21,8 @@ window.lastMousePos = { x: 0, y: 0 };
 window.panVelocity = { x: 0, y: 0 };
 window.itemCounter = 0;
 window.realtimeChannel = null;
+// Track when mobile loader became visible (approx.)
+window.mobileLoaderShownAt = window.mobileLoaderShownAt || performance.now();
 
 // Drawing state
 window.currentDrawing = null;
@@ -222,10 +224,16 @@ function showCanvas(isAdmin = false) {
     // Hide mobile loader once canvas is visible
     const mobileLoader = document.getElementById('mobileLoader');
     if (mobileLoader) {
-        mobileLoader.style.opacity = '0';
+        const MIN_VISIBLE_MS = 1500;
+        const shownAt = window.mobileLoaderShownAt || performance.now();
+        const elapsed = performance.now() - shownAt;
+        const delay = Math.max(0, MIN_VISIBLE_MS - elapsed);
         setTimeout(() => {
-            mobileLoader.style.display = 'none';
-        }, 200);
+            mobileLoader.style.opacity = '0';
+            setTimeout(() => {
+                mobileLoader.style.display = 'none';
+            }, 200);
+        }, delay);
     }
     
     // Show/hide admin buttons based on authentication status
