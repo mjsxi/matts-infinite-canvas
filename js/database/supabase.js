@@ -6,6 +6,49 @@ let saveTimeout = null;
 const SAVE_DELAY = 300; // 300ms delay
 const DEBUG_MODE = false; // Toggle for production
 
+// User session management
+function getUserId() {
+    let userId = localStorage.getItem('canvas_user_id');
+    if (!userId) {
+        // Generate a unique user ID if none exists
+        userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        localStorage.setItem('canvas_user_id', userId);
+    }
+    
+    // If authenticated as admin, use admin as the user ID
+    if (window.isAuthenticated) {
+        return 'admin';
+    }
+    
+    return userId;
+}
+
+// Debug function to monitor new item behavior
+function debugNewItem(item, action) {
+    if (!DEBUG_MODE) return;
+    
+    const itemInfo = {
+        id: item.dataset.id,
+        type: item.dataset.type,
+        zIndex: item.style.zIndex,
+        domPosition: Array.from(canvas.children).indexOf(item),
+        totalItems: canvas.children.length,
+        action: action,
+        timestamp: Date.now()
+    };
+    
+    console.log('🔍 NEW ITEM DEBUG:', itemInfo);
+    
+    // Store debug info for tracking
+    if (!window.newItemDebugLog) window.newItemDebugLog = [];
+    window.newItemDebugLog.push(itemInfo);
+    
+    // Auto-cleanup old logs
+    if (window.newItemDebugLog.length > 20) {
+        window.newItemDebugLog.shift();
+    }
+}
+
 // Batch save optimization
 let pendingSaves = new Map();
 let batchSaveTimeout = null;
@@ -80,7 +123,7 @@ async function saveItemToDatabase(item) {
         y: parseFloat(item.style.top) || 0,
         item_type: item.dataset.type,
         content: getItemContent(item),
-        user_id: 'admin', // Set user ID - you can customize this
+        user_id: getUserId(), // Set user ID dynamically
         width: actualWidth,
         height: actualHeight,
         original_width: isTextItem ? actualWidth : (parseFloat(item.style.width) || 100),
@@ -150,7 +193,8 @@ async function saveItemToDatabase(item) {
             .upsert(itemData, { 
                 onConflict: 'id',
                 ignoreDuplicates: false 
-            });
+            })
+            .select();
 
         if (error) {
             console.error('=== DATABASE SAVE ERROR ===');
@@ -160,12 +204,23 @@ async function saveItemToDatabase(item) {
             throw error;
         }
 
+        // Update the item's dataset.id with the actual database ID if data is returned
+        if (data && data.length > 0) {
+            const savedItem = data[0];
+            if (savedItem.id !== itemData.id) {
+                if (DEBUG_MODE) {
+                    console.log('Updating item ID from', itemData.id, 'to', savedItem.id);
+                }
+                item.dataset.id = savedItem.id;
+            }
+        }
+        
         // Mark the save time to prevent real-time update loops
         item.dataset.lastSaveTime = Date.now().toString();
         
         if (DEBUG_MODE) {
             console.log('=== SAVE SUCCESSFUL ===');
-            console.log('Item saved successfully:', itemData.id, 'Type:', itemData.item_type, 'Content:', itemData.content);
+            console.log('Item saved successfully:', item.dataset.id, 'Type:', itemData.item_type, 'Content:', itemData.content);
             console.log('Response data:', data);
         }
     } catch (error) {
@@ -257,6 +312,9 @@ async function loadCanvasData() {
         // Cache all items data for lazy loading
         allItemsData = items || [];
         
+        // Make it globally accessible for z-index calculation
+        window.allItemsData = allItemsData;
+        
         if (DEBUG_MODE) console.log('Total items in database:', allItemsData.length);
         
         // Store selection state before clearing items
@@ -290,7 +348,7 @@ async function loadCanvasData() {
         // Get viewport center for distance calculations
         const viewportCenter = ViewportModule.getViewportCenter();
         
-        // Sort items by distance from center for ripple effect
+        // Sort items by distance from center for ripple effect, but preserve z-index order
         const itemsWithDistance = itemsToLoad.map(itemData => {
             const itemX = itemData.x + (itemData.width / 2);
             const itemY = itemData.y + (itemData.height / 2);
@@ -299,13 +357,24 @@ async function loadCanvasData() {
                 Math.pow(itemY - viewportCenter.y, 2)
             );
             return { ...itemData, distance };
-        }).sort((a, b) => a.distance - b.distance);
+        }).sort((a, b) => {
+            // Primary sort by distance for ripple effect
+            const distanceDiff = a.distance - b.distance;
+            if (Math.abs(distanceDiff) > 50) { // If distance difference is significant
+                return distanceDiff;
+            }
+            // Secondary sort by z-index to preserve stacking order for nearby items
+            return (a.z_index || 0) - (b.z_index || 0);
+        });
         
         // Create distance-based batches for smooth ripple effect
         const batchSize = Math.max(1, Math.min(3, Math.ceil(itemsWithDistance.length / 8)));
         const batches = [];
         for (let i = 0; i < itemsWithDistance.length; i += batchSize) {
-            batches.push(itemsWithDistance.slice(i, i + batchSize));
+            const batch = itemsWithDistance.slice(i, i + batchSize);
+            // Sort each batch by z-index to maintain stacking order
+            batch.sort((a, b) => (a.z_index || 0) - (b.z_index || 0));
+            batches.push(batch);
         }
         
         // Set global flags for enhanced animation
@@ -349,6 +418,9 @@ async function loadCanvasData() {
                 window.isInitialLoad = false;
                 window.currentBatch = 0;
                 window.totalBatches = 0;
+                
+                // Skip reordering for now to debug
+                // fixGlobalZIndexOrder();
             }, totalLoadTime);
         }, 500); // 500ms delay before starting initial load animations
         
@@ -467,12 +539,22 @@ function setupRealtimeSubscription() {
 }
 
 function handleRealtimeInsert(payload) {
+    // Skip real-time inserts from the current user to prevent duplicates
+    if (payload.new.user_id === getUserId()) {
+        if (DEBUG_MODE) console.log('Ignoring own real-time insert:', payload.new.id);
+        return;
+    }
+    
     const existingItem = canvas.querySelector(`[data-id="${payload.new.id}"]`);
     if (!existingItem) {
-        if (DEBUG_MODE) console.log('Real-time insert:', payload.new);
+        if (DEBUG_MODE) console.log('Real-time insert from another user:', payload.new);
         // Mark as coming from real-time for entrance animation
         payload.new.fromRealtime = true;
         const newItem = createItemFromData(payload.new);
+        
+        if (newItem) {
+            debugNewItem(newItem, 'REALTIME_INSERT_CREATED');
+        }
         
         // Add entrance animation
         if (newItem) {
@@ -586,7 +668,7 @@ function handleRealtimeUpdate(payload) {
         
         // Only show status if it's not the current user's own update
         // This prevents showing "updated by another user" for our own changes
-        if (payload.new.user_id !== 'admin') {
+        if (payload.new.user_id !== getUserId()) {
             AppGlobals.showStatus('Item updated by another user');
         }
     }
@@ -916,6 +998,8 @@ window.DatabaseModule = {
     updateItemFromData,
     getItemContent,
     processBatchSave,
+    debugNewItem,
+    fixGlobalZIndexOrder,
     
     // Viewport-aware loading functions
     getInitialItemsToLoad,
@@ -979,6 +1063,113 @@ window.DatabaseModule = {
             // Test save for this item
             this.testSaveItem(item);
         });
+    },
+    
+    // Find and fix corrupted image URLs
+    fixCorruptedImageUrls: async function() {
+        console.log('=== FINDING CORRUPTED IMAGE URLS ===');
+        
+        try {
+            // Get all image items
+            const { data: items, error } = await supabaseClient
+                .from('canvas_items')
+                .select('*')
+                .eq('item_type', 'image');
+            
+            if (error) {
+                console.error('Failed to fetch images:', error);
+                return;
+            }
+            
+            console.log('Found', items.length, 'image items');
+            
+            // Find corrupted URLs
+            const corruptedItems = items.filter(item => {
+                const isCorrupted = !item.content || 
+                                  item.content.includes('localhost:3000/index.html') ||
+                                  item.content.includes('index.html') ||
+                                  !item.content.startsWith('http');
+                
+                if (isCorrupted) {
+                    console.log('Corrupted item found:', {
+                        id: item.id,
+                        content: item.content,
+                        x: item.x,
+                        y: item.y
+                    });
+                }
+                
+                return isCorrupted;
+            });
+            
+            console.log('Found', corruptedItems.length, 'corrupted items');
+            
+            if (corruptedItems.length > 0) {
+                console.log('Corrupted items:', corruptedItems);
+                
+                // Ask user if they want to delete these items
+                const shouldDelete = confirm(`Found ${corruptedItems.length} corrupted image items. Delete them?`);
+                
+                if (shouldDelete) {
+                    for (const item of corruptedItems) {
+                        const { error: deleteError } = await supabaseClient
+                            .from('canvas_items')
+                            .delete()
+                            .eq('id', item.id);
+                        
+                        if (deleteError) {
+                            console.error('Failed to delete item', item.id, ':', deleteError);
+                        } else {
+                            console.log('Deleted corrupted item:', item.id);
+                        }
+                    }
+                    
+                    console.log('Cleanup complete. Refresh the page to see changes.');
+                    AppGlobals.showStatus(`Deleted ${corruptedItems.length} corrupted items. Refresh page.`);
+                }
+            } else {
+                console.log('No corrupted items found');
+            }
+            
+        } catch (error) {
+            console.error('Error during cleanup:', error);
+        }
+        
+        console.log('=== CLEANUP COMPLETE ===');
+    },
+    
+    // Quick diagnostic test
+    quickDiagnostic: async function() {
+        console.log('=== QUICK DIAGNOSTIC TEST ===');
+        
+        // Test 1: Check if Supabase client is available
+        console.log('1. Supabase client available:', !!window.supabaseClient);
+        
+        // Test 2: Check authentication
+        console.log('2. Is authenticated:', window.isAuthenticated);
+        
+        // Test 3: Test getUserId function
+        console.log('3. Current user ID:', getUserId());
+        
+        // Test 4: Test basic database connection
+        try {
+            const { data, error } = await supabaseClient
+                .from('canvas_items')
+                .select('count', { count: 'exact', head: true });
+            
+            if (error) {
+                console.error('4. Database connection failed:', error);
+                return false;
+            } else {
+                console.log('4. Database connection successful, item count:', data);
+            }
+        } catch (error) {
+            console.error('4. Database connection exception:', error);
+            return false;
+        }
+        
+        console.log('=== DIAGNOSTIC COMPLETE - Check above for issues ===');
+        return true;
     },
     
     // Comprehensive test to identify sync issues
@@ -1059,7 +1250,7 @@ window.DatabaseModule = {
                 y: 100,
                 width: 200,
                 height: 150,
-                user_id: 'admin'
+                user_id: getUserId()
             },
             {
                 id: 999998,
@@ -1069,7 +1260,7 @@ window.DatabaseModule = {
                 y: 100,
                 width: 300,
                 height: 200,
-                user_id: 'admin'
+                user_id: getUserId()
             },
             {
                 id: 999997,
@@ -1079,7 +1270,7 @@ window.DatabaseModule = {
                 y: 300,
                 width: 200,
                 height: 100,
-                user_id: 'admin'
+                user_id: getUserId()
             },
             {
                 id: 999996,
@@ -1091,7 +1282,7 @@ window.DatabaseModule = {
                 height: 100,
                 stroke_color: '#ff0000',
                 stroke_thickness: 4,
-                user_id: 'admin'
+                user_id: getUserId()
             }
         ];
         
@@ -1133,6 +1324,29 @@ window.DatabaseModule = {
         }
         
         console.log('=== DATABASE SCHEMA TEST COMPLETE ===');
+    },
+    
+    // View debug log for new items
+    viewDebugLog: function() {
+        if (!window.newItemDebugLog || window.newItemDebugLog.length === 0) {
+            console.log('No debug log entries found');
+            return;
+        }
+        
+        console.log('=== NEW ITEM DEBUG LOG ===');
+        console.table(window.newItemDebugLog.slice(-10)); // Show last 10 entries
+        
+        // Show summary by item ID
+        const byItemId = {};
+        window.newItemDebugLog.forEach(entry => {
+            if (!byItemId[entry.id]) byItemId[entry.id] = [];
+            byItemId[entry.id].push(entry);
+        });
+        
+        console.log('=== BY ITEM ID ===');
+        Object.keys(byItemId).forEach(id => {
+            console.log(`Item ${id}:`, byItemId[id].map(e => `${e.action} (z:${e.zIndex}, pos:${e.domPosition})`).join(' → '));
+        });
     }
 };
 
@@ -1307,6 +1521,12 @@ function performLazyItemLoading() {
     const viewportBounds = getViewportBoundsFromCenter(viewportCenter);
     const itemsToLoad = [];
     
+    // Get currently loaded items and their z-indexes to maintain global order
+    const currentItems = Array.from(canvas.querySelectorAll('.canvas-item')).map(item => ({
+        id: item.dataset.id,
+        zIndex: parseInt(item.style.zIndex) || 0
+    }));
+    
     // Find unloaded items with balanced left/right priority
     allItemsData.forEach(itemData => {
         if (loadedItems.has(itemData.id)) return; // Already loaded
@@ -1378,17 +1598,26 @@ function performLazyItemLoading() {
         }
     }
     
-    // Load the selected items
+    // Sort selected items by z-index before creating to preserve stacking order
+    selectedItems.sort((a, b) => (a.z_index || 0) - (b.z_index || 0));
+    
+    if (DEBUG_MODE) {
+        console.log('Lazy loading items in z-index order:', selectedItems.map(i => `ID:${i.id} z:${i.z_index}`));
+    }
+    
+    // Load the selected items in z-index order
     selectedItems.forEach(itemData => {
         try {
             if (DEBUG_MODE) {
                 console.log('Lazy loading item:', itemData.id, 
                            'distance:', itemData.distance.toFixed(0), 
-                           'side:', itemData.isLeftSide ? 'left' : 'right');
+                           'side:', itemData.isLeftSide ? 'left' : 'right',
+                           'z-index:', itemData.z_index);
             }
             const item = createItemFromData(itemData);
             if (item) {
                 loadedItems.add(itemData.id);
+                debugNewItem(item, 'LAZY_LOADED');
                 // Add fade-in animation for lazy loaded items
                 item.style.opacity = '0';
                 item.style.transition = 'opacity 0.3s ease-in';
@@ -1403,6 +1632,75 @@ function performLazyItemLoading() {
     
     if (selectedItems.length > 0 && DEBUG_MODE) {
         console.log(`Lazy loaded ${selectedItems.length} items: ${leftLoaded} left, ${rightLoaded} right`);
+    }
+    
+    // Skip reordering for now to debug
+    // setTimeout(() => {
+    //     fixGlobalZIndexOrder();
+    // }, 100);
+}
+
+// Fix global z-index DOM order after lazy loading
+function fixGlobalZIndexOrder() {
+    const items = Array.from(canvas.querySelectorAll('.canvas-item'));
+    
+    // Don't reorder if there are very recent items (< 5 seconds old)
+    const now = Date.now();
+    const hasRecentItems = items.some(item => {
+        const lastSave = parseInt(item.dataset.lastSaveTime || '0');
+        return (now - lastSave) < 5000; // 5 seconds
+    });
+    
+    if (hasRecentItems) {
+        if (DEBUG_MODE) console.log('Skipping z-index reorder - recent items detected');
+        return;
+    }
+    
+    // Sort items by z-index
+    items.sort((a, b) => {
+        const aIndex = parseInt(a.style.zIndex) || 0;
+        const bIndex = parseInt(b.style.zIndex) || 0;
+        return aIndex - bIndex;
+    });
+    
+    if (DEBUG_MODE) {
+        console.log('Fixing z-index order for', items.length, 'items');
+        console.log('Z-index order:', items.map(item => `ID:${item.dataset.id} z:${item.style.zIndex}`));
+    }
+    
+    // Re-insert items in correct z-index order using insertBefore
+    items.forEach((item, index) => {
+        // Remove item from current position
+        if (item.parentNode) {
+            item.remove();
+        }
+        
+        // Find the correct insertion point (first item with higher z-index)
+        const currentItems = Array.from(canvas.children);
+        let insertBefore = null;
+        
+        for (const existingItem of currentItems) {
+            const existingZIndex = parseInt(existingItem.style.zIndex) || 0;
+            const itemZIndex = parseInt(item.style.zIndex) || 0;
+            
+            if (existingZIndex > itemZIndex) {
+                insertBefore = existingItem;
+                break;
+            }
+        }
+        
+        // Insert at correct position
+        if (insertBefore) {
+            canvas.insertBefore(item, insertBefore);
+        } else {
+            canvas.appendChild(item);
+        }
+        
+        debugNewItem(item, `ZINDEX_REORDERED_${index}`);
+    });
+    
+    if (DEBUG_MODE) {
+        console.log('Z-index reordering complete');
     }
 }
 

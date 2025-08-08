@@ -107,6 +107,7 @@ async function handleFileSelect(e) {
             .from('canvas-media')
             .getPublicUrl(filename);
         
+        
         if (urlData?.publicUrl) {
             // Upload successful - public URL obtained
             AppGlobals.showStatus(`${isVideo ? 'Video' : 'Image'} uploaded successfully`);
@@ -152,9 +153,8 @@ function createImageItem(src, x = null, y = null, width = 200, height = 150, fro
     // Set z-index to be on top for new items
     if (!fromDatabase) {
         item.dataset.id = ++itemCounter;
-        // Get the next available z-index (number of items + 1)
-        const items = Array.from(canvas.querySelectorAll('.canvas-item'));
-        item.style.zIndex = items.length + 1;
+        // Temporary z-index - will be recalculated after DOM insertion
+        item.style.zIndex = 1;
     }
     item.dataset.type = 'image';
     
@@ -162,16 +162,8 @@ function createImageItem(src, x = null, y = null, width = 200, height = 150, fro
     img.loading = 'lazy'; // Enable lazy loading
     img.decoding = 'async'; // Enable async decoding
     
-    // Progressive loading: check if we should load thumbnail first
-    const shouldUseProgressiveLoading = !fromDatabase && isLargeImage(src);
-    
-    if (shouldUseProgressiveLoading) {
-        // Load thumbnail first, then full resolution
-        setupProgressiveImageLoading(img, src, item);
-    } else {
-        // Standard loading
-        img.src = src;
-    }
+    // Always set the src directly - progressive loading was causing save issues
+    img.src = src;
     
     // Set a default aspect ratio initially
     item.dataset.aspectRatio = width / height;
@@ -221,7 +213,14 @@ function createImageItem(src, x = null, y = null, width = 200, height = 150, fro
             delay = baseDelay + variation;
         }
         
-        startFadeInAnimation(item, delay);
+        // For new items, skip complex animation and show immediately
+        if (!fromDatabase) {
+            item.style.opacity = '1';
+            item.style.visibility = 'visible';
+            item.style.transform = 'translateZ(0)';
+        } else {
+            startFadeInAnimation(item, delay);
+        }
         
         // Save to database if not from database
         if (!fromDatabase) {
@@ -229,22 +228,58 @@ function createImageItem(src, x = null, y = null, width = 200, height = 150, fro
         }
     };
     
-    img.onerror = function() {
+    img.onerror = function(e) {
         console.error('Failed to load image:', src);
+        console.error('Image error event:', e);
+        console.error('Image element:', img);
+        console.error('Network status:', navigator.onLine);
         item.classList.remove('loading');
         item.classList.add('error');
-        AppGlobals.showStatus('Failed to load image');
+        AppGlobals.showStatus('Failed to load image: ' + src);
     };
     
     item.appendChild(img);
     canvas.appendChild(item);
     
+    // Update z-index after item is added to DOM (for new items only)
+    if (!fromDatabase) {
+        // Get the highest z-index from ALL items (loaded + database)
+        let maxZIndex = 0;
+        
+        // Check loaded items
+        const loadedItems = Array.from(canvas.querySelectorAll('.canvas-item'));
+        loadedItems.forEach(item => {
+            const zIndex = parseInt(item.style.zIndex) || 0;
+            maxZIndex = Math.max(maxZIndex, zIndex);
+        });
+        
+        // Check database items (allItemsData from DatabaseModule)
+        if (window.allItemsData) {
+            window.allItemsData.forEach(itemData => {
+                const zIndex = itemData.z_index || 0;
+                maxZIndex = Math.max(maxZIndex, zIndex);
+            });
+        }
+        
+        
+        item.style.zIndex = maxZIndex + 1;
+        
+        // Debug tracking
+        DatabaseModule.debugNewItem(item, 'IMAGE_CREATED_WITH_ZINDEX');
+    }
+    
     // Animation will be triggered from img.onload after content loads
     
     if (!fromDatabase) {
         ItemsModule.selectItem(item);
-        // Save immediately with initial dimensions
+        DatabaseModule.debugNewItem(item, 'IMAGE_BEFORE_SAVE');
+        // Save immediately now that src is set correctly
         DatabaseModule.saveItemToDatabase(item);
+        
+        // Track after save
+        setTimeout(() => DatabaseModule.debugNewItem(item, 'IMAGE_AFTER_SAVE'), 100);
+        setTimeout(() => DatabaseModule.debugNewItem(item, 'IMAGE_1SEC_LATER'), 1000);
+        setTimeout(() => DatabaseModule.debugNewItem(item, 'IMAGE_2SEC_LATER'), 2000);
     }
     
     return item;
@@ -274,9 +309,8 @@ function createVideoItem(src, x = null, y = null, width = 400, height = 300, fro
     // Set z-index to be on top for new items
     if (!fromDatabase) {
         item.dataset.id = ++itemCounter;
-        // Get the next available z-index (number of items + 1)
-        const items = Array.from(canvas.querySelectorAll('.canvas-item'));
-        item.style.zIndex = items.length + 1;
+        // Temporary z-index - will be recalculated after DOM insertion
+        item.style.zIndex = 1;
     }
     item.dataset.type = 'video';
     
@@ -328,20 +362,27 @@ function createVideoItem(src, x = null, y = null, width = 400, height = 300, fro
     
     // Start animation when video data is loaded and can play
     video.addEventListener('loadeddata', function() {
-        // Calculate delay based on batch and distance
-        let delay = 0;
-        if (window.isInitialLoad) {
-            const batchProgress = window.currentBatch / Math.max(1, window.totalBatches - 1);
-            const itemVariation = window.itemIndexInBatch * 8;
-            const distanceDelay = Math.min(50, batchProgress * 50);
-            delay = distanceDelay + itemVariation;
+        // For new items, skip complex animation and show immediately
+        if (!fromDatabase) {
+            item.style.opacity = '1';
+            item.style.visibility = 'visible';
+            item.style.transform = 'translateZ(0)';
         } else {
-            const baseDelay = fromDatabase ? 30 : 10;
-            const variation = Math.random() * 15;
-            delay = baseDelay + variation;
+            // Calculate delay based on batch and distance for database items
+            let delay = 0;
+            if (window.isInitialLoad) {
+                const batchProgress = window.currentBatch / Math.max(1, window.totalBatches - 1);
+                const itemVariation = window.itemIndexInBatch * 8;
+                const distanceDelay = Math.min(50, batchProgress * 50);
+                delay = distanceDelay + itemVariation;
+            } else {
+                const baseDelay = 30;
+                const variation = Math.random() * 15;
+                delay = baseDelay + variation;
+            }
+            
+            startFadeInAnimation(item, delay);
         }
-        
-        startFadeInAnimation(item, delay);
     });
     
     // Ensure video plays when it can
@@ -385,6 +426,29 @@ function createVideoItem(src, x = null, y = null, width = 400, height = 300, fro
     
     item.appendChild(video);
     canvas.appendChild(item);
+    
+    // Update z-index after item is added to DOM (for new items only)
+    if (!fromDatabase) {
+        // Get the highest z-index from ALL items (loaded + database)
+        let maxZIndex = 0;
+        
+        // Check loaded items
+        const loadedItems = Array.from(canvas.querySelectorAll('.canvas-item'));
+        loadedItems.forEach(item => {
+            const zIndex = parseInt(item.style.zIndex) || 0;
+            maxZIndex = Math.max(maxZIndex, zIndex);
+        });
+        
+        // Check database items (allItemsData from DatabaseModule)
+        if (window.DatabaseModule && window.allItemsData) {
+            window.allItemsData.forEach(itemData => {
+                const zIndex = itemData.z_index || 0;
+                maxZIndex = Math.max(maxZIndex, zIndex);
+            });
+        }
+        
+        item.style.zIndex = maxZIndex + 1;
+    }
     
     // Animation will be triggered from video.loadeddata event after content loads
     
@@ -495,9 +559,8 @@ function createTextItem(content = 'Double-click to edit text...', x = null, y = 
     // Set z-index to be on top for new items
     if (!fromDatabase) {
         item.dataset.id = ++itemCounter;
-        // Get the next available z-index (number of items + 1)
-        const items = Array.from(canvas.querySelectorAll('.canvas-item'));
-        item.style.zIndex = items.length + 1;
+        // Temporary z-index - will be recalculated after DOM insertion
+        item.style.zIndex = 1;
     }
     item.dataset.type = 'text';
     
@@ -579,20 +642,50 @@ function createTextItem(content = 'Double-click to edit text...', x = null, y = 
     
     canvas.appendChild(item);
     
-    // Text loads instantly, start animation immediately
-    let delay = 0;
-    if (window.isInitialLoad) {
-        const batchProgress = window.currentBatch / Math.max(1, window.totalBatches - 1);
-        const itemVariation = window.itemIndexInBatch * 8;
-        const distanceDelay = Math.min(50, batchProgress * 50);
-        delay = distanceDelay + itemVariation;
-    } else {
-        const baseDelay = fromDatabase ? 30 : 10;
-        const variation = Math.random() * 15;
-        delay = baseDelay + variation;
+    // Update z-index after item is added to DOM (for new items only)
+    if (!fromDatabase) {
+        // Get the highest z-index from ALL items (loaded + database)
+        let maxZIndex = 0;
+        
+        // Check loaded items
+        const loadedItems = Array.from(canvas.querySelectorAll('.canvas-item'));
+        loadedItems.forEach(item => {
+            const zIndex = parseInt(item.style.zIndex) || 0;
+            maxZIndex = Math.max(maxZIndex, zIndex);
+        });
+        
+        // Check database items (allItemsData from DatabaseModule)
+        if (window.DatabaseModule && window.allItemsData) {
+            window.allItemsData.forEach(itemData => {
+                const zIndex = itemData.z_index || 0;
+                maxZIndex = Math.max(maxZIndex, zIndex);
+            });
+        }
+        
+        item.style.zIndex = maxZIndex + 1;
     }
     
-    startFadeInAnimation(item, delay);
+    // For new items, skip complex animation and show immediately
+    if (!fromDatabase) {
+        item.style.opacity = '1';
+        item.style.visibility = 'visible';
+        item.style.transform = 'translateZ(0)';
+    } else {
+        // Text loads instantly, start animation immediately for database items
+        let delay = 0;
+        if (window.isInitialLoad) {
+            const batchProgress = window.currentBatch / Math.max(1, window.totalBatches - 1);
+            const itemVariation = window.itemIndexInBatch * 8;
+            const distanceDelay = Math.min(50, batchProgress * 50);
+            delay = distanceDelay + itemVariation;
+        } else {
+            const baseDelay = 30;
+            const variation = Math.random() * 15;
+            delay = baseDelay + variation;
+        }
+        
+        startFadeInAnimation(item, delay);
+    }
     
     // Center the text item if it's not from database and using viewport center
     if (!fromDatabase && x !== null && y !== null) {
@@ -656,9 +749,8 @@ function createCodeItem(htmlContent, x = null, y = null, width = 400, height = 3
     // Set z-index to be on top for new items
     if (!fromDatabase) {
         item.dataset.id = ++itemCounter;
-        // Get the next available z-index (number of items + 1)
-        const items = Array.from(canvas.querySelectorAll('.canvas-item'));
-        item.style.zIndex = items.length + 1;
+        // Temporary z-index - will be recalculated after DOM insertion
+        item.style.zIndex = 1;
     }
     item.dataset.type = 'code';
     
@@ -672,20 +764,50 @@ function createCodeItem(htmlContent, x = null, y = null, width = 400, height = 3
     item.appendChild(iframe);
     canvas.appendChild(item);
     
-    // Code loads instantly, start animation immediately  
-    let delay = 0;
-    if (window.isInitialLoad) {
-        const batchProgress = window.currentBatch / Math.max(1, window.totalBatches - 1);
-        const itemVariation = window.itemIndexInBatch * 8;
-        const distanceDelay = Math.min(50, batchProgress * 50);
-        delay = distanceDelay + itemVariation;
-    } else {
-        const baseDelay = fromDatabase ? 30 : 10;
-        const variation = Math.random() * 15;
-        delay = baseDelay + variation;
+    // Update z-index after item is added to DOM (for new items only)
+    if (!fromDatabase) {
+        // Get the highest z-index from ALL items (loaded + database)
+        let maxZIndex = 0;
+        
+        // Check loaded items
+        const loadedItems = Array.from(canvas.querySelectorAll('.canvas-item'));
+        loadedItems.forEach(item => {
+            const zIndex = parseInt(item.style.zIndex) || 0;
+            maxZIndex = Math.max(maxZIndex, zIndex);
+        });
+        
+        // Check database items (allItemsData from DatabaseModule)
+        if (window.DatabaseModule && window.allItemsData) {
+            window.allItemsData.forEach(itemData => {
+                const zIndex = itemData.z_index || 0;
+                maxZIndex = Math.max(maxZIndex, zIndex);
+            });
+        }
+        
+        item.style.zIndex = maxZIndex + 1;
     }
     
-    startFadeInAnimation(item, delay);
+    // For new items, skip complex animation and show immediately
+    if (!fromDatabase) {
+        item.style.opacity = '1';
+        item.style.visibility = 'visible';
+        item.style.transform = 'translateZ(0)';
+    } else {
+        // Code loads instantly, start animation immediately for database items
+        let delay = 0;
+        if (window.isInitialLoad) {
+            const batchProgress = window.currentBatch / Math.max(1, window.totalBatches - 1);
+            const itemVariation = window.itemIndexInBatch * 8;
+            const distanceDelay = Math.min(50, batchProgress * 50);
+            delay = distanceDelay + itemVariation;
+        } else {
+            const baseDelay = 30;
+            const variation = Math.random() * 15;
+            delay = baseDelay + variation;
+        }
+        
+        startFadeInAnimation(item, delay);
+    }
     
     // Add the interaction overlay after the item is in the DOM
     addInteractionOverlay(item);
@@ -1067,10 +1189,8 @@ function loadFullResolutionImage(img, src, item, placeholder) {
         img.style.opacity = '1';
         item.classList.remove('progressive-loading');
         
-        // Trigger the existing onload handler logic
-        const existingOnload = img.onload;
-        img.onload = existingOnload;
-        if (existingOnload) existingOnload.call(this);
+        // Clear the onload handler to prevent recursion
+        img.onload = null;
     };
     
     img.onerror = function() {
@@ -1081,10 +1201,11 @@ function loadFullResolutionImage(img, src, item, placeholder) {
         
         item.classList.remove('progressive-loading');
         
-        // Trigger existing error handler
-        const existingOnerror = img.onerror;
-        img.onerror = existingOnerror;
-        if (existingOnerror) existingOnerror.call(this);
+        // Clear the error handler to prevent recursion
+        img.onerror = null;
+        
+        // Show error state
+        item.classList.add('error');
     };
     
     // Start loading full resolution

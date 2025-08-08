@@ -97,9 +97,13 @@ function createDrawingItem(pathData, strokeColor, strokeThickness, x, y, width, 
     // Set z-index to be on top for new items
     if (!fromDatabase) {
         item.dataset.id = ++itemCounter;
-        // Get the next available z-index (number of items + 1)
+        // Get the highest existing z-index and add 1
         const items = Array.from(canvas.querySelectorAll('.canvas-item'));
-        item.style.zIndex = items.length + 1;
+        const maxZIndex = items.reduce((max, item) => {
+            const zIndex = parseInt(item.style.zIndex) || 0;
+            return Math.max(max, zIndex);
+        }, 0);
+        item.style.zIndex = maxZIndex + 1;
     }
     item.dataset.type = 'drawing';
     
@@ -140,33 +144,63 @@ function createDrawingItem(pathData, strokeColor, strokeThickness, x, y, width, 
     
     canvas.appendChild(item);
     
-    // Add enhanced fade-in animation with multiple approaches
-    let delay = 0;
-    
-    if (window.isInitialLoad) {
-        // Batch-based ripple effect with subtle variation within batches
-        const batchProgress = window.currentBatch / Math.max(1, window.totalBatches - 1);
-        const itemVariation = window.itemIndexInBatch * 8; // 8ms between items in batch
-        const distanceDelay = Math.min(50, batchProgress * 50); // Progressive delay based on distance
-        delay = distanceDelay + itemVariation;
-    } else {
-        // Smooth delay for other items (user-created or lazy-loaded)
-        const baseDelay = fromDatabase ? 30 : 10;
-        const variation = Math.random() * 15;
-        delay = baseDelay + variation;
+    // Update z-index after item is added to DOM (for new items only)
+    if (!fromDatabase) {
+        // Get the highest z-index from ALL items (loaded + database)
+        let maxZIndex = 0;
+        
+        // Check loaded items
+        const loadedItems = Array.from(canvas.querySelectorAll('.canvas-item'));
+        loadedItems.forEach(item => {
+            const zIndex = parseInt(item.style.zIndex) || 0;
+            maxZIndex = Math.max(maxZIndex, zIndex);
+        });
+        
+        // Check database items (allItemsData from DatabaseModule)
+        if (window.allItemsData) {
+            window.allItemsData.forEach(itemData => {
+                const zIndex = itemData.z_index || 0;
+                maxZIndex = Math.max(maxZIndex, zIndex);
+            });
+        }
+        
+        item.style.zIndex = maxZIndex + 1;
     }
     
-    // Use the shared animation function from CreatorsModule
-    if (window.CreatorsModule && window.CreatorsModule.startFadeInAnimation) {
-        window.CreatorsModule.startFadeInAnimation(item, delay);
+    // For new items, skip complex animation and show immediately
+    if (!fromDatabase) {
+        item.style.opacity = '1';
+        item.style.visibility = 'visible';
+        item.style.transform = 'translateZ(0)';
     } else {
-        // Fallback if function not available
-        setTimeout(() => {
-            item.classList.add('fade-in-animation');
+        // Add enhanced fade-in animation for items loaded from database
+        let delay = 0;
+        
+        if (window.isInitialLoad) {
+            // Batch-based ripple effect with subtle variation within batches
+            const batchProgress = window.currentBatch / Math.max(1, window.totalBatches - 1);
+            const itemVariation = window.itemIndexInBatch * 8; // 8ms between items in batch
+            const distanceDelay = Math.min(50, batchProgress * 50); // Progressive delay based on distance
+            delay = distanceDelay + itemVariation;
+        } else {
+            // Smooth delay for other items (lazy-loaded)
+            const baseDelay = 30;
+            const variation = Math.random() * 15;
+            delay = baseDelay + variation;
+        }
+        
+        // Use the shared animation function from CreatorsModule
+        if (window.CreatorsModule && window.CreatorsModule.startFadeInAnimation) {
+            window.CreatorsModule.startFadeInAnimation(item, delay);
+        } else {
+            // Fallback if function not available
             setTimeout(() => {
-                item.classList.remove('fade-in-animation');
-            }, 600);
-        }, delay);
+                item.classList.add('fade-in-animation');
+                setTimeout(() => {
+                    item.classList.remove('fade-in-animation');
+                }, 600);
+            }, delay);
+        }
     }
     
     if (!fromDatabase) {
