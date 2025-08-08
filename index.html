@@ -3,6 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://ruefemuqeehlqieitoma.supabase.co" crossorigin>
+    <link rel="preload" href="fonts/Antarctica-VAR-VF.ttf" as="font" type="font/ttf" crossorigin>
+    <link rel="preload" href="fonts/Alpaga-VAR-VF.ttf" as="font" type="font/ttf" crossorigin>
+    <link rel="preload" href="fonts/Atacama-VAR-VF.ttf" as="font" type="font/ttf" crossorigin>
+    <link rel="preload" href="fonts/Atacama-Italic-VAR-VF.ttf" as="font" type="font/ttf" crossorigin>
     <!-- Primary Meta Tags -->
     <title>Matts Canvas</title>
     <meta name="title" content="Matts Canvas" />
@@ -26,9 +33,10 @@
     <link rel="icon" type="image/svg+xml" href="icons/favicon.svg">
     <link rel="stylesheet" href="canvas.css">
     <link rel="stylesheet" href="mobile-zoom.css">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
+    <div id="ariaLive" class="sr-only" aria-live="polite" aria-atomic="true"></div>
     <!-- Mobile Loading Screen -->
     <div id="mobileLoader" class="mobile-loader">
         <div class="mobile-loader-content">

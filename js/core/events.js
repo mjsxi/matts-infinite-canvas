@@ -22,9 +22,9 @@ const TOUCH_THROTTLE_INTERVAL = 16; // 60fps throttling
 
 function bindEvents() {
     // Mouse events
-    container.addEventListener('mousedown', handleMouseDown);
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
+    container.addEventListener('mousedown', handleMouseDown, { passive: true });
+    document.addEventListener('mousemove', handleMouseMoveRaf, { passive: true });
+    document.addEventListener('mouseup', handleMouseUp, { passive: true });
     container.addEventListener('wheel', handleWheel, { passive: false });
     
     // Touch events for mobile/tablet with optimized passive settings
@@ -108,6 +108,10 @@ function handleMouseDown(e) {
     }
 }
 
+// rAF-throttled mousemove
+let lastMouseMoveEvent = null;
+let mouseMoveScheduled = false;
+
 function handleMouseMove(e) {
     if (isDrawing) {
         const canvasPos = ViewportModule.screenToCanvas(e.clientX, e.clientY);
@@ -144,6 +148,19 @@ function handleMouseMove(e) {
     // Note: Resize and rotation are handled by their own event listeners in the ItemsModule
     
     lastMousePos = { x: e.clientX, y: e.clientY };
+}
+
+function handleMouseMoveRaf(e) {
+    lastMouseMoveEvent = e;
+    if (mouseMoveScheduled) return;
+    mouseMoveScheduled = true;
+    requestAnimationFrame(() => {
+        mouseMoveScheduled = false;
+        if (!lastMouseMoveEvent) return;
+        const evt = lastMouseMoveEvent;
+        lastMouseMoveEvent = null;
+        handleMouseMove(evt);
+    });
 }
 
 function handleMouseUp(e) {
