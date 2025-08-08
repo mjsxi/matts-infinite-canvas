@@ -104,6 +104,13 @@ function closeLoginModal() {
 
 function login() {
     const password = document.getElementById('adminPassword').value;
+    
+    // Check if admin password is configured
+    if (!AppGlobals.ADMIN_PASSWORD) {
+        alert('Admin login not available in this environment');
+        return;
+    }
+    
     if (password === AppGlobals.ADMIN_PASSWORD) {
         isAuthenticated = true;
         const timestamp = new Date().getTime();

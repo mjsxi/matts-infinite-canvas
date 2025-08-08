@@ -1,0 +1,9 @@
+# Exclude localhost configuration from Vercel builds
+js/localhost-config.js
+
+# Exclude build scripts
+build-config.js
+
+# Exclude development files
+*.backup
+test-*.html

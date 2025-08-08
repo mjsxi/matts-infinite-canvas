@@ -27,8 +27,8 @@ window.currentDrawing = null;
 window.drawingPath = [];
 window.drawingPreview = null;
 
-// Constants
-const ADMIN_PASSWORD = 'canvas123';
+// Constants - Password loaded conditionally
+const ADMIN_PASSWORD = window.LOCALHOST_ADMIN_PASSWORD || null;
 const SUPABASE_URL = 'https://ruefemuqeehlqieitoma.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ1ZWZlbXVxZWVobHFpZWl0b21hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQxNzc5ODQsImV4cCI6MjA2OTc1Mzk4NH0.Bl3Af45EF-RINH_MD5AcZITNbk4wj79cm3Znsbrpb9k';
 
