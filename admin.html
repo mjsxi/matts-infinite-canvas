@@ -54,16 +54,7 @@
                 return;
             }
             
-            // Get admin password from localhost config
-            const adminPassword = window.LOCALHOST_ADMIN_PASSWORD || null;
-            
-            if (!adminPassword) {
-                alert('Admin login not available in this environment');
-                shakeLoginForm();
-                return;
-            }
-            
-            // Try server-side login first (for production)
+            // Try server-side login first (for production/Vercel)
             try {
                 const response = await fetch('/api/auth/admin-login', {
                     method: 'POST',
@@ -87,7 +78,9 @@
             }
             
             // Fallback to client-side authentication (for localhost)
-            if (password === adminPassword) {
+            const adminPassword = window.LOCALHOST_ADMIN_PASSWORD || null;
+            
+            if (adminPassword && password === adminPassword) {
                 // Set localStorage auth like the main canvas does
                 const timestamp = new Date().getTime();
                 localStorage.setItem('canvas_admin_auth', JSON.stringify({ timestamp }));
@@ -95,6 +88,9 @@
                 setTimeout(() => {
                     window.location.href = '/index.html';
                 }, 500);
+            } else if (!adminPassword) {
+                alert('Invalid credentials');
+                shakeLoginForm();
             } else {
                 shakeLoginForm();
             }
