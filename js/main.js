@@ -21,6 +21,8 @@ window.lastMousePos = { x: 0, y: 0 };
 window.panVelocity = { x: 0, y: 0 };
 window.itemCounter = 0;
 window.realtimeChannel = null;
+// Track when mobile loader became visible (approx.)
+window.mobileLoaderShownAt = window.mobileLoaderShownAt || performance.now();
 
 // Drawing state
 window.currentDrawing = null;
@@ -218,6 +220,21 @@ function showCanvas(isAdmin = false) {
     } else {
         console.error('Canvas container not found');
     }
+
+    // Hide mobile loader once canvas is visible
+    const mobileLoader = document.getElementById('mobileLoader');
+    if (mobileLoader) {
+        const MIN_VISIBLE_MS = 1500;
+        const shownAt = window.mobileLoaderShownAt || performance.now();
+        const elapsed = performance.now() - shownAt;
+        const delay = Math.max(0, MIN_VISIBLE_MS - elapsed);
+        setTimeout(() => {
+            mobileLoader.style.opacity = '0';
+            setTimeout(() => {
+                mobileLoader.style.display = 'none';
+            }, 200);
+        }, delay);
+    }
     
     // Show/hide admin buttons based on authentication status
     const adminButtons = document.getElementById('adminButtons');
@@ -249,7 +266,10 @@ function closeModal(modalId) {
 }
 
 function showStatus(message) {
-    // Could show toast notifications here
+    const live = document.getElementById('ariaLive');
+    if (live) {
+        live.textContent = message;
+    }
 }
 
 // Export global functions for HTML button clicks and module access
@@ -274,12 +294,11 @@ window.AppGlobals = {
     showCanvas,
     closeModal,
     showStatus: (message) => {
-        // Only show status messages for authenticated admin users
-        if (isAuthenticated) {
-            window.ToolbarModule?.showStatus?.(message);
-        } else {
-            // Status message (admin only)
-        }
+        // Announce to ARIA live region for all users
+        const live = document.getElementById('ariaLive');
+        if (live) live.textContent = message;
+        // Show visual toast for admins
+        if (isAuthenticated) window.ToolbarModule?.showStatus?.(message);
     },
     updateAuthBodyClass,
     checkAuth,

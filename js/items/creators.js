@@ -20,8 +20,16 @@ function startFadeInAnimation(item, delay = 0) {
             item.style.setProperty('visibility', 'visible', 'important');
         }
         
-        // Start fade-in animation
-        item.classList.add('fade-in-animation');
+        // For items created by the user (not from DB), avoid opacity fade to prevent flicker
+        const isFromDatabase = item.dataset.fromDatabase === 'true';
+        const shouldUseOpacityFade = isFromDatabase || item.style.opacity === '0';
+
+        if (shouldUseOpacityFade) {
+            item.classList.add('fade-in-animation');
+        } else {
+            // Ensure visible without forcing opacity to 0
+            item.style.opacity = '1';
+        }
         
         // Animate scale manually with rotation preserved
         const startTime = performance.now();
@@ -58,7 +66,11 @@ function startFadeInAnimation(item, delay = 0) {
                 // Animation complete - restore original transform or apply final transform
                 const finalTransform = rotation ? `${rotation} translateZ(0)` : 'translateZ(0)';
                 item.style.transform = finalTransform;
-                item.classList.remove('fade-in-animation');
+                // Ensure item remains visible after animation completes
+                item.style.opacity = '1';
+                if (shouldUseOpacityFade) {
+                    item.classList.remove('fade-in-animation');
+                }
             }
         };
         
@@ -143,9 +155,15 @@ function createImageItem(src, x = null, y = null, width = 200, height = 150, fro
     item.style.width = width + 'px';
     item.style.height = height + 'px';
     
-    // Start completely hidden to prevent flashing before content loads
-    item.style.opacity = '0';
-    item.style.visibility = 'hidden';
+    // Mark origin and only hide during DB load to avoid flicker on user-created items
+    item.dataset.fromDatabase = String(!!fromDatabase);
+    if (fromDatabase) {
+        item.style.opacity = '0';
+        item.style.visibility = 'hidden';
+    } else {
+        item.style.opacity = '1';
+        item.style.visibility = 'visible';
+    }
     
     // Set default border radius as CSS variable
     item.style.setProperty('--item-border-radius', '0px');
@@ -299,9 +317,15 @@ function createVideoItem(src, x = null, y = null, width = 400, height = 300, fro
     item.style.width = width + 'px';
     item.style.height = height + 'px';
     
-    // Start completely hidden to prevent flashing before content loads
-    item.style.opacity = '0';
-    item.style.visibility = 'hidden';
+    // Mark origin and only hide during DB load to avoid flicker on user-created items
+    item.dataset.fromDatabase = String(!!fromDatabase);
+    if (fromDatabase) {
+        item.style.opacity = '0';
+        item.style.visibility = 'hidden';
+    } else {
+        item.style.opacity = '1';
+        item.style.visibility = 'visible';
+    }
     
     // Set default border radius as CSS variable
     item.style.setProperty('--item-border-radius', '0px');
@@ -523,9 +547,15 @@ function createTextItem(content = 'Double-click to edit text...', x = null, y = 
     item.contentEditable = false; // Start in non-editing mode
     item.textContent = content;
     
-    // Start completely hidden to prevent flashing before content loads
-    item.style.opacity = '0';
-    item.style.visibility = 'hidden';
+    // Mark origin and only hide during DB load to avoid flicker on user-created items
+    item.dataset.fromDatabase = String(!!fromDatabase);
+    if (fromDatabase) {
+        item.style.opacity = '0';
+        item.style.visibility = 'hidden';
+    } else {
+        item.style.opacity = '1';
+        item.style.visibility = 'visible';
+    }
     
     // Set default text styling
     item.style.fontFamily = 'Antarctica';
@@ -739,9 +769,15 @@ function createCodeItem(htmlContent, x = null, y = null, width = 400, height = 3
     item.style.width = width + 'px';
     item.style.height = height + 'px';
     
-    // Start completely hidden to prevent flashing before content loads
-    item.style.opacity = '0';
-    item.style.visibility = 'hidden';
+    // Mark origin and only hide during DB load to avoid flicker on user-created items
+    item.dataset.fromDatabase = String(!!fromDatabase);
+    if (fromDatabase) {
+        item.style.opacity = '0';
+        item.style.visibility = 'hidden';
+    } else {
+        item.style.opacity = '1';
+        item.style.visibility = 'visible';
+    }
     
     // Set default border radius as CSS variable
     item.style.setProperty('--item-border-radius', '0px');

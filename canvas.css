@@ -120,14 +120,26 @@
     box-sizing: border-box;
 }
 
-/* Disable selection and pointer events for non-admin users
+/* Visually hidden utility (for ARIA live region) */
+.sr-only {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}
+
+/* Disable selection for non-admin users
    Allow code items to remain interactive so the Play button works for guests */
 body.guest .canvas-item:not(.code-item) {
     user-select: none;
     -webkit-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
-    pointer-events: none;
 }
 
 body.guest .canvas-item:not(.code-item) * {
@@ -135,7 +147,6 @@ body.guest .canvas-item:not(.code-item) * {
     -webkit-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
-    pointer-events: none;
 }
 
 /* Ensure the Play overlay is tappable on mobile for guests */

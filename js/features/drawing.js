@@ -85,9 +85,15 @@ function createDrawingItem(pathData, strokeColor, strokeThickness, x, y, width, 
     item.style.width = width + 'px';
     item.style.height = height + 'px';
     
-    // Start completely hidden to prevent flashing before content loads
-    item.style.opacity = '0';
-    item.style.visibility = 'hidden';
+    // Mark origin and only hide during DB load to avoid flicker on user-created items
+    item.dataset.fromDatabase = String(!!fromDatabase);
+    if (fromDatabase) {
+        item.style.opacity = '0';
+        item.style.visibility = 'hidden';
+    } else {
+        item.style.opacity = '1';
+        item.style.visibility = 'visible';
+    }
     
 
     

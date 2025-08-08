@@ -22,9 +22,9 @@ const TOUCH_THROTTLE_INTERVAL = 16; // 60fps throttling
 
 function bindEvents() {
     // Mouse events
-    container.addEventListener('mousedown', handleMouseDown);
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
+    container.addEventListener('mousedown', handleMouseDown, { passive: true });
+    document.addEventListener('mousemove', handleMouseMoveRaf, { passive: true });
+    document.addEventListener('mouseup', handleMouseUp, { passive: true });
     container.addEventListener('wheel', handleWheel, { passive: false });
     
     // Touch events for mobile/tablet with optimized passive settings
@@ -108,6 +108,10 @@ function handleMouseDown(e) {
     }
 }
 
+// rAF-throttled mousemove
+let lastMouseMoveEvent = null;
+let mouseMoveScheduled = false;
+
 function handleMouseMove(e) {
     if (isDrawing) {
         const canvasPos = ViewportModule.screenToCanvas(e.clientX, e.clientY);
@@ -144,6 +148,19 @@ function handleMouseMove(e) {
     // Note: Resize and rotation are handled by their own event listeners in the ItemsModule
     
     lastMousePos = { x: e.clientX, y: e.clientY };
+}
+
+function handleMouseMoveRaf(e) {
+    lastMouseMoveEvent = e;
+    if (mouseMoveScheduled) return;
+    mouseMoveScheduled = true;
+    requestAnimationFrame(() => {
+        mouseMoveScheduled = false;
+        if (!lastMouseMoveEvent) return;
+        const evt = lastMouseMoveEvent;
+        lastMouseMoveEvent = null;
+        handleMouseMove(evt);
+    });
 }
 
 function handleMouseUp(e) {
@@ -279,12 +296,20 @@ function handleTouchStart(e) {
         
         // Check if we're touching a canvas item
         const element = document.elementFromPoint(touch.clientX, touch.clientY);
+        // If tapping the code play overlay, do not start panning to allow tap to toggle interactivity
+        const codeOverlay = element?.closest('.code-interaction-overlay');
+        if (codeOverlay) {
+            isSingleTouchPanning = false;
+            return;
+        }
         const canvasItem = element?.closest('.canvas-item');
         
         if (canvasItem && !isSettingCenter) {
-            // If touching an item, select it instead of panning
-            ItemsModule.selectItem(canvasItem);
-            isSingleTouchPanning = false;
+            // Only select items for admins; guests should continue panning
+            if (isAuthenticated) {
+                ItemsModule.selectItem(canvasItem);
+                isSingleTouchPanning = false;
+            }
         }
     } else if (e.touches.length >= 2) {
         // Multi-touch - handle pinch-to-zoom
