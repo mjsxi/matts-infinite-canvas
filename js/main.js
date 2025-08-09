@@ -221,19 +221,31 @@ function showCanvas(isAdmin = false) {
         console.error('Canvas container not found');
     }
 
-    // Hide mobile loader once canvas is visible
+    // Global loader control: min 1000ms, wait for readiness, max 5000ms
     const mobileLoader = document.getElementById('mobileLoader');
     if (mobileLoader) {
-        const MIN_VISIBLE_MS = 1500;
+        const MIN_VISIBLE_MS = 1000;
+        const MAX_VISIBLE_MS = 5000;
         const shownAt = window.mobileLoaderShownAt || performance.now();
-        const elapsed = performance.now() - shownAt;
-        const delay = Math.max(0, MIN_VISIBLE_MS - elapsed);
-        setTimeout(() => {
+        let loaderHidden = false;
+        const hideLoader = () => {
+            if (loaderHidden) return;
+            loaderHidden = true;
             mobileLoader.style.opacity = '0';
             setTimeout(() => {
                 mobileLoader.style.display = 'none';
             }, 200);
-        }, delay);
+        };
+        // Ensure max wait
+        const elapsed = performance.now() - shownAt;
+        const maxDelay = Math.max(0, MAX_VISIBLE_MS - elapsed);
+        setTimeout(hideLoader, maxDelay);
+        // Expose for readiness-based hide
+        window.__hideLoaderWhenReady = () => {
+            const waited = performance.now() - shownAt;
+            const minDelay = Math.max(0, MIN_VISIBLE_MS - waited);
+            setTimeout(hideLoader, minDelay);
+        };
     }
     
     // Show/hide admin buttons based on authentication status
@@ -251,10 +263,19 @@ function showCanvas(isAdmin = false) {
     // Load canvas data and setup real-time
     if (window.DatabaseModule) {
         window.DatabaseModule.loadCanvasData().then(() => {
+            // Signal readiness to hide loader (respecting minimum duration)
+            if (typeof window.__hideLoaderWhenReady === 'function') {
+                window.__hideLoaderWhenReady();
+            }
             setTimeout(() => {
                 window.DatabaseModule.setupRealtimeSubscription();
             }, 1000);
         });
+    } else {
+        // If no database module, hide after minimum duration
+        if (typeof window.__hideLoaderWhenReady === 'function') {
+            window.__hideLoaderWhenReady();
+        }
     }
 }
 
