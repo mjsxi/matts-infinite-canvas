@@ -11,15 +11,11 @@
     }
     
     // If the device has a fine pointer (mouse/trackpad), treat it like desktop.
-    // This includes iPad with Magic Keyboard/trackpad, where users expect desktop-like pan/zoom.
+    // This includes iPad with Magic Keyboard/trackpad. Keep loader; desktop behavior will hide it via main.js.
     const hasFinePointer = typeof window.matchMedia === 'function' && window.matchMedia('(pointer: fine)').matches;
     if (hasFinePointer || !isMobileDevice()) {
-        // Hide loader immediately on desktop-like devices
-        const loader = document.getElementById('mobileLoader');
-        if (loader) {
-            loader.remove();
-        }
-        return; // Do not override desktop/trackpad behavior
+        // Do not override events; allow default desktop pan/zoom. Loader will be handled by main.js.
+        return;
     }
     
     // Mobile zoom limits
@@ -71,17 +67,8 @@
         }
     }
 
-    // Track if canvas is ready for touch
-    let canvasReady = false;
-
     // Mobile touch handlers with zoom limits
     function mobileHandleTouchStart(e) {
-        // Hide loader on first touch - canvas is now ready
-        if (!canvasReady) {
-            canvasReady = true;
-            hideMobileLoader();
-        }
-        
         if (e.touches.length === 1) {
             e.preventDefault();
             const touch = e.touches[0];
@@ -240,11 +227,9 @@
         initMobileZoomLimits();
     }
     
-    // Fallback: hide loader after 3 seconds if still visible
+    // Fallback: hide loader after 1500ms if still visible (in case main.js didn't)
     setTimeout(() => {
-        if (!canvasReady) {
-            canvasReady = true;
-            hideMobileLoader();
-        }
-    }, 3000);
+        const loader = document.getElementById('mobileLoader');
+        if (loader) hideMobileLoader();
+    }, 2000);
 })();

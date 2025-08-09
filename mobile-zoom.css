@@ -73,12 +73,7 @@
     }
 }
 
-/* Hide loader on desktop */
-@media only screen and (min-width: 769px) {
-    .mobile-loader {
-        display: none;
-    }
-}
+/* Loader now used across all devices; no desktop-specific hide */
 
 /* Mobile-specific zoom limits using CSS */
 
