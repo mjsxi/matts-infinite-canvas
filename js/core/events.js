@@ -20,6 +20,11 @@ let pendingTouchUpdate = null;
 let lastTouchUpdateTime = 0;
 const TOUCH_THROTTLE_INTERVAL = 16; // 60fps throttling
 
+// Selection box variables
+let selectionBox = null;
+let selectionBoxStart = { x: 0, y: 0 };
+let isSelecting = false;
+
 function bindEvents() {
     // Mouse events
     container.addEventListener('mousedown', handleMouseDown, { passive: true });
@@ -62,6 +67,24 @@ function handleMouseDown(e) {
             return;
         }
         
+        // Check if admin wants to start selection box (not holding cmd/ctrl)
+        if (isAuthenticated && !e.metaKey && !e.ctrlKey) {
+            // Stop any ongoing inertia animation
+            stopInertiaAnimation();
+            
+            // Start selection box
+            isSelecting = true;
+            const canvasPos = ViewportModule.screenToCanvas(e.clientX, e.clientY);
+            selectionBoxStart = { x: canvasPos.x, y: canvasPos.y };
+            createSelectionBox(canvasPos.x, canvasPos.y);
+            
+            // Clear existing selection unless holding shift
+            if (!e.shiftKey) {
+                ItemsModule.clearSelection();
+            }
+            return;
+        }
+        
         // Stop any ongoing inertia animation
         stopInertiaAnimation();
         
@@ -97,8 +120,26 @@ function handleMouseDown(e) {
             }
             
             // Normal item interaction (selection and dragging)
-            // Only clear selection if clicking on a different item
-            if (selectedItem !== item) {
+            // Handle multi-select with cmd/ctrl key
+            if (e.metaKey || e.ctrlKey) {
+                // Toggle selection
+                if (selectedItems.includes(item)) {
+                    // Remove from selection
+                    const index = selectedItems.indexOf(item);
+                    selectedItems.splice(index, 1);
+                    item.classList.remove('selected');
+                    if (selectedItem === item) {
+                        selectedItem = selectedItems[0] || null;
+                    }
+                } else {
+                    // Add to selection
+                    ItemsModule.selectItem(item, true);
+                }
+                return;
+            }
+            
+            // Only clear selection if clicking on a different item and not holding shift
+            if (selectedItem !== item && !e.shiftKey) {
                 ItemsModule.clearSelection();
             }
             
@@ -118,6 +159,10 @@ function handleMouseMove(e) {
         drawingPath.push({ x: canvasPos.x, y: canvasPos.y });
         DrawingModule.updateDrawingPreview();
         // Don't update transform while drawing
+        return;
+    } else if (isSelecting) {
+        const canvasPos = ViewportModule.screenToCanvas(e.clientX, e.clientY);
+        updateSelectionBox(canvasPos.x, canvasPos.y);
         return;
     } else if (isPanning) {
         const deltaX = e.clientX - dragStart.x;
@@ -164,6 +209,24 @@ function handleMouseMoveRaf(e) {
 }
 
 function handleMouseUp(e) {
+    if (isSelecting) {
+        isSelecting = false;
+        const canvasPos = ViewportModule.screenToCanvas(e.clientX, e.clientY);
+        
+        // Select items in the box
+        const box = {
+            startX: selectionBoxStart.x,
+            startY: selectionBoxStart.y,
+            endX: canvasPos.x,
+            endY: canvasPos.y
+        };
+        ItemsModule.selectItemsInBox(box);
+        
+        // Remove selection box
+        removeSelectionBox();
+        return;
+    }
+    
     if (isDrawing) {
         isDrawing = false;
         
@@ -475,7 +538,9 @@ function handleKeyDown(e) {
     }
     
     if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (selectedItem) {
+        if (selectedItems.length > 1) {
+            ItemsModule.deleteSelectedItems();
+        } else if (selectedItem) {
             ItemsModule.deleteItem(selectedItem);
         }
     } else if (e.key === 'Escape') {
@@ -544,6 +609,46 @@ function scheduleCanvasTransformUpdate() {
         pendingCanvasTransformUpdate = false;
     });
     pendingCanvasTransformUpdate = true;
+}
+
+// Selection box functions
+function createSelectionBox(startX, startY) {
+    removeSelectionBox(); // Remove any existing box
+    
+    selectionBox = document.createElement('div');
+    selectionBox.className = 'selection-box';
+    selectionBox.style.position = 'absolute';
+    selectionBox.style.left = startX + 'px';
+    selectionBox.style.top = startY + 'px';
+    selectionBox.style.width = '0px';
+    selectionBox.style.height = '0px';
+    selectionBox.style.border = '2px dashed #007acc';
+    selectionBox.style.backgroundColor = 'rgba(0, 122, 204, 0.1)';
+    selectionBox.style.pointerEvents = 'none';
+    selectionBox.style.zIndex = '10000';
+    
+    canvas.appendChild(selectionBox);
+}
+
+function updateSelectionBox(currentX, currentY) {
+    if (!selectionBox) return;
+    
+    const left = Math.min(selectionBoxStart.x, currentX);
+    const top = Math.min(selectionBoxStart.y, currentY);
+    const width = Math.abs(currentX - selectionBoxStart.x);
+    const height = Math.abs(currentY - selectionBoxStart.y);
+    
+    selectionBox.style.left = left + 'px';
+    selectionBox.style.top = top + 'px';
+    selectionBox.style.width = width + 'px';
+    selectionBox.style.height = height + 'px';
+}
+
+function removeSelectionBox() {
+    if (selectionBox) {
+        selectionBox.remove();
+        selectionBox = null;
+    }
 }
 
 // Export module

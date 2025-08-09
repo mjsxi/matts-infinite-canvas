@@ -1600,3 +1600,57 @@ body {
 .code-play-toggle .text-control-item {
     width: 88px;
 }
+
+/* Selection Box Styles */
+.selection-box {
+    position: absolute;
+    border: 2px dashed #007acc;
+    background-color: rgba(0, 122, 204, 0.1);
+    pointer-events: none;
+    z-index: 10000;
+    border-radius: var(--radius-sm);
+    animation: selection-box-pulse 2s ease-in-out infinite;
+}
+
+@keyframes selection-box-pulse {
+    0%, 100% { 
+        border-color: #007acc; 
+        background-color: rgba(0, 122, 204, 0.1);
+    }
+    50% { 
+        border-color: #0056b3; 
+        background-color: rgba(0, 122, 204, 0.2);
+    }
+}
+
+/* Multi-Selection Visual Indicators */
+
+/* Add a subtle indicator for multi-selected items */
+.canvas-item.selected::after {
+    content: '';
+    position: absolute;
+    top: -3px;
+    right: -3px;
+    width: 12px;
+    height: 12px;
+    background: #007acc;
+    border: 2px solid white;
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    z-index: 10001;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+/* Show selection indicator when multiple items are selected */
+body.authenticated .canvas-item.selected:not(:only-of-type)::after,
+body.authenticated .canvas-item.selected[data-multi-selected="true"]::after {
+    opacity: 1;
+}
+
+/* Enhanced border for multi-selected items */
+body.authenticated .canvas-item.selected[data-multi-selected="true"] {
+    border-color: #007acc;
+    border-width: 3px;
+    box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.3), var(--canvas-item-shadow-selected);
+}

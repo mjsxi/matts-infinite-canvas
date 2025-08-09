@@ -5,9 +5,11 @@
 let cachedResizeHandles = null;
 let lastSelectedItemId = null;
 
-function selectItem(item) {
+function selectItem(item, addToSelection = false) {
     // Removed console.log for performance
-    clearSelection();
+    if (!addToSelection) {
+        clearSelection();
+    }
     
     // Reset all code blocks to non-interactive state when selecting any item
     const allCodeItems = document.querySelectorAll('.code-item');
@@ -30,8 +32,15 @@ function selectItem(item) {
         }
     });
     
-    selectedItem = item;
+    // Add to selection arrays
+    if (!selectedItems.includes(item)) {
+        selectedItems.push(item);
+    }
+    selectedItem = item; // Keep track of primary selection
     item.classList.add('selected');
+    
+    // Update visual indicators for multi-selection
+    updateMultiSelectionIndicators();
     
     // Ensure dragging class is removed when selecting an item
     if (item.classList.contains('dragging')) {
@@ -98,21 +107,21 @@ function clearSelection() {
         }
     });
     
-    // Removed console.log for performance
-    if (selectedItem) {
-        selectedItem.classList.remove('selected');
+    // Clear all selected items
+    selectedItems.forEach(item => {
+        item.classList.remove('selected');
         
         // Reset interactive state for code items when deselected
-        if (selectedItem.classList.contains('code-item')) {
-            selectedItem.classList.remove('interactive');
-            const iframe = selectedItem.querySelector('iframe');
+        if (item.classList.contains('code-item')) {
+            item.classList.remove('interactive');
+            const iframe = item.querySelector('iframe');
             if (iframe) {
                 iframe.style.pointerEvents = 'none';
             }
             
             // Restore the play button overlay (only if showPlayButton is not disabled)
-            const overlay = selectedItem.querySelector('.code-interaction-overlay');
-            if (overlay && selectedItem.dataset.showPlayButton !== 'false') {
+            const overlay = item.querySelector('.code-interaction-overlay');
+            if (overlay && item.dataset.showPlayButton !== 'false') {
                 overlay.style.display = 'flex';
                 overlay.style.opacity = '0.9';
                 overlay.style.visibility = 'visible';
@@ -121,25 +130,28 @@ function clearSelection() {
         }
         
         // Reset text items to non-editing mode when deselected
-        if (selectedItem.classList.contains('text-item')) {
+        if (item.classList.contains('text-item')) {
             // Save the text item before clearing selection
-            DatabaseModule.saveItemToDatabase(selectedItem);
+            DatabaseModule.saveItemToDatabase(item);
             
-            selectedItem.classList.remove('editing');
-            selectedItem.contentEditable = false;
-            selectedItem.blur();
-            // Text item blur called
+            item.classList.remove('editing');
+            item.contentEditable = false;
+            item.blur();
             
             // Show resize handles if they were hidden
-            const resizeHandles = selectedItem.querySelector('.resize-handles');
+            const resizeHandles = item.querySelector('.resize-handles');
             if (resizeHandles) {
                 resizeHandles.style.display = '';
             }
         }
-        
-        hideResizeHandles();
-        selectedItem = null;
-    }
+    });
+    
+    hideResizeHandles();
+    selectedItem = null;
+    selectedItems = [];
+    
+    // Clear multi-selection indicators
+    updateMultiSelectionIndicators();
     
     // Hide move up/down buttons when no item is selected
     ToolbarModule.hideMoveButtons();
@@ -264,6 +276,57 @@ function deleteItem(item) {
         clearSelection();
         // Normalize z-indexes after deletion
         normalizeZIndexes();
+    }
+}
+
+function selectItemsInBox(box) {
+    const items = canvas.querySelectorAll('.canvas-item');
+    const boxLeft = Math.min(box.startX, box.endX);
+    const boxRight = Math.max(box.startX, box.endX);
+    const boxTop = Math.min(box.startY, box.endY);
+    const boxBottom = Math.max(box.startY, box.endY);
+    
+    items.forEach(item => {
+        const itemLeft = parseFloat(item.style.left) || 0;
+        const itemTop = parseFloat(item.style.top) || 0;
+        const itemWidth = parseFloat(item.style.width) || item.offsetWidth;
+        const itemHeight = parseFloat(item.style.height) || item.offsetHeight;
+        const itemRight = itemLeft + itemWidth;
+        const itemBottom = itemTop + itemHeight;
+        
+        // Check if item intersects with selection box
+        if (itemLeft < boxRight && itemRight > boxLeft && itemTop < boxBottom && itemBottom > boxTop) {
+            selectItem(item, true);
+        }
+    });
+}
+
+function deleteSelectedItems() {
+    if (selectedItems.length === 0) return;
+    
+    const count = selectedItems.length;
+    if (confirm(`Delete ${count} selected item${count > 1 ? 's' : ''}?`)) {
+        selectedItems.forEach(item => {
+            DatabaseModule.deleteItemFromDatabase(item);
+            item.remove();
+        });
+        clearSelection();
+        normalizeZIndexes();
+    }
+}
+
+function updateMultiSelectionIndicators() {
+    // Clear all multi-selection indicators
+    const allItems = canvas.querySelectorAll('.canvas-item');
+    allItems.forEach(item => {
+        item.removeAttribute('data-multi-selected');
+    });
+    
+    // Add indicators for multi-selected items
+    if (selectedItems.length > 1) {
+        selectedItems.forEach(item => {
+            item.setAttribute('data-multi-selected', 'true');
+        });
     }
 }
 
@@ -444,6 +507,9 @@ window.ItemsModule = {
     dragItem,
     stopDragging,
     deleteItem,
+    selectItemsInBox,
+    deleteSelectedItems,
+    updateMultiSelectionIndicators,
     startResize,
     startRotation,
     normalizeZIndexes,
