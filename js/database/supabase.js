@@ -93,6 +93,16 @@ function debouncedSaveItem(item) {
 }
 
 async function saveItemToDatabase(item) {
+    // Skip saving items marked for deletion
+    if (item?.dataset?.isDeleted === 'true') {
+        if (DEBUG_MODE) console.log('Skipping save for deleted item id:', item?.dataset?.id);
+        return;
+    }
+    // Skip saving if the element is no longer in the DOM (e.g., user deleted it)
+    if (typeof document !== 'undefined' && item && !document.body.contains(item)) {
+        if (DEBUG_MODE) console.log('Skipping save for detached item id:', item?.dataset?.id);
+        return;
+    }
     const isTextItem = item.dataset.type === 'text';
     const isDrawingItem = item.dataset.type === 'drawing';
     

@@ -355,8 +355,15 @@ function stopDragging() {
 
 function deleteItem(item) {
     if (confirm('Delete this item?')) {
-        DatabaseModule.deleteItemFromDatabase(item);
+        const id = parseInt(item.dataset.id);
+        // Remove from DOM first for snappy UX
         item.remove();
+        // Sync delete
+        if (!Number.isNaN(id)) {
+            DatabaseModule.deleteItemsFromDatabase([id]);
+        } else {
+            DatabaseModule.deleteItemFromDatabase(item);
+        }
         clearSelection();
         // Normalize z-indexes after deletion
         normalizeZIndexes();
