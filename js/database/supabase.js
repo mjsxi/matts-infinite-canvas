@@ -246,6 +246,22 @@ async function deleteItemFromDatabase(item) {
     }
 }
 
+// Batch delete multiple items by IDs to avoid partial deletes or selection mutations during iteration
+async function deleteItemsFromDatabase(ids) {
+    if (!Array.isArray(ids) || ids.length === 0) return;
+    try {
+        const { error } = await supabaseClient
+            .from('canvas_items')
+            .delete()
+            .in('id', ids);
+        if (error) throw error;
+        if (DEBUG_MODE) console.log('Batch deleted items:', ids);
+    } catch (error) {
+        console.error('Error batch deleting items:', error);
+        AppGlobals.showStatus('Failed to delete selected items - check console for details');
+    }
+}
+
 async function saveCenterPoint() {
     try {
         const { error } = await supabaseClient
@@ -987,6 +1003,7 @@ window.DatabaseModule = {
     debouncedSaveItem,
     saveItemToDatabase,
     deleteItemFromDatabase,
+    deleteItemsFromDatabase,
     saveCenterPoint,
     loadCanvasData,
     setupRealtimeSubscription,

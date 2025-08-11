@@ -390,12 +390,21 @@ function deleteSelectedItems() {
     
     const count = selectedItems.length;
     if (confirm(`Delete ${count} selected item${count > 1 ? 's' : ''}?`)) {
-        selectedItems.forEach(item => {
-            DatabaseModule.deleteItemFromDatabase(item);
-            item.remove();
-        });
+        // Take a stable snapshot of items and IDs to avoid mutation during iteration
+        const itemsSnapshot = [...selectedItems];
+        const ids = itemsSnapshot.map(it => parseInt(it.dataset.id)).filter(id => !Number.isNaN(id));
+        
+        // Remove from DOM first for snappy UX
+        itemsSnapshot.forEach(item => item.remove());
+        
+        // Clear selection once
         clearSelection();
+        
+        // Normalize z-indexes after deletion
         normalizeZIndexes();
+        
+        // Run a batch delete in the background
+        DatabaseModule.deleteItemsFromDatabase(ids);
     }
 }
 
