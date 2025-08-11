@@ -138,11 +138,27 @@ function handleMouseDown(e) {
                 return;
             }
             
-            // Only clear selection if clicking on a different item and not holding shift
-            if (selectedItem !== item && !e.shiftKey) {
-                ItemsModule.clearSelection();
+            // If item is already part of a multi-selection, start group drag without altering selection
+            const domSelectedItems = Array.from(document.querySelectorAll('.canvas-item.selected'));
+            if ((selectedItems?.length || 0) > 1 || domSelectedItems.length > 1) {
+                // Only start group drag if the clicked item is part of the selected set
+                if (selectedItems.includes(item) || item.classList.contains('selected')) {
+                    ItemsModule.startDragging(e, item);
+                    return;
+                }
             }
             
+            // If holding shift, add to selection (do not clear)
+            if (e.shiftKey) {
+                ItemsModule.selectItem(item, true);
+                ItemsModule.startDragging(e, item);
+                return;
+            }
+            
+            // Default behavior: select single item (clear others if different)
+            if (selectedItem !== item) {
+                ItemsModule.clearSelection();
+            }
             ItemsModule.selectItem(item);
             ItemsModule.startDragging(e, item);
         }

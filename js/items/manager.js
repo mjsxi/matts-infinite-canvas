@@ -4,6 +4,12 @@
 // Cache for resize handles to avoid recreation
 let cachedResizeHandles = null;
 let lastSelectedItemId = null;
+// Group drag state
+let groupDragStartPos = null; // { x, y } in canvas coords
+let groupDragStartPositions = null; // Array of { item, left, top }
+// Explicit flag to indicate group dragging
+window.isGroupDragging = false;
+let groupDragItems = null; // Array of items involved in group drag
 
 function selectItem(item, addToSelection = false) {
     // Removed console.log for performance
@@ -233,25 +239,90 @@ function startDragging(e, item) {
     canvas.classList.add('dragging');
     
     const canvasPos = ViewportModule.screenToCanvas(e.clientX, e.clientY);
-    const currentLeft = parseFloat(item.style.left) || 0;
-    const currentTop = parseFloat(item.style.top) || 0;
     
-    // Calculate offset from mouse position to item's top-left corner
-    item.dragOffset = {
-        x: canvasPos.x - currentLeft,
-        y: canvasPos.y - currentTop
-    };
+    // If multiple items are selected, always initiate group drag
+    const domSelected = Array.from(canvas.querySelectorAll('.canvas-item.selected'));
+    const domMultiAttr = Array.from(canvas.querySelectorAll('.canvas-item[data-multi-selected="true"]'));
+    const unionSet = new Set([
+        ...(selectedItems || []),
+        ...domSelected,
+        ...domMultiAttr
+    ]);
+    const multiSelection = Array.from(unionSet);
+    
+    // Keep only canvas items and ensure >1
+    const normalizedGroup = multiSelection.filter(el => el && el.classList && el.classList.contains('canvas-item'));
+
+    if (normalizedGroup.length > 1) {
+        // Start group drag: store start pos and each item's initial position
+        groupDragStartPos = { x: canvasPos.x, y: canvasPos.y };
+        groupDragItems = normalizedGroup;
+        groupDragStartPositions = groupDragItems.map(si => ({
+            item: si,
+            left: parseFloat(si.style.left) || 0,
+            top: parseFloat(si.style.top) || 0
+        }));
+        // Ensure a consistent reference and flag
+        selectedItem = item;
+        window.isGroupDragging = true;
+        // Promote all selected items visually during drag
+        groupDragItems.forEach(si => si.classList.add('dragging'));
+    } else {
+        const currentLeft = parseFloat(item.style.left) || 0;
+        const currentTop = parseFloat(item.style.top) || 0;
+        // Calculate offset from mouse position to item's top-left corner
+        item.dragOffset = {
+            x: canvasPos.x - currentLeft,
+            y: canvasPos.y - currentTop
+        };
+        // Ensure selectedItem refers to the actively dragged item
+        selectedItem = item;
+        window.isGroupDragging = false;
+    }
 }
 
 function dragItem(e) {
     if (!isDragging || !selectedItem) return;
     
-    const canvasPos = ViewportModule.screenToCanvas(e.clientX, e.clientY);
-    const newX = canvasPos.x - selectedItem.dragOffset.x;
-    const newY = canvasPos.y - selectedItem.dragOffset.y;
+    // Fallback: if multiple items are selected but group state wasn't initialized, initialize it now
+    if (!groupDragStartPos || !groupDragStartPositions) {
+        const domSelectedItems = Array.from(canvas.querySelectorAll('.canvas-item.selected'));
+        const activeGroup = (selectedItems && selectedItems.length > 1) ? [...selectedItems]
+                          : (domSelectedItems.length > 1 ? domSelectedItems : null);
+        if (activeGroup && activeGroup.length > 1) {
+            const currentCanvasPosInit = ViewportModule.screenToCanvas(e.clientX, e.clientY);
+            groupDragStartPos = { x: currentCanvasPosInit.x, y: currentCanvasPosInit.y };
+            groupDragItems = activeGroup;
+            groupDragStartPositions = groupDragItems.map(si => ({
+                item: si,
+                left: parseFloat(si.style.left) || 0,
+                top: parseFloat(si.style.top) || 0
+            }));
+            window.isGroupDragging = true;
+            groupDragItems.forEach(si => si.classList.add('dragging'));
+        }
+    }
     
-    selectedItem.style.left = newX + 'px';
-    selectedItem.style.top = newY + 'px';
+    if (groupDragStartPos && groupDragStartPositions && groupDragStartPositions.length > 1) {
+        // Move the whole group by the same delta
+        const currentCanvasPos = ViewportModule.screenToCanvas(e.clientX, e.clientY);
+        const deltaX = currentCanvasPos.x - groupDragStartPos.x;
+        const deltaY = currentCanvasPos.y - groupDragStartPos.y;
+        
+        groupDragStartPositions.forEach(entry => {
+            const newLeft = entry.left + deltaX;
+            const newTop = entry.top + deltaY;
+            entry.item.style.left = newLeft + 'px';
+            entry.item.style.top = newTop + 'px';
+        });
+    } else if (selectedItem.dragOffset) {
+        const canvasPos = ViewportModule.screenToCanvas(e.clientX, e.clientY);
+        const newX = canvasPos.x - selectedItem.dragOffset.x;
+        const newY = canvasPos.y - selectedItem.dragOffset.y;
+        
+        selectedItem.style.left = newX + 'px';
+        selectedItem.style.top = newY + 'px';
+    }
 }
 
 function stopDragging() {
@@ -262,10 +333,23 @@ function stopDragging() {
         
         // Small delay to ensure any pending real-time updates don't interfere
         setTimeout(() => {
-            DatabaseModule.saveItemToDatabase(selectedItem);
+            const itemsToSave = (groupDragItems && groupDragItems.length > 1)
+                ? [...groupDragItems]
+                : (selectedItems.length > 1 ? [...selectedItems] : [selectedItem]);
+            itemsToSave.forEach(it => DatabaseModule.saveItemToDatabase(it));
         }, 50);
         
         delete selectedItem.dragOffset;
+        groupDragStartPos = null;
+        groupDragStartPositions = null;
+        window.isGroupDragging = false;
+        // Remove dragging class from all items
+        if (groupDragItems && groupDragItems.length) {
+            groupDragItems.forEach(si => si.classList.remove('dragging'));
+        } else {
+            selectedItems.forEach(si => si.classList.remove('dragging'));
+        }
+        groupDragItems = null;
     }
 }
 
