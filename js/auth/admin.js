@@ -165,7 +165,7 @@ async function logout() {
     
     // Redirect to login page after a short delay
     setTimeout(() => {
-        window.location.href = '/admin.html';
+        window.location.href = '/admin/';
     }, 1000);
 }
 
