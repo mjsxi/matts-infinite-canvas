@@ -145,6 +145,7 @@ async function logout() {
     isAuthenticated = false;
     localStorage.removeItem('canvas_admin_auth');
     updateAuthBodyClass();
+    AppGlobals.showCanvas(false); // Switch to guest mode
     
     // Clean up real-time subscription
     if (realtimeChannel) {
@@ -162,15 +163,10 @@ async function logout() {
     }
     
     ToolbarModule.showStatus('Logged out');
-    
-    // Redirect to login page after a short delay
-    setTimeout(() => {
-        window.location.href = '/admin/';
-    }, 1000);
 }
 
 function goToAdminPage() {
-    window.location.href = '/admin.html';
+    window.location.href = '/admin/';
 }
 
 // Center Point Management
