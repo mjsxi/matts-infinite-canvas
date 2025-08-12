@@ -12,9 +12,9 @@ This is a web-based collaborative infinite canvas application that allows and ad
 - **Supabase**: Real-time database and file storage for persistence and collaboration
 - **index.html**: Main HTML structure with modals for user input
 - **Modular JavaScript Structure**: Organized into focused modules prefer approach when applicable
-- **mobile-zoom-limits.js**: Contains restraints for mobile to make the canvas work
+- **js/mobile-zoom-limits.js**: Contains restraints for mobile to make the canvas work
 - **style.css**: Complete styling with responsive design and animations
-- **mobile-zoom.css**: Contains tweaks that are just for mobiles canvas
+- **css/mobile-zoom.css**: Contains tweaks that are just for mobiles canvas
 
 ### JavaScript Module Structure
 ```
