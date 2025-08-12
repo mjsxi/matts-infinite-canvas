@@ -1,25 +1,25 @@
 /* Custom Fonts */
 @font-face {
     font-family: 'Alpaga';
-    src: url('fonts/Alpaga-VAR-VF.ttf') format('truetype');
+    src: url('../fonts/Alpaga-VAR-VF.ttf') format('truetype');
     font-display: swap;
 }
 
 @font-face {
     font-family: 'Antarctica';
-    src: url('fonts/Antarctica-VAR-VF.ttf') format('truetype');
+    src: url('../fonts/Antarctica-VAR-VF.ttf') format('truetype');
     font-display: swap;
 }
 
 @font-face {
     font-family: 'Atacama';
-    src: url('fonts/Atacama-VAR-VF.ttf') format('truetype');
+    src: url('../fonts/Atacama-VAR-VF.ttf') format('truetype');
     font-display: swap;
 }
 
 @font-face {
     font-family: 'Atacama Italic';
-    src: url('fonts/Atacama-Italic-VAR-VF.ttf') format('truetype');
+    src: url('../fonts/Atacama-Italic-VAR-VF.ttf') format('truetype');
     font-display: swap;
 }
 
