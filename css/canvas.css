@@ -438,6 +438,39 @@ body {
 }
 
 /* Canvas Items */
+/* Canvas Item Container - positioning and interaction */
+.canvas-item-container {
+    position: absolute;
+    overflow: visible;
+    cursor: pointer;
+    pointer-events: all;
+    transform-origin: center center;
+}
+
+/* Canvas Item Content - handles all visual styling and animations */
+.canvas-item-content {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+    pointer-events: all;
+    transform-origin: center center;
+    transition: border-color var(--transition-normal), box-shadow var(--transition-normal), transform var(--transition-normal);
+    border: 2px solid transparent;
+    user-select: none;
+    box-shadow: var(--canvas-item-shadow);
+    /* Mobile rendering optimizations */
+    backface-visibility: hidden;
+    -webkit-transform-style: preserve-3d;
+    transform-style: preserve-3d;
+    /* Force hardware acceleration */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    /* Reduce memory usage */
+    will-change: transform;
+}
+
+/* Legacy support - keep .canvas-item for existing selectors */
 .canvas-item {
     position: absolute;
     cursor: pointer;
@@ -458,7 +491,20 @@ body {
     will-change: transform;
 }
 
-/* Animation for real-time updates from other users */
+/* Animation for real-time updates from other users - content */
+.canvas-item-container.remote-update .canvas-item-content,
+.canvas-item.remote-update .canvas-item-content {
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.3) !important;
+    animation: remote-update-pulse 0.3s ease-out;
+}
+
+.canvas-item-container.remote-update,
+.canvas-item.remote-update {
+    transition: left var(--transition-normal), top var(--transition-normal), width var(--transition-normal), height var(--transition-normal), transform var(--transition-normal);
+}
+
+/* Legacy - animation for real-time updates from other users */
+.canvas-item-container.remote-update,
 .canvas-item.remote-update {
     transition: left var(--transition-normal), top var(--transition-normal), width var(--transition-normal), height var(--transition-normal), transform var(--transition-normal);
     box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.3) !important;
@@ -484,28 +530,124 @@ body {
     }
 }
 
+/* Canvas item scale bounce animation - replaces JS animation */
+@keyframes canvas-item-scale-bounce {
+    0% {
+        transform: translateZ(0) scale(0.95);
+    }
+    60% {
+        transform: translateZ(0) scale(1.02);
+    }
+    100% {
+        transform: translateZ(0) scale(1.0);
+    }
+}
+
+/* Canvas item ripple animation - smooth opacity + scale ripple effect */
+@keyframes canvas-item-ripple {
+    0% {
+        opacity: 0;
+        transform: translateZ(0) scale(0.9);
+    }
+    50% {
+        opacity: 1;
+        transform: translateZ(0) scale(1.05);
+    }
+    100% {
+        opacity: 1;
+        transform: translateZ(0) scale(1.0);
+    }
+}
+
+/* Animation classes for content elements */
+.canvas-item-content.fade-in-animation {
+    animation: canvas-item-fade-in 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+    opacity: 0;
+}
+
+.canvas-item-content.scale-bounce-animation {
+    animation: canvas-item-scale-bounce 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+.canvas-item-content.ripple-animation {
+    animation: canvas-item-ripple 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+    opacity: 0;
+}
+
+/* Legacy support */
+.canvas-item-container.fade-in-animation,
 .canvas-item.fade-in-animation {
     animation: canvas-item-fade-in 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
     opacity: 0;
 }
 
+/* Hover effects on content */
+.canvas-item-container:hover .canvas-item-content,
+.canvas-item:hover .canvas-item-content,
+.canvas-item-content:hover {
+    border-color: var(--canvas-item-border-hover);
+    box-shadow: var(--canvas-item-shadow-hover);
+}
+
+/* Legacy hover effects */
+.canvas-item-container:hover,
 .canvas-item:hover {
     border-color: var(--canvas-item-border-hover);
     box-shadow: var(--canvas-item-shadow-hover);
 }
 
 /* Disable hover effects when not authenticated */
-.guest .canvas-item:hover {
+/* Disable hover effects when not authenticated - content */
+.guest .canvas-item-container:hover .canvas-item-content,
+.guest .canvas-item:hover .canvas-item-content,
+.guest .canvas-item-content:hover {
     border-color: transparent !important;
     box-shadow: var(--canvas-item-shadow) !important;
+    cursor: default !important;
 }
 
+/* Legacy - disable hover effects when not authenticated */
+.guest .canvas-item-container:hover,
+.guest .canvas-item:hover {
+    border-color: transparent !important;
+    box-shadow: 0px 0px 0px rgba(0, 0, 0, 0) !important;
+    cursor: default !important;
+}
+
+/* Selected state on content */
+.canvas-item-container.selected .canvas-item-content,
+.canvas-item.selected .canvas-item-content {
+    border-color: var(--canvas-item-border-selected);
+    box-shadow: var(--canvas-item-shadow-selected);
+}
+
+.canvas-item-container.selected,
+.canvas-item.selected {
+    z-index: 9999;
+}
+
+/* Legacy selected state */
+.canvas-item-container.selected,
 .canvas-item.selected {
     border-color: var(--canvas-item-border-selected);
     box-shadow: var(--canvas-item-shadow-selected);
     z-index: 9999;
 }
 
+/* Dragging state */
+.canvas-item-container.dragging .canvas-item-content,
+.canvas-item.dragging .canvas-item-content {
+    cursor: grabbing;
+    transition: none !important;
+}
+
+.canvas-item-container.dragging,
+.canvas-item.dragging {
+    z-index: 10000;
+}
+
+/* Legacy dragging state */
+.canvas-item-container.dragging,
 .canvas-item.dragging {
     z-index: 10000;
     transition: none !important;
@@ -513,11 +655,30 @@ body {
 }
 
 /* Disable transitions during resize to prevent jumping */
+/* Disable transitions during resize */
+.canvas.resizing .canvas-item-container .canvas-item-content,
+.canvas.resizing .canvas-item .canvas-item-content {
+    transition: none !important;
+}
+
+/* Legacy - disable transitions during resize */
+.canvas.resizing .canvas-item-container,
 .canvas.resizing .canvas-item {
     transition: none !important;
 }
 
-/* Image Items */
+/* Image Items - styles applied to content */
+.image-item .canvas-item-content {
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    background: var(--color-white);
+}
+
+.image-item.selected .canvas-item-content {
+    overflow: visible; /* Allow resize handles to show outside */
+}
+
+/* Legacy Image Items */
 .image-item {
     border-radius: var(--radius-lg);
     overflow: hidden;
@@ -572,7 +733,18 @@ body {
     border: 1px dashed #dee2e6;
 }
 
-/* Video Items */
+/* Video Items - styles applied to content */
+.video-item .canvas-item-content {
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    background: var(--color-white);
+}
+
+.video-item.selected .canvas-item-content {
+    overflow: visible; /* Allow resize handles to show outside */
+}
+
+/* Legacy Video Items */
 .video-item {
     border-radius: var(--radius-lg);
     overflow: hidden;
@@ -685,9 +857,12 @@ body {
 }
 
 /* Disable text item hover when not authenticated */
+.guest .canvas-item-content.text-item:hover,
+.guest .canvas-item-container:hover .canvas-item-content.text-item,
 .guest .text-item:hover {
-    border-color: var(--canvas-item-border-transparent) !important;
+    border-color: transparent !important;
     box-shadow: none !important;
+    cursor: default !important;
 }
 
 .text-item.editing {
@@ -724,9 +899,12 @@ body {
 }
 
 /* Disable drawing item hover when not authenticated */
+.guest .canvas-item-content.drawing-item:hover,
+.guest .canvas-item-container:hover .canvas-item-content.drawing-item,
 .guest .drawing-item:hover {
-    border-color: var(--canvas-item-border-transparent) !important;
+    border-color: transparent !important;
     box-shadow: none !important;
+    cursor: default !important;
 }
 
 .drawing-item.selected {

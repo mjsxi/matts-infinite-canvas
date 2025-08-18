@@ -78,21 +78,33 @@ function removeDrawingPreview() {
 
 function createDrawingItem(pathData, strokeColor, strokeThickness, x, y, width, height, fromDatabase = false, viewBoxData = null) {
     // Creating new drawing item with specified properties
-    const item = document.createElement('div');
-    item.className = 'canvas-item drawing-item';
-    item.style.left = x + 'px';
-    item.style.top = y + 'px';
-    item.style.width = width + 'px';
-    item.style.height = height + 'px';
     
-    // Mark origin and only hide during DB load to avoid flicker on user-created items
+    // Create container for positioning and transforms
+    const container = document.createElement('div');
+    container.className = 'canvas-item-container';
+    container.style.left = x + 'px';
+    container.style.top = y + 'px';
+    container.style.width = width + 'px';
+    container.style.height = height + 'px';
+    
+    // Create content wrapper for independent animations
+    const content = document.createElement('div');
+    content.className = 'canvas-item-content canvas-item drawing-item';
+    
+    // Keep reference to container as item for compatibility
+    const item = container;
+    
+    // Mark origin - containers stay visible, content starts hidden for database items
     item.dataset.fromDatabase = String(!!fromDatabase);
+    // Container is always visible
+    item.style.opacity = '1';
+    item.style.visibility = 'visible';
+    
+    // For database items, hide content initially so animation can reveal it
     if (fromDatabase) {
-        item.style.opacity = '0';
-        item.style.visibility = 'hidden';
+        content.style.opacity = '0';
     } else {
-        item.style.opacity = '1';
-        item.style.visibility = 'visible';
+        content.style.opacity = '1';
     }
     
 
@@ -104,7 +116,7 @@ function createDrawingItem(pathData, strokeColor, strokeThickness, x, y, width, 
     if (!fromDatabase) {
         item.dataset.id = ++itemCounter;
         // Get the highest existing z-index and add 1
-        const items = Array.from(canvas.querySelectorAll('.canvas-item'));
+        const items = Array.from(canvas.querySelectorAll('.canvas-item-container'));
         const maxZIndex = items.reduce((max, item) => {
             const zIndex = parseInt(item.style.zIndex) || 0;
             return Math.max(max, zIndex);
@@ -146,9 +158,10 @@ function createDrawingItem(pathData, strokeColor, strokeThickness, x, y, width, 
     path.setAttribute('stroke-linejoin', 'round');
     
     svg.appendChild(path);
-    item.appendChild(svg);
+    content.appendChild(svg);
+    container.appendChild(content);
     
-    canvas.appendChild(item);
+    canvas.appendChild(container);
     
     // Update z-index after item is added to DOM (for new items only)
     if (!fromDatabase) {
@@ -156,7 +169,7 @@ function createDrawingItem(pathData, strokeColor, strokeThickness, x, y, width, 
         let maxZIndex = 0;
         
         // Check loaded items
-        const loadedItems = Array.from(canvas.querySelectorAll('.canvas-item'));
+        const loadedItems = Array.from(canvas.querySelectorAll('.canvas-item-container'));
         loadedItems.forEach(item => {
             const zIndex = parseInt(item.style.zIndex) || 0;
             maxZIndex = Math.max(maxZIndex, zIndex);
@@ -173,11 +186,9 @@ function createDrawingItem(pathData, strokeColor, strokeThickness, x, y, width, 
         item.style.zIndex = maxZIndex + 1;
     }
     
-    // For new items, skip complex animation and show immediately
+    // For new items, content is already visible, just ensure no transform
     if (!fromDatabase) {
-        item.style.opacity = '1';
-        item.style.visibility = 'visible';
-        item.style.transform = 'translateZ(0)';
+        content.style.transform = 'translateZ(0) scale(1.0)';
     } else {
         // Add enhanced fade-in animation for items loaded from database
         let delay = 0;

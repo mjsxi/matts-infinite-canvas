@@ -62,13 +62,13 @@ function selectItem(item, addToSelection = false) {
     }
     
     // Show text toolbar if this is a text item and user is admin
-    if (item.classList.contains('text-item') && isAuthenticated) {
+    if (item.dataset.type === 'text' && isAuthenticated) {
         selectedTextItem = item;
         ToolbarModule.showTextToolbar(item);
     }
     
     // Show draw toolbar if this is a drawing item and user is admin
-    if (item.classList.contains('drawing-item') && isAuthenticated) {
+    if (item.dataset.type === 'drawing' && isAuthenticated) {
         ToolbarModule.showDrawToolbar();
         // Update toolbar controls with current drawing values
         const path = item.querySelector('path');
@@ -86,7 +86,7 @@ function selectItem(item, addToSelection = false) {
     }
     
     // Show code toolbar if this is a code item and user is admin
-    if (item.classList.contains('code-item') && isAuthenticated) {
+    if (item.dataset.type === 'code' && isAuthenticated) {
         ToolbarModule.showCodeToolbar(item);
     }
     
@@ -118,7 +118,7 @@ function clearSelection() {
         item.classList.remove('selected');
         
         // Reset interactive state for code items when deselected
-        if (item.classList.contains('code-item')) {
+        if (item.dataset.type === 'code') {
             item.classList.remove('interactive');
             const iframe = item.querySelector('iframe');
             if (iframe) {
@@ -136,7 +136,7 @@ function clearSelection() {
         }
         
         // Reset text items to non-editing mode when deselected
-        if (item.classList.contains('text-item')) {
+        if (item.dataset.type === 'text') {
             // Save the text item before clearing selection
             DatabaseModule.saveItemToDatabase(item);
             
@@ -196,7 +196,7 @@ function showResizeHandles(item) {
     handles.id = 'resizeHandles';
     
     // For drawing items, only show corner handles for aspect ratio resizing
-    const isDrawingItem = item.classList.contains('drawing-item');
+    const isDrawingItem = item.dataset.type === 'drawing';
     const positions = isDrawingItem ? ['nw', 'ne', 'sw', 'se'] : ['nw', 'ne', 'sw', 'se', 'n', 's', 'w', 'e'];
     
     // Use document fragment for efficient DOM manipulation
@@ -241,8 +241,8 @@ function startDragging(e, item) {
     const canvasPos = ViewportModule.screenToCanvas(e.clientX, e.clientY);
     
     // If multiple items are selected, always initiate group drag
-    const domSelected = Array.from(canvas.querySelectorAll('.canvas-item.selected'));
-    const domMultiAttr = Array.from(canvas.querySelectorAll('.canvas-item[data-multi-selected="true"]'));
+    const domSelected = Array.from(canvas.querySelectorAll('.canvas-item-container.selected'));
+    const domMultiAttr = Array.from(canvas.querySelectorAll('.canvas-item-container[data-multi-selected="true"]'));
     const unionSet = new Set([
         ...(selectedItems || []),
         ...domSelected,
@@ -251,7 +251,7 @@ function startDragging(e, item) {
     const multiSelection = Array.from(unionSet);
     
     // Keep only canvas items and ensure >1
-    const normalizedGroup = multiSelection.filter(el => el && el.classList && el.classList.contains('canvas-item'));
+    const normalizedGroup = multiSelection.filter(el => el && el.classList && el.classList.contains('canvas-item-container'));
 
     if (normalizedGroup.length > 1) {
         // Start group drag: store start pos and each item's initial position
@@ -286,7 +286,7 @@ function dragItem(e) {
     
     // Fallback: if multiple items are selected but group state wasn't initialized, initialize it now
     if (!groupDragStartPos || !groupDragStartPositions) {
-        const domSelectedItems = Array.from(canvas.querySelectorAll('.canvas-item.selected'));
+        const domSelectedItems = Array.from(canvas.querySelectorAll('.canvas-item-container.selected'));
         const activeGroup = (selectedItems && selectedItems.length > 1) ? [...selectedItems]
                           : (domSelectedItems.length > 1 ? domSelectedItems : null);
         if (activeGroup && activeGroup.length > 1) {
@@ -371,7 +371,7 @@ function deleteItem(item) {
 }
 
 function selectItemsInBox(box) {
-    const items = canvas.querySelectorAll('.canvas-item');
+    const items = canvas.querySelectorAll('.canvas-item-container');
     const boxLeft = Math.min(box.startX, box.endX);
     const boxRight = Math.max(box.startX, box.endX);
     const boxTop = Math.min(box.startY, box.endY);
@@ -417,7 +417,7 @@ function deleteSelectedItems() {
 
 function updateMultiSelectionIndicators() {
     // Clear all multi-selection indicators
-    const allItems = canvas.querySelectorAll('.canvas-item');
+    const allItems = canvas.querySelectorAll('.canvas-item-container');
     allItems.forEach(item => {
         item.removeAttribute('data-multi-selected');
     });
@@ -582,7 +582,7 @@ function normalizeZIndexes() {
 }
 
 function getSortedItems() {
-    return Array.from(canvas.querySelectorAll('.canvas-item')).sort((a, b) => {
+    return Array.from(canvas.querySelectorAll('.canvas-item-container')).sort((a, b) => {
         const aIndex = parseInt(a.style.zIndex) || 0;
         const bIndex = parseInt(b.style.zIndex) || 0;
         return aIndex - bIndex;

@@ -1,80 +1,23 @@
 // Item creation module
 // Handles creation of all canvas item types (images, videos, text, code)
 
-// Reusable animation function that preserves transforms
+// Reusable animation function for canvas item content
 function startFadeInAnimation(item, delay = 0) {
     setTimeout(() => {
-        // Make item visible and start animation
-        item.style.visibility = 'visible';
+        // Find content element for animations - containers stay visible always
+        const contentElement = item.querySelector('.canvas-item-content') || item;
         
-        // Get existing transform (rotation) before animation
-        const existingTransform = item.style.transform || '';
-        const rotation = existingTransform.match(/rotate\([^)]+\)/) ? existingTransform.match(/rotate\([^)]+\)/)[0] : '';
+        // Apply ripple animation to content element only
+        contentElement.classList.add('ripple-animation');
         
-        // Apply initial scale with preserved rotation
-        const initialTransform = rotation ? `${rotation} translateZ(0) scale(0.95)` : 'translateZ(0) scale(0.95)';
-        item.style.transform = initialTransform;
+        // Clean up animation class after completion
+        setTimeout(() => {
+            contentElement.classList.remove('ripple-animation');
+            // Ensure content remains visible and at scale 1
+            contentElement.style.opacity = '1';
+            contentElement.style.transform = 'translateZ(0) scale(1.0)';
+        }, 400); // Match CSS animation duration
         
-        // Reset visibility for all items during initial load animation
-        if (window.isInitialLoad) {
-            item.style.setProperty('visibility', 'visible', 'important');
-        }
-        
-        // For items created by the user (not from DB), avoid opacity fade to prevent flicker
-        const isFromDatabase = item.dataset.fromDatabase === 'true';
-        const shouldUseOpacityFade = isFromDatabase || item.style.opacity === '0';
-
-        if (shouldUseOpacityFade) {
-            item.classList.add('fade-in-animation');
-        } else {
-            // Ensure visible without forcing opacity to 0
-            item.style.opacity = '1';
-        }
-        
-        // Animate scale manually with rotation preserved
-        const startTime = performance.now();
-        const duration = 600;
-        
-        const animateScale = (currentTime) => {
-            const elapsed = currentTime - startTime;
-            const progress = Math.min(elapsed / duration, 1);
-            
-            // Cubic bezier easing: (0.25, 0.46, 0.45, 0.94)
-            const easeProgress = progress < 0.5 
-                ? 2 * progress * progress 
-                : 1 - Math.pow(-2 * progress + 2, 2) / 2;
-                
-            // Scale progression: 0.95 -> 1.02 -> 1.0
-            let scale;
-            if (easeProgress < 0.6) {
-                // 0 to 0.6: scale from 0.95 to 1.02
-                const scaleProgress = easeProgress / 0.6;
-                scale = 0.95 + (0.07 * scaleProgress); // 0.95 to 1.02
-            } else {
-                // 0.6 to 1.0: scale from 1.02 to 1.0
-                const scaleProgress = (easeProgress - 0.6) / 0.4;
-                scale = 1.02 - (0.02 * scaleProgress); // 1.02 to 1.0
-            }
-            
-            // Apply transform with preserved rotation
-            const newTransform = rotation ? `${rotation} translateZ(0) scale(${scale})` : `translateZ(0) scale(${scale})`;
-            item.style.transform = newTransform;
-            
-            if (progress < 1) {
-                requestAnimationFrame(animateScale);
-            } else {
-                // Animation complete - restore original transform or apply final transform
-                const finalTransform = rotation ? `${rotation} translateZ(0)` : 'translateZ(0)';
-                item.style.transform = finalTransform;
-                // Ensure item remains visible after animation completes
-                item.style.opacity = '1';
-                if (shouldUseOpacityFade) {
-                    item.classList.remove('fade-in-animation');
-                }
-            }
-        };
-        
-        requestAnimationFrame(animateScale);
     }, delay);
 }
 
@@ -148,21 +91,33 @@ function createImageItem(src, x = null, y = null, width = 200, height = 150, fro
         x = x ?? (viewportCenter.x - width / 2);
         y = y ?? (viewportCenter.y - height / 2);
     }
-    const item = document.createElement('div');
-    item.className = 'canvas-item image-item';
-    item.style.left = x + 'px';
-    item.style.top = y + 'px';
-    item.style.width = width + 'px';
-    item.style.height = height + 'px';
     
-    // Mark origin and only hide during DB load to avoid flicker on user-created items
+    // Create container for positioning and transforms
+    const container = document.createElement('div');
+    container.className = 'canvas-item-container';
+    container.style.left = x + 'px';
+    container.style.top = y + 'px';
+    container.style.width = width + 'px';
+    container.style.height = height + 'px';
+    
+    // Create content wrapper for independent animations
+    const content = document.createElement('div');
+    content.className = 'canvas-item-content canvas-item image-item';
+    
+    // Keep reference to container as item for compatibility
+    const item = container;
+    
+    // Mark origin - containers stay visible, content starts hidden for database items
     item.dataset.fromDatabase = String(!!fromDatabase);
+    // Container is always visible
+    item.style.opacity = '1';
+    item.style.visibility = 'visible';
+    
+    // For database items, hide content initially so animation can reveal it
     if (fromDatabase) {
-        item.style.opacity = '0';
-        item.style.visibility = 'hidden';
+        content.style.opacity = '0';
     } else {
-        item.style.opacity = '1';
-        item.style.visibility = 'visible';
+        content.style.opacity = '1';
     }
     
     // Set default border radius as CSS variable
@@ -231,11 +186,9 @@ function createImageItem(src, x = null, y = null, width = 200, height = 150, fro
             delay = baseDelay + variation;
         }
         
-        // For new items, skip complex animation and show immediately
+        // For new items, content is already visible, just ensure no transform
         if (!fromDatabase) {
-            item.style.opacity = '1';
-            item.style.visibility = 'visible';
-            item.style.transform = 'translateZ(0)';
+            content.style.transform = 'translateZ(0) scale(1.0)';
         } else {
             startFadeInAnimation(item, delay);
         }
@@ -256,8 +209,9 @@ function createImageItem(src, x = null, y = null, width = 200, height = 150, fro
         AppGlobals.showStatus('Failed to load image: ' + src);
     };
     
-    item.appendChild(img);
-    canvas.appendChild(item);
+    content.appendChild(img);
+    container.appendChild(content);
+    canvas.appendChild(container);
     
     // Update z-index after item is added to DOM (for new items only)
     if (!fromDatabase) {
@@ -265,7 +219,7 @@ function createImageItem(src, x = null, y = null, width = 200, height = 150, fro
         let maxZIndex = 0;
         
         // Check loaded items
-        const loadedItems = Array.from(canvas.querySelectorAll('.canvas-item'));
+        const loadedItems = Array.from(canvas.querySelectorAll('.canvas-item-container'));
         loadedItems.forEach(item => {
             const zIndex = parseInt(item.style.zIndex) || 0;
             maxZIndex = Math.max(maxZIndex, zIndex);
@@ -310,21 +264,33 @@ function createVideoItem(src, x = null, y = null, width = 400, height = 300, fro
         x = x ?? (viewportCenter.x - width / 2);
         y = y ?? (viewportCenter.y - height / 2);
     }
-    const item = document.createElement('div');
-    item.className = 'canvas-item video-item';
-    item.style.left = x + 'px';
-    item.style.top = y + 'px';
-    item.style.width = width + 'px';
-    item.style.height = height + 'px';
     
-    // Mark origin and only hide during DB load to avoid flicker on user-created items
+    // Create container for positioning and transforms
+    const container = document.createElement('div');
+    container.className = 'canvas-item-container';
+    container.style.left = x + 'px';
+    container.style.top = y + 'px';
+    container.style.width = width + 'px';
+    container.style.height = height + 'px';
+    
+    // Create content wrapper for independent animations
+    const content = document.createElement('div');
+    content.className = 'canvas-item-content canvas-item video-item';
+    
+    // Keep reference to container as item for compatibility
+    const item = container;
+    
+    // Mark origin - containers stay visible, content starts hidden for database items
     item.dataset.fromDatabase = String(!!fromDatabase);
+    // Container is always visible
+    item.style.opacity = '1';
+    item.style.visibility = 'visible';
+    
+    // For database items, hide content initially so animation can reveal it
     if (fromDatabase) {
-        item.style.opacity = '0';
-        item.style.visibility = 'hidden';
+        content.style.opacity = '0';
     } else {
-        item.style.opacity = '1';
-        item.style.visibility = 'visible';
+        content.style.opacity = '1';
     }
     
     // Set default border radius as CSS variable
@@ -386,11 +352,9 @@ function createVideoItem(src, x = null, y = null, width = 400, height = 300, fro
     
     // Start animation when video data is loaded and can play
     video.addEventListener('loadeddata', function() {
-        // For new items, skip complex animation and show immediately
+        // For new items, content is already visible, just ensure no transform
         if (!fromDatabase) {
-            item.style.opacity = '1';
-            item.style.visibility = 'visible';
-            item.style.transform = 'translateZ(0)';
+            content.style.transform = 'translateZ(0) scale(1.0)';
         } else {
             // Calculate delay based on batch and distance for database items
             let delay = 0;
@@ -448,8 +412,9 @@ function createVideoItem(src, x = null, y = null, width = 400, height = 300, fro
         AppGlobals.showStatus('Failed to load video');
     });
     
-    item.appendChild(video);
-    canvas.appendChild(item);
+    content.appendChild(video);
+    container.appendChild(content);
+    canvas.appendChild(container);
     
     // Update z-index after item is added to DOM (for new items only)
     if (!fromDatabase) {
@@ -457,7 +422,7 @@ function createVideoItem(src, x = null, y = null, width = 400, height = 300, fro
         let maxZIndex = 0;
         
         // Check loaded items
-        const loadedItems = Array.from(canvas.querySelectorAll('.canvas-item'));
+        const loadedItems = Array.from(canvas.querySelectorAll('.canvas-item-container'));
         loadedItems.forEach(item => {
             const zIndex = parseInt(item.style.zIndex) || 0;
             maxZIndex = Math.max(maxZIndex, zIndex);
@@ -540,47 +505,59 @@ function createTextItem(content = 'Double-click to edit text...', x = null, y = 
         x = x ?? viewportCenter.x;
         y = y ?? viewportCenter.y;
     }
-    const item = document.createElement('div');
-    item.className = 'canvas-item text-item';
-    item.style.left = x + 'px';
-    item.style.top = y + 'px';
-    item.contentEditable = false; // Start in non-editing mode
-    item.textContent = content;
     
-    // Mark origin and only hide during DB load to avoid flicker on user-created items
+    // Create container for positioning and transforms
+    const container = document.createElement('div');
+    container.className = 'canvas-item-container';
+    container.style.left = x + 'px';
+    container.style.top = y + 'px';
+    
+    // Create content wrapper for independent animations
+    const contentWrapper = document.createElement('div');
+    contentWrapper.className = 'canvas-item-content canvas-item text-item';
+    contentWrapper.contentEditable = false; // Start in non-editing mode
+    contentWrapper.textContent = content;
+    
+    // Keep reference to container as item for compatibility
+    const item = container;
+    
+    // Mark origin - containers stay visible, content starts hidden for database items
     item.dataset.fromDatabase = String(!!fromDatabase);
+    // Container is always visible
+    item.style.opacity = '1';
+    item.style.visibility = 'visible';
+    
+    // For database items, hide content initially so animation can reveal it
     if (fromDatabase) {
-        item.style.opacity = '0';
-        item.style.visibility = 'hidden';
+        contentWrapper.style.opacity = '0';
     } else {
-        item.style.opacity = '1';
-        item.style.visibility = 'visible';
+        contentWrapper.style.opacity = '1';
     }
     
-    // Set default text styling
-    item.style.fontFamily = 'Antarctica';
-    item.style.fontSize = '24px';
-    item.style.fontWeight = '400';
-    item.style.color = '#333333';
-    item.style.lineHeight = '1.15';
-    item.style.setProperty('font-variation-settings', '');
-    item.style.padding = '8px';
+    // Set default text styling on content wrapper
+    contentWrapper.style.fontFamily = 'Antarctica';
+    contentWrapper.style.fontSize = '24px';
+    contentWrapper.style.fontWeight = '400';
+    contentWrapper.style.color = '#333333';
+    contentWrapper.style.lineHeight = '1.15';
+    contentWrapper.style.setProperty('font-variation-settings', '');
+    contentWrapper.style.padding = '8px';
     
     // Set dimensions if provided (from database) or use auto-sizing
     if (width && width > 0) {
-        item.style.width = width + 'px';
+        container.style.width = width + 'px';
     } else if (!fromDatabase) {
         // Auto-size to content for new items
-        item.style.width = 'auto';
-        item.style.minWidth = '50px';
+        container.style.width = 'auto';
+        container.style.minWidth = '50px';
     }
     
     if (height && height > 0) {
-        item.style.height = height + 'px';
+        container.style.height = height + 'px';
     } else if (!fromDatabase) {
         // Auto-size to content for new items
-        item.style.height = 'auto';
-        item.style.minHeight = '30px';
+        container.style.height = 'auto';
+        container.style.minHeight = '30px';
     }
     
     // Set default border radius as CSS variable
@@ -595,7 +572,7 @@ function createTextItem(content = 'Double-click to edit text...', x = null, y = 
     item.dataset.type = 'text';
     
     // Double-click to enter text editing mode
-    item.addEventListener('dblclick', (e) => {
+    contentWrapper.addEventListener('dblclick', (e) => {
         // Double-click event triggered on text item
         e.stopPropagation();
         
@@ -606,71 +583,71 @@ function createTextItem(content = 'Double-click to edit text...', x = null, y = 
         }
         
         // Temporarily hide resize handles during editing
-        const resizeHandles = item.querySelector('.resize-handles');
+        const resizeHandles = container.querySelector('.resize-handles');
         if (resizeHandles) {
             resizeHandles.style.display = 'none';
         }
         
-        item.contentEditable = true;
-        item.focus();
-        item.classList.add('editing');
+        contentWrapper.contentEditable = true;
+        contentWrapper.focus();
+        container.classList.add('editing');
         
         // Text item entered editing mode
         
         // Select all text for easy editing
         const range = document.createRange();
-        range.selectNodeContents(item);
+        range.selectNodeContents(contentWrapper);
         const selection = window.getSelection();
         selection.removeAllRanges();
         selection.addRange(range);
     });
     
     // Handle text editing
-    item.addEventListener('focus', () => {
+    contentWrapper.addEventListener('focus', () => {
         // Text item focused - checking editing state
         // Only add editing class if the item is already selected and not just being clicked
-        if (item.classList.contains('selected') && item.contentEditable === 'true') {
-            item.classList.add('editing');
+        if (container.classList.contains('selected') && contentWrapper.contentEditable === 'true') {
+            container.classList.add('editing');
             // Added editing class to text item
         }
     });
     
     // Add input event to catch text changes
-    item.addEventListener('input', () => {
+    contentWrapper.addEventListener('input', () => {
         // Text content changed during editing
     });
     
-    item.addEventListener('blur', () => {
+    contentWrapper.addEventListener('blur', () => {
         // Text editing finished (blur event)
         
-        item.classList.remove('editing');
-        item.contentEditable = false;
+        container.classList.remove('editing');
+        contentWrapper.contentEditable = false;
         
         // Show resize handles again after editing
-        const resizeHandles = item.querySelector('.resize-handles');
+        const resizeHandles = container.querySelector('.resize-handles');
         if (resizeHandles) {
             resizeHandles.style.display = '';
         }
         
         // Always save text changes, regardless of origin
         // Saving text changes to database
-        DatabaseModule.saveItemToDatabase(item);
+        DatabaseModule.saveItemToDatabase(container);
     });
     
     // Also save when the user finishes editing (Enter key)
-    item.addEventListener('keydown', (e) => {
+    contentWrapper.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             // Enter key pressed - finishing text editing
             e.preventDefault();
-            item.blur();
+            contentWrapper.blur();
             // Ensure save happens even if blur event is prevented
             // Saving text changes via Enter key
-            DatabaseModule.saveItemToDatabase(item);
+            DatabaseModule.saveItemToDatabase(container);
         }
     });
     
-    
-    canvas.appendChild(item);
+    container.appendChild(contentWrapper);
+    canvas.appendChild(container);
     
     // Update z-index after item is added to DOM (for new items only)
     if (!fromDatabase) {
@@ -678,7 +655,7 @@ function createTextItem(content = 'Double-click to edit text...', x = null, y = 
         let maxZIndex = 0;
         
         // Check loaded items
-        const loadedItems = Array.from(canvas.querySelectorAll('.canvas-item'));
+        const loadedItems = Array.from(canvas.querySelectorAll('.canvas-item-container'));
         loadedItems.forEach(item => {
             const zIndex = parseInt(item.style.zIndex) || 0;
             maxZIndex = Math.max(maxZIndex, zIndex);
@@ -695,11 +672,9 @@ function createTextItem(content = 'Double-click to edit text...', x = null, y = 
         item.style.zIndex = maxZIndex + 1;
     }
     
-    // For new items, skip complex animation and show immediately
+    // For new items, content is already visible, just ensure no transform
     if (!fromDatabase) {
-        item.style.opacity = '1';
-        item.style.visibility = 'visible';
-        item.style.transform = 'translateZ(0)';
+        contentWrapper.style.transform = 'translateZ(0) scale(1.0)';
     } else {
         // Text loads instantly, start animation immediately for database items
         let delay = 0;
@@ -720,15 +695,15 @@ function createTextItem(content = 'Double-click to edit text...', x = null, y = 
     // Center the text item if it's not from database and using viewport center
     if (!fromDatabase && x !== null && y !== null) {
         // Force layout calculation to get actual dimensions
-        const rect = item.getBoundingClientRect();
+        const rect = container.getBoundingClientRect();
         const itemWidth = rect.width;
         const itemHeight = rect.height;
         
         // If we used viewport center, adjust position to center the item
         const viewportCenter = ViewportModule.getViewportCenter();
         if (Math.abs(x - viewportCenter.x) < 1 && Math.abs(y - viewportCenter.y) < 1) {
-            item.style.left = (viewportCenter.x - itemWidth / 2) + 'px';
-            item.style.top = (viewportCenter.y - itemHeight / 2) + 'px';
+            container.style.left = (viewportCenter.x - itemWidth / 2) + 'px';
+            container.style.top = (viewportCenter.y - itemHeight / 2) + 'px';
         }
     }
     
@@ -762,21 +737,33 @@ function createCodeItem(htmlContent, x = null, y = null, width = 400, height = 3
         x = x ?? (viewportCenter.x - width / 2);
         y = y ?? (viewportCenter.y - height / 2);
     }
-    const item = document.createElement('div');
-    item.className = 'canvas-item code-item';
-    item.style.left = x + 'px';
-    item.style.top = y + 'px';
-    item.style.width = width + 'px';
-    item.style.height = height + 'px';
     
-    // Mark origin and only hide during DB load to avoid flicker on user-created items
+    // Create container for positioning and transforms
+    const container = document.createElement('div');
+    container.className = 'canvas-item-container';
+    container.style.left = x + 'px';
+    container.style.top = y + 'px';
+    container.style.width = width + 'px';
+    container.style.height = height + 'px';
+    
+    // Create content wrapper for independent animations
+    const content = document.createElement('div');
+    content.className = 'canvas-item-content canvas-item code-item';
+    
+    // Keep reference to container as item for compatibility
+    const item = container;
+    
+    // Mark origin - containers stay visible, content starts hidden for database items
     item.dataset.fromDatabase = String(!!fromDatabase);
+    // Container is always visible
+    item.style.opacity = '1';
+    item.style.visibility = 'visible';
+    
+    // For database items, hide content initially so animation can reveal it
     if (fromDatabase) {
-        item.style.opacity = '0';
-        item.style.visibility = 'hidden';
+        content.style.opacity = '0';
     } else {
-        item.style.opacity = '1';
-        item.style.visibility = 'visible';
+        content.style.opacity = '1';
     }
     
     // Set default border radius as CSS variable
@@ -797,8 +784,9 @@ function createCodeItem(htmlContent, x = null, y = null, width = 400, height = 3
     iframe.style.pointerEvents = 'none';
     iframe.srcdoc = htmlContent;
     
-    item.appendChild(iframe);
-    canvas.appendChild(item);
+    content.appendChild(iframe);
+    container.appendChild(content);
+    canvas.appendChild(container);
     
     // Update z-index after item is added to DOM (for new items only)
     if (!fromDatabase) {
@@ -806,7 +794,7 @@ function createCodeItem(htmlContent, x = null, y = null, width = 400, height = 3
         let maxZIndex = 0;
         
         // Check loaded items
-        const loadedItems = Array.from(canvas.querySelectorAll('.canvas-item'));
+        const loadedItems = Array.from(canvas.querySelectorAll('.canvas-item-container'));
         loadedItems.forEach(item => {
             const zIndex = parseInt(item.style.zIndex) || 0;
             maxZIndex = Math.max(maxZIndex, zIndex);
@@ -823,11 +811,9 @@ function createCodeItem(htmlContent, x = null, y = null, width = 400, height = 3
         item.style.zIndex = maxZIndex + 1;
     }
     
-    // For new items, skip complex animation and show immediately
+    // For new items, content is already visible, just ensure no transform
     if (!fromDatabase) {
-        item.style.opacity = '1';
-        item.style.visibility = 'visible';
-        item.style.transform = 'translateZ(0)';
+        content.style.transform = 'translateZ(0) scale(1.0)';
     } else {
         // Code loads instantly, start animation immediately for database items
         let delay = 0;

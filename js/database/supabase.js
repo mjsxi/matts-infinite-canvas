@@ -93,6 +93,18 @@ function debouncedSaveItem(item) {
 }
 
 async function saveItemToDatabase(item) {
+    // Debug: Always log what element we're trying to save
+    console.log('🔍 SAVE ATTEMPT:', {
+        element: item,
+        classList: item?.classList?.toString(),
+        datasetType: item?.dataset?.type,
+        datasetId: item?.dataset?.id,
+        isContainer: item?.classList?.contains('canvas-item-container'),
+        isContent: item?.classList?.contains('canvas-item-content'),
+        hasLeft: !!item?.style?.left,
+        hasTop: !!item?.style?.top
+    });
+    
     // Skip saving items marked for deletion
     if (item?.dataset?.isDeleted === 'true') {
         if (DEBUG_MODE) console.log('Skipping save for deleted item id:', item?.dataset?.id);
@@ -142,12 +154,12 @@ async function saveItemToDatabase(item) {
         rotation: parseFloat(item.dataset.rotation) || 0,
         z_index: parseInt(item.style.zIndex) || 1,
         border_radius: parseFloat(item.style.getPropertyValue('--item-border-radius')) || 0,
-        font_family: item.style.fontFamily || 'Antarctica',
-        font_size: parseInt(item.style.fontSize) || 24,
-        font_weight: item.style.fontWeight || 'normal',
-        font_variation: item.style.getPropertyValue('font-variation-settings') || '',
-        text_color: item.style.color || '#333333',
-        line_height: parseFloat(item.style.lineHeight) || 1.15,
+        font_family: isTextItem ? (item.querySelector('.canvas-item-content') || item).style.fontFamily || 'Antarctica' : 'Antarctica',
+        font_size: isTextItem ? parseInt((item.querySelector('.canvas-item-content') || item).style.fontSize) || 24 : 24,
+        font_weight: isTextItem ? (item.querySelector('.canvas-item-content') || item).style.fontWeight || 'normal' : 'normal',
+        font_variation: isTextItem ? (item.querySelector('.canvas-item-content') || item).style.getPropertyValue('font-variation-settings') || '' : '',
+        text_color: isTextItem ? (item.querySelector('.canvas-item-content') || item).style.color || '#333333' : '#333333',
+        line_height: isTextItem ? parseFloat((item.querySelector('.canvas-item-content') || item).style.lineHeight) || 1.15 : 1.15,
         html_content: item.dataset.type === 'code' ? getItemContent(item) : (isDrawingItem ? item.dataset.viewBox : null),
         stroke_thickness: isDrawingItem ? parseFloat(item.querySelector('path')?.getAttribute('stroke-width')) || 4 : null,
         stroke_color: isDrawingItem ? item.querySelector('path')?.getAttribute('stroke') || '#333333' : null,
@@ -358,7 +370,7 @@ async function loadCanvasData() {
         }
         
         // Clear existing items and reset loaded items tracking
-        const existingItems = canvas.querySelectorAll('.canvas-item');
+        const existingItems = canvas.querySelectorAll('.canvas-item-container');
         existingItems.forEach(item => item.remove());
         loadedItems.clear();
         
@@ -776,14 +788,15 @@ function createItemFromData(data) {
         if (data.original_width) item.dataset.originalWidth = data.original_width;
         if (data.original_height) item.dataset.originalHeight = data.original_height;
         
-        // Apply text-specific properties
+        // Apply text-specific properties to content wrapper for new structure, fallback to item for legacy
         if (itemType === 'text') {
-            if (data.font_family) item.style.fontFamily = data.font_family;
-            if (data.font_size) item.style.fontSize = data.font_size + 'px';
-            if (data.font_weight) item.style.fontWeight = data.font_weight;
-            if (data.font_variation) item.style.setProperty('font-variation-settings', data.font_variation);
-            if (data.text_color) item.style.color = data.text_color;
-            if (data.line_height) item.style.lineHeight = data.line_height;
+            const textElement = item.querySelector('.canvas-item-content') || item;
+            if (data.font_family) textElement.style.fontFamily = data.font_family;
+            if (data.font_size) textElement.style.fontSize = data.font_size + 'px';
+            if (data.font_weight) textElement.style.fontWeight = data.font_weight;
+            if (data.font_variation) textElement.style.setProperty('font-variation-settings', data.font_variation);
+            if (data.text_color) textElement.style.color = data.text_color;
+            if (data.line_height) textElement.style.lineHeight = data.line_height;
         }
         
         // Apply rotation if present
@@ -836,12 +849,13 @@ function updateItemFromData(item, data) {
     // Update content based on item type
     switch (itemType) {
         case 'text':
-            item.textContent = data.content;
-            if (data.font_family) item.style.fontFamily = data.font_family;
-            if (data.font_size) item.style.fontSize = data.font_size + 'px';
-            if (data.font_weight) item.style.fontWeight = data.font_weight;
-            if (data.text_color) item.style.color = data.text_color;
-            if (data.line_height) item.style.lineHeight = data.line_height;
+            const textElement = item.querySelector('.canvas-item-content') || item;
+            textElement.textContent = data.content;
+            if (data.font_family) textElement.style.fontFamily = data.font_family;
+            if (data.font_size) textElement.style.fontSize = data.font_size + 'px';
+            if (data.font_weight) textElement.style.fontWeight = data.font_weight;
+            if (data.text_color) textElement.style.color = data.text_color;
+            if (data.line_height) textElement.style.lineHeight = data.line_height;
             break;
         case 'image':
             const img = item.querySelector('img');
@@ -893,7 +907,7 @@ function updateItemFromData(item, data) {
             }
             
             // Update drawing toolbar if this item is currently selected
-            if (selectedItem === item && isAuthenticated && item.classList.contains('drawing-item')) {
+            if (selectedItem === item && isAuthenticated && item.dataset.type === 'drawing') {
                 ToolbarModule.showDrawToolbar();
                 if (path) {
                     const strokeColor = path.getAttribute('stroke') || '#333333';
@@ -943,13 +957,9 @@ function getItemContent(item) {
             if (DEBUG_MODE) console.log('Video content:', { src: content, hasVideo: !!video });
             break;
         case 'text':
-            // Clone the item to remove resize handles before extracting content
-            const tempItem = item.cloneNode(true);
-            const resizeHandles = tempItem.querySelector('.resize-handles');
-            if (resizeHandles) {
-                resizeHandles.remove();
-            }
-            content = tempItem.textContent;
+            // Get content from the content wrapper for new structure, fallback to item for legacy
+            const textContent = item.querySelector('.canvas-item-content') || item;
+            content = textContent.textContent;
             if (DEBUG_MODE) {
                 console.log('Text content extraction:', { 
                     content: content.substring(0, 50) + '...', 
@@ -1078,7 +1088,7 @@ window.DatabaseModule = {
     // Debug function to test saving all items on canvas
     testSaveAllItems: function() {
         console.log('=== TESTING ALL ITEMS SAVE ===');
-        const items = canvas.querySelectorAll('.canvas-item');
+        const items = canvas.querySelectorAll('.canvas-item-container');
         console.log('Found', items.length, 'items on canvas');
         
         items.forEach((item, index) => {
@@ -1241,7 +1251,7 @@ window.DatabaseModule = {
         
         // Test 3: Test saving each item type
         console.log('\n3. Testing save for each item type...');
-        const canvasItems = canvas.querySelectorAll('.canvas-item');
+        const canvasItems = canvas.querySelectorAll('.canvas-item-container');
         console.log('Canvas items found:', canvasItems.length);
         
         for (let i = 0; i < canvasItems.length; i++) {
@@ -1549,7 +1559,7 @@ function performLazyItemLoading() {
     const itemsToLoad = [];
     
     // Get currently loaded items and their z-indexes to maintain global order
-    const currentItems = Array.from(canvas.querySelectorAll('.canvas-item')).map(item => ({
+    const currentItems = Array.from(canvas.querySelectorAll('.canvas-item-container')).map(item => ({
         id: item.dataset.id,
         zIndex: parseInt(item.style.zIndex) || 0
     }));
@@ -1669,7 +1679,7 @@ function performLazyItemLoading() {
 
 // Fix global z-index DOM order after lazy loading
 function fixGlobalZIndexOrder() {
-    const items = Array.from(canvas.querySelectorAll('.canvas-item'));
+    const items = Array.from(canvas.querySelectorAll('.canvas-item-container'));
     
     // Don't reorder if there are very recent items (< 5 seconds old)
     const now = Date.now();

@@ -218,7 +218,7 @@ function showCenterIndicator(x, y) {
 // Admin Operations
 function clearAll() {
     if (confirm('Clear all items? This cannot be undone.')) {
-        canvas.querySelectorAll('.canvas-item').forEach(item => item.remove());
+        canvas.querySelectorAll('.canvas-item-container').forEach(item => item.remove());
         ItemsModule.clearSelection();
         clearDatabase();
         ToolbarModule.showStatus('All items cleared');

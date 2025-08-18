@@ -35,15 +35,18 @@ function debouncedSaveDrawingItem() {
 
 // Text Toolbar Functions
 function showTextToolbar(textItem) {
-    if (!isAuthenticated || !textItem.classList.contains('text-item')) return;
+    if (!isAuthenticated || textItem.dataset.type !== 'text') return;
     
     // Hide other toolbars
     hideDrawToolbar();
     
+    // Get text properties from content element
+    const textContent = textItem.querySelector('.canvas-item-content') || textItem;
+    
     // Populate toolbar with current text properties
-    const fontFamily = textItem.style.fontFamily || 'Antarctica';
-    const fontSize = parseInt(textItem.style.fontSize) || 24;
-    const fontVariation = textItem.style.getPropertyValue('font-variation-settings') || '';
+    const fontFamily = textContent.style.fontFamily || 'Antarctica';
+    const fontSize = parseInt(textContent.style.fontSize) || 24;
+    const fontVariation = textContent.style.getPropertyValue('font-variation-settings') || '';
     
     // Parse font variation settings to extract individual values
     let variationWeight = 400, variationWidth = 100, variationContrast = 0;
@@ -56,8 +59,8 @@ function showTextToolbar(textItem) {
         if (widthMatch) variationWidth = parseInt(widthMatch[1]);
         if (contrastMatch) variationContrast = parseInt(contrastMatch[1]);
     }
-    const textColor = textItem.style.color || '#333333';
-    const lineHeight = parseFloat(textItem.style.lineHeight) || 1.15;
+    const textColor = textContent.style.color || '#333333';
+    const lineHeight = parseFloat(textContent.style.lineHeight) || 1.15;
     
     // Set font family - handle both quoted and unquoted values
     const cleanFontFamily = fontFamily.replace(/['"]/g, '');
@@ -275,7 +278,7 @@ function debouncedSaveCodeItem() {
 
 // Code Toolbar Functions
 function showCodeToolbar(codeItem) {
-    if (!isAuthenticated || !codeItem.classList.contains('code-item')) return;
+    if (!isAuthenticated || codeItem.dataset.type !== 'code') return;
     
     // Hide other toolbars
     hideTextToolbar();

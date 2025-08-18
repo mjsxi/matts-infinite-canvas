@@ -221,7 +221,7 @@ const hiddenItems = new Map(); // Track items that are hidden but not pooled
 function performViewportCulling() {
     if (!canvas) return;
     
-    const items = canvas.querySelectorAll('.canvas-item');
+    const items = canvas.querySelectorAll('.canvas-item-container');
     const viewportBounds = getViewportBounds();
     const viewportCenter = ViewportModule?.getViewportCenter() || { x: 0, y: 0 };
     

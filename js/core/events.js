@@ -94,8 +94,8 @@ function handleMouseDown(e) {
         dragStart = { x: e.clientX, y: e.clientY };
         lastPanTime = Date.now();
         ItemsModule.clearSelection();
-    } else if (e.target.closest('.canvas-item')) {
-        const item = e.target.closest('.canvas-item');
+    } else if (e.target.closest('.canvas-item-container')) {
+        const item = e.target.closest('.canvas-item-container');
         
         // Only allow item interaction for authenticated admin users
         if (isAuthenticated) {
@@ -139,7 +139,7 @@ function handleMouseDown(e) {
             }
             
             // If item is already part of a multi-selection, start group drag without altering selection
-            const domSelectedItems = Array.from(document.querySelectorAll('.canvas-item.selected'));
+            const domSelectedItems = Array.from(document.querySelectorAll('.canvas-item-container.selected'));
             if ((selectedItems?.length || 0) > 1 || domSelectedItems.length > 1) {
                 // Only start group drag if the clicked item is part of the selected set
                 if (selectedItems.includes(item) || item.classList.contains('selected')) {
@@ -381,7 +381,7 @@ function handleTouchStart(e) {
             isSingleTouchPanning = false;
             return;
         }
-        const canvasItem = element?.closest('.canvas-item');
+        const canvasItem = element?.closest('.canvas-item-container');
         
         if (canvasItem && !isSettingCenter) {
             // Only select items for admins; guests should continue panning
