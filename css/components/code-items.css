@@ -1,0 +1,29 @@
+/* Code Items */
+.code-item {
+    background: var(--color-secondary);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--canvas-item-shadow);
+    min-width: 300px;
+    min-height: 200px;
+}
+
+.code-item.selected {
+    overflow: visible; /* Allow resize handles to show outside */
+}
+
+.code-item iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+}
+
+.code-item.interactive iframe {
+    pointer-events: all;
+}
+
+.code-item:not(.interactive) iframe {
+    pointer-events: none;
+}

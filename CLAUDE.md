@@ -8,12 +8,13 @@ This is a web-based collaborative infinite canvas application that allows and ad
 
 ## Architecture
 
-### Frontend (Modular Vanilla JS)
+### Frontend (Modular Vanilla JS + Modular CSS)
 - **Supabase**: Real-time database and file storage for persistence and collaboration
 - **index.html**: Main HTML structure with modals for user input
 - **Modular JavaScript Structure**: Organized into focused modules prefer approach when applicable
 - **js/mobile-zoom-limits.js**: Contains restraints for mobile to make the canvas work
-- **style.css**: Complete styling with responsive design and animations
+- **Modular CSS Architecture**: Organized into base, components, and utilities modules
+- **css/main.css**: Main CSS file that imports all modules in correct dependency order
 - **css/mobile-zoom.css**: Contains tweaks that are just for mobiles canvas
 
 ### JavaScript Module Structure
@@ -38,12 +39,47 @@ js/
 └── main.js               # Application coordinator & global state
 ```
 
+### CSS Module Structure
+```
+css/
+├── base/
+│   ├── fonts.css          # Custom @font-face declarations for variable fonts
+│   ├── variables.css      # CSS custom properties/variables for colors, spacing, etc.
+│   └── reset.css          # Reset styles, base HTML/body styles, utility classes
+├── components/
+│   ├── admin-login.css    # Admin login form and authentication UI
+│   ├── canvas.css         # Canvas container and main canvas element styles
+│   ├── canvas-items.css   # Base canvas item styles, hover/select states, animations
+│   ├── image-items.css    # Image-specific styles, loading states, error handling
+│   ├── video-items.css    # Video-specific styles, controls, mobile optimizations
+│   ├── text-items.css     # Text item styles, editing states, typography
+│   ├── drawing-items.css  # Drawing/SVG item styles and interactions
+│   ├── code-items.css     # Code item iframe styles and interaction states
+│   ├── resize-handles.css # Resize and rotation handles styling
+│   ├── toolbars.css       # Main toolbar, text toolbar, and button styles
+│   └── modals.css         # Modal dialogs, authentication forms, status messages
+├── utilities/
+│   ├── animations.css     # All @keyframes animations for items, UI, loading
+│   ├── indicators.css     # Center indicator, loading spinners, selection boxes
+│   └── responsive.css     # Mobile styles, safe areas, mobile gradient overlay
+└── main.css              # Imports all modules in correct dependency order
+```
+
 ### Module Dependencies
+
+#### JavaScript Modules
 - **main.js**: Initializes all modules and manages global state
 - **Core modules**: Provide fundamental canvas operations
 - **Feature modules**: Build on core functionality for specific features
 - **UI modules**: Handle user interface and interactions
 - **Database module**: Manages all persistence and real-time sync
+
+#### CSS Modules
+- **main.css**: Imports all CSS modules in correct dependency order
+- **Base modules**: Foundation styles (fonts, variables, reset) loaded first
+- **Utilities/animations**: Shared animations and keyframes loaded early
+- **Component modules**: UI building blocks loaded in dependency order
+- **Utilities/indicators & responsive**: Visual helpers and mobile styles loaded last
 
 ### Key Components
 - **Canvas Management**: Infinite panning/zooming with mouse wheel and drag interactions
@@ -74,11 +110,19 @@ This project uses vanilla web technologies with CDN-loaded dependencies:
 
 ### Modular Development Workflow
 
-#### Working with Modules
+#### Working with JavaScript Modules
 - **Core changes**: Modify viewport.js or events.js for fundamental canvas behavior
 - **Feature additions**: Add new modules in appropriate directories (features/, ui/, etc.)
 - **Database changes**: All persistence logic isolated in database/supabase.js
 - **UI updates**: Toolbar and interface changes go in ui/toolbars.js
+
+#### Working with CSS Modules
+- **Base changes**: Modify fonts.css, variables.css, or reset.css for foundation styles
+- **Component styling**: Update specific component files (e.g., toolbars.css for toolbar changes)
+- **Animation updates**: Add or modify animations in utilities/animations.css
+- **Mobile/responsive**: Update responsive styles in utilities/responsive.css
+- **Visual indicators**: Modify loading, selection, and indicator styles in utilities/indicators.css
+- **New components**: Create new CSS files in components/ and add import to main.css
 
 #### Module Communication
 - **Global state**: Managed through window object (container, canvas, selectedItem, etc.)
@@ -90,8 +134,9 @@ When debugging (creating console logs, etc) create a new file to add to index.ht
 Only add things to the main html, css, js files when asked directly to while trying to solve debugging issues.
 
 #### File Backup
-- **Original monolith**: Backed up as canvas.js.backup (27k+ lines)
-- **Load order**: Modules must load in dependency order (see index.html)
+- **Original JS monolith**: Backed up as canvas.js.backup (27k+ lines)
+- **Original CSS monolith**: Original canvas.css (1823 lines) preserved alongside modular structure
+- **Load order**: Modules must load in dependency order (see index.html and css/main.css)
 
 ## Code Architecture Details
 

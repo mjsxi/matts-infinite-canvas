@@ -16,7 +16,8 @@
       "Bash(open -a \"Google Chrome\" index.html)",
       "Bash(open:*)",
       "Bash(npm install)",
-      "Bash(git rm:*)"
+      "Bash(git rm:*)",
+      "WebFetch(domain:localhost)"
     ],
     "deny": []
   }

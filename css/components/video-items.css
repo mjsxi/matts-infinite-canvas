@@ -1,0 +1,96 @@
+/* Video Items - styles applied to content */
+.video-item .canvas-item-content {
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    background: var(--color-white);
+}
+
+.video-item.selected .canvas-item-content {
+    overflow: visible; /* Allow resize handles to show outside */
+}
+
+/* Legacy Video Items */
+.video-item {
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    background: var(--color-white);
+    box-shadow: var(--canvas-item-shadow);
+}
+
+.video-item.selected {
+    overflow: visible; /* Allow resize handles to show outside */
+}
+
+.video-item video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    border-radius: var(--radius-md);
+}
+
+/* Loading and error states for videos */
+.video-item.loading::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 20px;
+    height: 20px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid var(--color-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    z-index: 1;
+}
+
+.video-item.error {
+    background: #f8f9fa;
+    border: 1px dashed #dee2e6;
+}
+
+.video-error {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    background: #f8f9fa;
+    color: #6c757d;
+    font-size: 12px;
+    text-align: center;
+    border: 1px dashed #dee2e6;
+}
+
+/* Disable video controls when not selected to prevent accidental interaction */
+.video-item:not(.selected) video {
+    pointer-events: none;
+}
+
+/* Enable video controls when selected */
+.video-item.selected video {
+    pointer-events: all;
+}
+
+/* Video controls disabled globally for clean appearance */
+.video-item video {
+    pointer-events: none; /* Disable all video interactions */
+    -webkit-user-select: none; /* Prevent text selection on iOS */
+    -webkit-touch-callout: none; /* Disable callout on iOS */
+    -webkit-tap-highlight-color: transparent; /* Remove tap highlight on mobile */
+}
+
+/* Allow video interaction only when selected (for potential future features) */
+.video-item.selected video {
+    pointer-events: auto;
+}
+
+/* Mobile-specific video optimizations */
+@media (max-width: 768px) {
+    .video-item video {
+        -webkit-transform: translateZ(0); /* Force hardware acceleration */
+        transform: translateZ(0);
+        will-change: transform; /* Optimize for animations */
+    }
+}

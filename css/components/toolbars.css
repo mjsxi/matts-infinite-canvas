@@ -1,0 +1,284 @@
+/* Toolbar Variables */
+:root {
+    --toolbar-width: min(678px, calc(100vw - 68px));
+    --toolbar-height: 48px;
+    --toolbar-padding: 3px;
+    --toolbar-gap: 1px;
+    --toolbar-btn-width: 72px;
+    --toolbar-btn-height: 100%;
+    --toolbar-btn-padding: 6px 10px;
+    --toolbar-icon-size: 28px;
+}
+
+/* Toolbar */
+.toolbar {
+    position: fixed;
+    bottom: calc(var(--spacing-xl) + env(safe-area-inset-bottom));
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    min-width: 60px;
+    height: var(--toolbar-height);
+    padding: var(--toolbar-padding);
+    justify-content: center;
+    align-items: center;
+    gap: var(--toolbar-gap);
+    flex-shrink: 0;
+    border-radius: 1000px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(50px);
+    z-index: var(--z-index-toolbar);
+    box-shadow: var(--canvas-item-shadow);
+}
+
+.toolbar-btn {
+    display: flex;
+    width: var(--toolbar-btn-width);
+    height: var(--toolbar-btn-height);
+    padding: var(--toolbar-btn-padding);
+    justify-content: center;
+    align-items: center;
+    flex-shrink: 0;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    background: rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    color: var(--color-white);
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Animated toolbar buttons */
+.toolbar-btn.animate-in-out {
+    transition: opacity var(--transition-normal), transform var(--transition-normal), width var(--transition-normal), margin var(--transition-normal);
+}
+
+.toolbar-btn.animate-in-out.hidden {
+    opacity: 0;
+    transform: translateY(-10px);
+    width: 0;
+    margin: 0;
+    padding: 0;
+    border: none;
+    overflow: hidden;
+}
+
+.toolbar-btn:hover {
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.toolbar-btn:active {
+    background: rgba(255, 255, 255, 0.5);
+}
+
+.toolbar-btn img {
+    width: var(--toolbar-icon-size);
+    height: var(--toolbar-icon-size);
+    filter: brightness(0) invert(1);
+}
+
+/* First button styling */
+.toolbar-btn.first-btn {
+    border-radius: 20px 6px 6px 20px;
+}
+
+/* Middle buttons styling */
+.toolbar-btn.middle-btn {
+    border-radius: 6px 6px 6px 6px;
+}
+
+/* Last button styling */
+.toolbar-btn.last-btn {
+    border-radius: 6px 20px 20px 6px;
+}
+
+/* Center button styling - standalone rounded button */
+.toolbar-btn.center-btn {
+    border-radius: 20px;
+}
+
+/* Admin buttons container */
+.admin-buttons {
+    display: flex;
+    gap: var(--toolbar-gap);
+}
+
+/* Toolbar when logged out (only center button visible) */
+.toolbar:has(.admin-buttons.hidden) {
+    width: 72px;
+    padding: 3px 4px; /* 3px top/bottom, 4px left/right */
+}
+
+.toolbar:has(.admin-buttons.hidden) .center-btn {
+    width: calc(72px - 8px); /* 72px container - 8px total padding (4px each side) */
+}
+
+/* Fallback for browsers without :has() support */
+.toolbar.logged-out {
+    width: 72px;
+    padding: 3px 4px; /* 3px top/bottom, 4px left/right */
+}
+
+.toolbar.logged-out .center-btn {
+    width: calc(72px - 8px); /* 72px container - 8px total padding (4px each side) */
+}
+
+/* Text Toolbar - New Design */
+.text-toolbar {
+    position: fixed;
+    top: calc(var(--spacing-xl) + env(safe-area-inset-top));
+    left: 50%;
+    transform: translateX(-50%);
+    border-radius: 1000px;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(50px);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    z-index: calc(var(--z-index-toolbar) + 1);
+    opacity: 0;
+    pointer-events: none;
+    transition: all var(--transition-normal);
+}
+
+.text-toolbar:not(.hidden) {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.text-toolbar-content {
+    display: flex;
+    align-items: center;
+    gap: 1px;
+    padding: 3px 15px;
+}
+
+.text-control-item {
+    height: 30px;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+    position: relative;
+}
+
+.font-family-control {
+    width: 163px;
+}
+
+.text-control-item:not(.font-family-control):not(.color-control) {
+    width: 84px;
+}
+
+.color-control {
+    width: 46px;
+}
+
+.text-control-wrapper {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    position: relative;
+}
+
+.control-icon {
+    width: 20px;
+    height: 20px;
+    margin-left: 5px;
+    filter: brightness(0) invert(1);
+    flex-shrink: 0;
+}
+
+.text-control {
+    background: transparent;
+    border: none;
+    color: #ffffff;
+    font-family: 'Antarctica VAR', sans-serif;
+    font-size: 16px;
+    font-weight: normal;
+    line-height: 1;
+    outline: none;
+    padding: 0;
+    margin: 0 5px 0 4px;
+    flex: 1;
+    height: 100%;
+    display: flex;
+    align-items: center;
+}
+
+.font-family-control .text-control {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    cursor: pointer;
+    padding-right: 0;
+}
+
+.number-input {
+    text-align: left;
+    width: 100%;
+}
+
+.color-input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: auto;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 32px;
+    height: 24px;
+}
+
+.color-preview {
+    width: 32px;
+    height: 24px;
+    border-radius: 4px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    margin: 3px auto;
+    cursor: pointer;
+}
+
+.text-control option {
+    background: #333;
+    color: white;
+}
+
+#fontVariationWeight,
+#fontVariationWidth,
+#fontVariationContrast {
+    color: white !important;
+}
+
+/* Code Toolbar Specific Styles */
+.code-play-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 88px;
+}
+
+.code-dropdown {
+    background: transparent;
+    border: none;
+    color: #ffffff;
+    font-family: 'Antarctica VAR', sans-serif;
+    font-size: 16px;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    cursor: pointer;
+    padding: 0;
+    margin: 0;
+    width: 60px;
+}
+
+.code-dropdown option {
+    background: #333;
+    color: white;
+}
+
+/* Override width for code toolbar items */
+.code-play-toggle .text-control-item {
+    width: 88px;
+}

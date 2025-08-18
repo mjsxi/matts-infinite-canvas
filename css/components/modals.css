@@ -1,0 +1,259 @@
+/* Modal */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--color-overlay);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: var(--z-index-modal);
+}
+
+.modal-content {
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    padding: var(--modal-padding);
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow: auto;
+}
+
+.modal-content h3 {
+    margin-bottom: var(--spacing-xl);
+    color: var(--color-text-primary);
+}
+
+.modal-content textarea {
+    width: 100%;
+    height: 200px;
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--input-padding);
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-sm);
+    resize: vertical;
+    outline: none;
+    margin-bottom: var(--spacing-xl);
+}
+
+.modal-content textarea:focus {
+    border-color: var(--color-border-focus);
+}
+
+.modal-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+.modal-buttons button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.modal-buttons button:first-child {
+    background: #667eea;
+    color: white;
+}
+
+.modal-buttons button:first-child:hover {
+    background: #5a67d8;
+}
+
+.modal-buttons button:last-child {
+    background: #f8fafc;
+    color: #64748b;
+    border: 1px solid #e2e8f0;
+}
+
+.modal-buttons button:last-child:hover {
+    background: #e2e8f0;
+}
+
+/* Authentication Modal Styles */
+.modal-tabs {
+    display: flex;
+    border-bottom: 2px solid var(--color-border);
+    margin-bottom: var(--spacing-xl);
+}
+
+.tab-button {
+    flex: 1;
+    padding: var(--spacing-lg) var(--spacing-xl);
+    background: transparent;
+    border: none;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--color-text-secondary);
+    transition: all 0.2s ease;
+    border-bottom: 2px solid transparent;
+}
+
+.tab-button:hover {
+    color: var(--color-text-primary);
+    background: var(--color-secondary);
+}
+
+.tab-button.active {
+    color: var(--color-primary);
+    border-bottom-color: var(--color-primary);
+}
+
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+}
+
+.auth-form input {
+    width: 100%;
+    padding: var(--input-padding);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: 16px;
+    transition: border-color 0.2s ease;
+    box-sizing: border-box;
+}
+
+.auth-form input:focus {
+    outline: none;
+    border-color: var(--color-border-focus);
+}
+
+.auth-form input:invalid {
+    border-color: var(--color-error);
+}
+
+.auth-form button[type="submit"] {
+    background: var(--gradient-primary);
+    color: white;
+    border: none;
+    padding: var(--spacing-lg) var(--spacing-xl);
+    border-radius: var(--radius-md);
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.auth-form button[type="submit"]:hover {
+    transform: translateY(-1px);
+}
+
+/* Enhanced Admin Login Page Styles */
+.login-tabs {
+    display: flex;
+    border-bottom: 2px solid var(--color-border);
+    margin-bottom: var(--spacing-xl);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    overflow: hidden;
+}
+
+.login-tabs .tab-button {
+    flex: 1;
+    padding: var(--spacing-lg) var(--spacing-xl);
+    background: var(--color-secondary);
+    border: none;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--color-text-secondary);
+    transition: all 0.3s ease;
+    border-bottom: 3px solid transparent;
+}
+
+.login-tabs .tab-button:hover {
+    color: var(--color-text-primary);
+    background: rgba(102, 126, 234, 0.1);
+}
+
+.login-tabs .tab-button.active {
+    color: var(--color-primary);
+    background: var(--color-white);
+    border-bottom-color: var(--color-primary);
+}
+
+.auth-form-container {
+    padding: var(--spacing-xl) 0;
+}
+
+.auth-form-container h2 {
+    margin-bottom: var(--spacing-xl);
+    color: var(--color-text-primary);
+    text-align: center;
+}
+
+.auth-form-container form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+}
+
+.auth-form-container input {
+    width: 100%;
+    padding: var(--input-padding);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: 16px;
+    transition: border-color 0.2s ease;
+    box-sizing: border-box;
+}
+
+.auth-form-container input:focus {
+    outline: none;
+    border-color: var(--color-border-focus);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.auth-form-container .login-btn {
+    background: var(--gradient-primary);
+    color: white;
+    border: none;
+    padding: var(--spacing-lg) var(--spacing-xl);
+    border-radius: var(--radius-md);
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-top: var(--spacing-md);
+}
+
+.auth-form-container .login-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.auth-form-container .login-btn:active {
+    transform: translateY(0);
+}
+
+.status-message {
+    margin-top: var(--spacing-lg);
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+    text-align: center;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.status-message.success {
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--color-success);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.status-message.error {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--color-error);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}

@@ -1,0 +1,31 @@
+/* 
+  Matts Infinite Canvas - Modular CSS
+  
+  This is the main CSS file that imports all modules in the correct dependency order.
+  The modular structure makes the codebase easier to maintain and understand.
+*/
+
+/* Base Styles - Foundation */
+@import url('./base/fonts.css');
+@import url('./base/variables.css');
+@import url('./base/reset.css');
+
+/* Utilities - Shared animations and helpers */
+@import url('./utilities/animations.css');
+
+/* Components - UI building blocks in dependency order */
+@import url('./components/admin-login.css');
+@import url('./components/canvas.css');
+@import url('./components/canvas-items.css');
+@import url('./components/image-items.css');
+@import url('./components/video-items.css');
+@import url('./components/text-items.css');
+@import url('./components/drawing-items.css');
+@import url('./components/code-items.css');
+@import url('./components/resize-handles.css');
+@import url('./components/toolbars.css');
+@import url('./components/modals.css');
+
+/* Utilities - Visual indicators and responsive styles (loaded last) */
+@import url('./utilities/indicators.css');
+@import url('./utilities/responsive.css');

@@ -1,0 +1,51 @@
+/* Text Items */
+.text-item {
+    padding: var(--spacing-lg) var(--spacing-xl);
+    font-size: var(--font-size-md);
+    line-height: 1.5;
+    color: var(--color-text-primary);
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    hyphens: auto;
+    outline: none;
+    box-shadow: none; /* No shadow by default for text items */
+    cursor: pointer; /* Show pointer cursor when not editing */
+    overflow: hidden; /* Prevent text from overflowing the container */
+    white-space: pre-wrap; /* Preserve line breaks and spaces */
+}
+
+.text-item[contenteditable="true"] {
+    cursor: text; /* Show text cursor when editing */
+}
+
+.text-item:hover {
+    border-color: var(--canvas-item-border-hover);
+    box-shadow: var(--canvas-item-shadow-hover);
+}
+
+/* Disable text item hover when not authenticated */
+.guest .canvas-item-content.text-item:hover,
+.guest .canvas-item-container:hover .canvas-item-content.text-item,
+.guest .text-item:hover {
+    border-color: transparent !important;
+    box-shadow: none !important;
+    cursor: default !important;
+}
+
+.text-item.editing {
+    border-color: var(--canvas-item-border-selected);
+    box-shadow: var(--canvas-item-shadow-selected);
+}
+
+.text-item.selected {
+    overflow: visible; /* Allow resize handles to show outside */
+    box-shadow: var(--canvas-item-shadow-selected);
+    border-color: var(--canvas-item-border-selected);
+}
+
+.text-item:empty:before {
+    content: 'Double-click to edit text...';
+    color: var(--color-text-secondary);
+    font-style: italic;
+}
