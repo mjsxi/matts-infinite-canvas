@@ -876,11 +876,6 @@ body {
     border-color: var(--canvas-item-border-selected);
 }
 
-.text-item:not(.selected):not(:hover) {
-    border-color: var(--canvas-item-border-transparent);
-    box-shadow: none;
-}
-
 .text-item:empty:before {
     content: 'Double-click to edit text...';
     color: var(--color-text-secondary);
@@ -911,11 +906,6 @@ body {
     overflow: visible; /* Allow resize handles to show outside */
     box-shadow: var(--canvas-item-shadow-selected);
     border-color: var(--canvas-item-border-selected);
-}
-
-.drawing-item:not(.selected):not(:hover) {
-    border-color: var(--canvas-item-border-transparent);
-    box-shadow: none;
 }
 
 .drawing-item svg {
