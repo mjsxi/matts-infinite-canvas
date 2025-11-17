@@ -220,9 +220,15 @@ function updateAuthBodyClass() {
 function showCanvas(isAdmin = false) {
     // Show canvas interface
     const canvasContainer = document.getElementById('canvasContainer');
-    
+
     if (canvasContainer) {
         canvasContainer.classList.remove('hidden');
+
+        // Delay removing loading class to allow images/assets to load
+        setTimeout(() => {
+            canvasContainer.classList.remove('loading');
+        }, 1000); // 1 second delay for smooth loading experience
+
         // Canvas container shown
     } else {
         console.error('Canvas container not found');
