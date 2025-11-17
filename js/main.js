@@ -66,7 +66,12 @@ function initializeApp() {
     if (window.MemoryOptimizer) {
         window.MemoryOptimizer.initializeMemoryOptimizer();
     }
-    
+
+    // Clean up expired cache entries (24 hour cache for images/videos)
+    if (window.CacheModule) {
+        window.CacheModule.cleanupExpiredCache();
+    }
+
     // Update canvas transform to ensure it's visible
     if (window.ViewportModule) {
         window.ViewportModule.updateCanvasTransform();

@@ -91,7 +91,7 @@ function createImageItem(src, x = null, y = null, width = 200, height = 150, fro
         x = x ?? (viewportCenter.x - width / 2);
         y = y ?? (viewportCenter.y - height / 2);
     }
-    
+
     // Create container for positioning and transforms
     const container = document.createElement('div');
     container.className = 'canvas-item-container';
@@ -99,11 +99,11 @@ function createImageItem(src, x = null, y = null, width = 200, height = 150, fro
     container.style.top = y + 'px';
     container.style.width = width + 'px';
     container.style.height = height + 'px';
-    
+
     // Create content wrapper for independent animations
     const content = document.createElement('div');
     content.className = 'canvas-item-content canvas-item image-item';
-    
+
     // Keep reference to container as item for compatibility
     const item = container;
 
@@ -132,13 +132,25 @@ function createImageItem(src, x = null, y = null, width = 200, height = 150, fro
         item.style.zIndex = 1;
     }
     item.dataset.type = 'image';
-    
+
     const img = document.createElement('img');
     img.loading = 'lazy'; // Enable lazy loading
     img.decoding = 'async'; // Enable async decoding
-    
-    // Always set the src directly - progressive loading was causing save issues
-    img.src = src;
+
+    // For database items, try to use cached URL (asynchronous, non-blocking)
+    if (window.CacheModule && fromDatabase) {
+        window.CacheModule.getCachedUrl(src)
+            .then(cachedUrl => {
+                img.src = cachedUrl;
+            })
+            .catch(error => {
+                console.warn('Cache error, using original URL:', error);
+                img.src = src;
+            });
+    } else {
+        // For new items or when cache not available, use original URL
+        img.src = src;
+    }
     
     // Set a default aspect ratio initially
     item.dataset.aspectRatio = width / height;
@@ -272,7 +284,7 @@ function createVideoItem(src, x = null, y = null, width = 400, height = 300, fro
         x = x ?? (viewportCenter.x - width / 2);
         y = y ?? (viewportCenter.y - height / 2);
     }
-    
+
     // Create container for positioning and transforms
     const container = document.createElement('div');
     container.className = 'canvas-item-container';
@@ -280,11 +292,11 @@ function createVideoItem(src, x = null, y = null, width = 400, height = 300, fro
     container.style.top = y + 'px';
     container.style.width = width + 'px';
     container.style.height = height + 'px';
-    
+
     // Create content wrapper for independent animations
     const content = document.createElement('div');
     content.className = 'canvas-item-content canvas-item video-item';
-    
+
     // Keep reference to container as item for compatibility
     const item = container;
 
@@ -313,9 +325,23 @@ function createVideoItem(src, x = null, y = null, width = 400, height = 300, fro
         item.style.zIndex = 1;
     }
     item.dataset.type = 'video';
-    
+
     const video = document.createElement('video');
-    video.src = src;
+
+    // For database items, try to use cached URL (asynchronous, non-blocking)
+    if (window.CacheModule && fromDatabase) {
+        window.CacheModule.getCachedUrl(src)
+            .then(cachedUrl => {
+                video.src = cachedUrl;
+            })
+            .catch(error => {
+                console.warn('Cache error, using original URL:', error);
+                video.src = src;
+            });
+    } else {
+        // For new items or when cache not available, use original URL
+        video.src = src;
+    }
     video.controls = false; // Disable controls to prevent iOS native controls
     video.muted = true; // Muted by default for autoplay compatibility
     video.autoplay = true; // Autoplay when loaded
