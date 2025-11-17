@@ -4,7 +4,7 @@
 // Optimized screen to canvas conversion with caching
 let containerRectCache = null;
 let lastContainerRectTime = 0;
-const RECT_CACHE_DURATION = 100; // Cache for 100ms
+const RECT_CACHE_DURATION = 500; // Cache for 500ms (increased for performance)
 
 function getContainerRect() {
     const now = Date.now();

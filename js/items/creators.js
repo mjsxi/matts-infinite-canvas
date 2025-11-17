@@ -106,23 +106,25 @@ function createImageItem(src, x = null, y = null, width = 200, height = 150, fro
     
     // Keep reference to container as item for compatibility
     const item = container;
-    
+
     // Mark origin - containers stay visible, content starts hidden for database items
     item.dataset.fromDatabase = String(!!fromDatabase);
-    // Container is always visible
-    item.style.opacity = '1';
-    item.style.visibility = 'visible';
-    
-    // For database items, hide content initially so animation can reveal it
+
+    // For database items, hide the entire container until image loads
     if (fromDatabase) {
+        item.style.opacity = '0';
+        item.style.visibility = 'hidden';
         content.style.opacity = '0';
     } else {
+        // New items are visible immediately
+        item.style.opacity = '1';
+        item.style.visibility = 'visible';
         content.style.opacity = '1';
     }
-    
+
     // Set default border radius as CSS variable
     item.style.setProperty('--item-border-radius', '0px');
-    
+
     // Set z-index to be on top for new items
     if (!fromDatabase) {
         item.dataset.id = ++itemCounter;
@@ -151,27 +153,33 @@ function createImageItem(src, x = null, y = null, width = 200, height = 150, fro
         // Calculate and store the correct aspect ratio
         const aspectRatio = img.naturalWidth / img.naturalHeight;
         item.dataset.aspectRatio = aspectRatio;
-        
+
         // Store original dimensions
         item.dataset.originalWidth = img.naturalWidth;
         item.dataset.originalHeight = img.naturalHeight;
-        
+
         // Resize item to maintain natural aspect ratio
         // Keep the same area but adjust dimensions to match aspect ratio
         const currentWidth = parseFloat(item.style.width);
         const currentHeight = parseFloat(item.style.height);
-        
+
         // Calculate new dimensions maintaining the same approximate area
         const currentArea = currentWidth * currentHeight;
         const newHeight = Math.sqrt(currentArea / aspectRatio);
         const newWidth = newHeight * aspectRatio;
-        
+
         item.style.width = newWidth + 'px';
         item.style.height = newHeight + 'px';
-        
+
         // Remove loading state
         item.classList.remove('loading');
-        
+
+        // Make container visible now that image is loaded (for database items)
+        if (fromDatabase) {
+            item.style.opacity = '1';
+            item.style.visibility = 'visible';
+        }
+
         // Start animation now that image is fully loaded
         // Calculate delay based on batch and distance
         let delay = 0;
@@ -279,23 +287,25 @@ function createVideoItem(src, x = null, y = null, width = 400, height = 300, fro
     
     // Keep reference to container as item for compatibility
     const item = container;
-    
+
     // Mark origin - containers stay visible, content starts hidden for database items
     item.dataset.fromDatabase = String(!!fromDatabase);
-    // Container is always visible
-    item.style.opacity = '1';
-    item.style.visibility = 'visible';
-    
-    // For database items, hide content initially so animation can reveal it
+
+    // For database items, hide the entire container until video loads
     if (fromDatabase) {
+        item.style.opacity = '0';
+        item.style.visibility = 'hidden';
         content.style.opacity = '0';
     } else {
+        // New items are visible immediately
+        item.style.opacity = '1';
+        item.style.visibility = 'visible';
         content.style.opacity = '1';
     }
-    
+
     // Set default border radius as CSS variable
     item.style.setProperty('--item-border-radius', '0px');
-    
+
     // Set z-index to be on top for new items
     if (!fromDatabase) {
         item.dataset.id = ++itemCounter;
@@ -352,6 +362,12 @@ function createVideoItem(src, x = null, y = null, width = 400, height = 300, fro
     
     // Start animation when video data is loaded and can play
     video.addEventListener('loadeddata', function() {
+        // Make container visible now that video is loaded (for database items)
+        if (fromDatabase) {
+            item.style.opacity = '1';
+            item.style.visibility = 'visible';
+        }
+
         // For new items, content is already visible, just ensure no transform
         if (!fromDatabase) {
             content.style.transform = 'translateZ(0) scale(1.0)';
@@ -368,7 +384,7 @@ function createVideoItem(src, x = null, y = null, width = 400, height = 300, fro
                 const variation = Math.random() * 15;
                 delay = baseDelay + variation;
             }
-            
+
             startFadeInAnimation(item, delay);
         }
     });
@@ -520,17 +536,19 @@ function createTextItem(content = 'Double-click to edit text...', x = null, y = 
     
     // Keep reference to container as item for compatibility
     const item = container;
-    
+
     // Mark origin - containers stay visible, content starts hidden for database items
     item.dataset.fromDatabase = String(!!fromDatabase);
-    // Container is always visible
-    item.style.opacity = '1';
-    item.style.visibility = 'visible';
-    
-    // For database items, hide content initially so animation can reveal it
+
+    // For database items, hide content initially for animation
     if (fromDatabase) {
+        item.style.opacity = '1';
+        item.style.visibility = 'visible';
         contentWrapper.style.opacity = '0';
     } else {
+        // New items are visible immediately
+        item.style.opacity = '1';
+        item.style.visibility = 'visible';
         contentWrapper.style.opacity = '1';
     }
     
@@ -752,23 +770,25 @@ function createCodeItem(htmlContent, x = null, y = null, width = 400, height = 3
     
     // Keep reference to container as item for compatibility
     const item = container;
-    
+
     // Mark origin - containers stay visible, content starts hidden for database items
     item.dataset.fromDatabase = String(!!fromDatabase);
-    // Container is always visible
-    item.style.opacity = '1';
-    item.style.visibility = 'visible';
-    
-    // For database items, hide content initially so animation can reveal it
+
+    // For database items, hide content initially for animation (code loads instantly)
     if (fromDatabase) {
+        item.style.opacity = '1';
+        item.style.visibility = 'visible';
         content.style.opacity = '0';
     } else {
+        // New items are visible immediately
+        item.style.opacity = '1';
+        item.style.visibility = 'visible';
         content.style.opacity = '1';
     }
-    
+
     // Set default border radius as CSS variable
     item.style.setProperty('--item-border-radius', '0px');
-    
+
     // Set z-index to be on top for new items
     if (!fromDatabase) {
         item.dataset.id = ++itemCounter;

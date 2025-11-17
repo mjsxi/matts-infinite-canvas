@@ -92,60 +92,33 @@ function debouncedSaveItem(item) {
     }, SAVE_DELAY);
 }
 
-async function saveItemToDatabase(item) {
-    // Debug: Always log what element we're trying to save
-    console.log('🔍 SAVE ATTEMPT:', {
-        element: item,
-        classList: item?.classList?.toString(),
-        datasetType: item?.dataset?.type,
-        datasetId: item?.dataset?.id,
-        isContainer: item?.classList?.contains('canvas-item-container'),
-        isContent: item?.classList?.contains('canvas-item-content'),
-        hasLeft: !!item?.style?.left,
-        hasTop: !!item?.style?.top
-    });
-    
+// Helper function to extract item data from DOM element
+function extractItemData(item) {
     // Skip saving items marked for deletion
     if (item?.dataset?.isDeleted === 'true') {
         if (DEBUG_MODE) console.log('Skipping save for deleted item id:', item?.dataset?.id);
-        return;
+        return null;
     }
     // Skip saving if the element is no longer in the DOM (e.g., user deleted it)
     if (typeof document !== 'undefined' && item && !document.body.contains(item)) {
         if (DEBUG_MODE) console.log('Skipping save for detached item id:', item?.dataset?.id);
-        return;
+        return null;
     }
+
     const isTextItem = item.dataset.type === 'text';
     const isDrawingItem = item.dataset.type === 'drawing';
-    
-    if (DEBUG_MODE) {
-        // Debug: Log what type of item we're trying to save
-        console.log('=== SAVE ITEM TO DATABASE ===');
-        console.log('Attempting to save item:', {
-            type: item.dataset.type,
-            id: item.dataset.id,
-            isTextItem,
-            isDrawingItem,
-            textContent: isTextItem ? item.textContent : null,
-            innerHTML: isTextItem ? item.innerHTML : null
-        });
-    }
-    
-    // For text items, save width/height if they have been explicitly set
-    const hasExplicitWidth = isTextItem && item.style.width && item.style.width !== '';
-    const hasExplicitHeight = isTextItem && item.style.height && item.style.height !== '';
-    
+
     // Get actual dimensions for text items
     const actualWidth = isTextItem ? (parseFloat(item.style.width) || item.offsetWidth) : (parseFloat(item.style.width) || 100);
     const actualHeight = isTextItem ? (parseFloat(item.style.height) || item.offsetHeight) : (parseFloat(item.style.height) || 100);
-    
+
     const itemData = {
         id: parseInt(item.dataset.id),
         x: parseFloat(item.style.left) || 0,
         y: parseFloat(item.style.top) || 0,
         item_type: item.dataset.type,
         content: getItemContent(item),
-        user_id: getUserId(), // Set user ID dynamically
+        user_id: getUserId(),
         width: actualWidth,
         height: actualHeight,
         original_width: isTextItem ? actualWidth : (parseFloat(item.style.width) || 100),
@@ -172,6 +145,41 @@ async function saveItemToDatabase(item) {
             delete itemData[key];
         }
     });
+
+    return itemData;
+}
+
+async function saveItemToDatabase(item) {
+    // Debug: Always log what element we're trying to save
+    console.log('🔍 SAVE ATTEMPT:', {
+        element: item,
+        classList: item?.classList?.toString(),
+        datasetType: item?.dataset?.type,
+        datasetId: item?.dataset?.id,
+        isContainer: item?.classList?.contains('canvas-item-container'),
+        isContent: item?.classList?.contains('canvas-item-content'),
+        hasLeft: !!item?.style?.left,
+        hasTop: !!item?.style?.top
+    });
+
+    const itemData = extractItemData(item);
+    if (!itemData) return; // Skip if item is deleted or detached
+
+    const isTextItem = item.dataset.type === 'text';
+    const isDrawingItem = item.dataset.type === 'drawing';
+
+    if (DEBUG_MODE) {
+        // Debug: Log what type of item we're trying to save
+        console.log('=== SAVE ITEM TO DATABASE ===');
+        console.log('Attempting to save item:', {
+            type: item.dataset.type,
+            id: item.dataset.id,
+            isTextItem,
+            isDrawingItem,
+            textContent: isTextItem ? item.textContent : null,
+            innerHTML: isTextItem ? item.innerHTML : null
+        });
+    }
 
     if (DEBUG_MODE) {
         // Debug: Log the content being extracted
@@ -419,23 +427,21 @@ async function loadCanvasData() {
         window.isInitialLoad = true;
         window.currentBatch = 0;
         window.totalBatches = batches.length;
-        
-        // Add 500ms delay before starting animations to let database fully load
-        setTimeout(() => {
-            // Load batches with progressive delays (ripple effect)
-            batches.forEach((batch, batchIndex) => {
+
+        // Load batches with progressive delays (ripple effect)
+        batches.forEach((batch, batchIndex) => {
             const batchDelay = batchIndex * 150; // 150ms between batches
-            
+
             setTimeout(() => {
                 window.currentBatch = batchIndex;
-                
+
                 batch.forEach((itemData, indexInBatch) => {
                     try {
                         window.itemIndexInBatch = indexInBatch;
                         window.batchSize = batch.length;
-                        
+
                         if (DEBUG_MODE) console.log(`Creating item in batch ${batchIndex + 1}/${batches.length}, item ${indexInBatch + 1}/${batch.length}:`, itemData);
-                        
+
                         const item = createItemFromData(itemData);
                         if (item) {
                             // Force items to start completely hidden immediately
@@ -448,19 +454,18 @@ async function loadCanvasData() {
                     }
                 });
             }, batchDelay);
-            });
-            
-            // Clear the initial load flags after all batches
-            const totalLoadTime = batches.length * 150 + 200;
-            setTimeout(() => {
-                window.isInitialLoad = false;
-                window.currentBatch = 0;
-                window.totalBatches = 0;
-                
-                // Skip reordering for now to debug
-                // fixGlobalZIndexOrder();
-            }, totalLoadTime);
-        }, 500); // 500ms delay before starting initial load animations
+        });
+
+        // Clear the initial load flags after all batches
+        const totalLoadTime = batches.length * 150 + 200;
+        setTimeout(() => {
+            window.isInitialLoad = false;
+            window.currentBatch = 0;
+            window.totalBatches = 0;
+
+            // Skip reordering for now to debug
+            // fixGlobalZIndexOrder();
+        }, totalLoadTime);
         
         // Setup lazy loading observer for remaining items
         setupLazyItemLoading();
@@ -1000,19 +1005,45 @@ function getItemContent(item) {
 
 async function processBatchSave() {
     if (pendingSaves.size === 0) return;
-    
+
     if (DEBUG_MODE) console.log('Processing batch save for', pendingSaves.size, 'items');
-    
+
     // Convert items to data and batch save
     const itemsToSave = Array.from(pendingSaves.values());
     pendingSaves.clear();
-    
+
     try {
-        // Process in parallel for better performance
-        const savePromises = itemsToSave.map(item => saveItemToDatabase(item));
-        await Promise.allSettled(savePromises);
-        
-        if (DEBUG_MODE) console.log('Batch save completed for', itemsToSave.length, 'items');
+        // Extract data from all items (filter out nulls from deleted/detached items)
+        const itemsData = itemsToSave
+            .map(item => ({ element: item, data: extractItemData(item) }))
+            .filter(({ data }) => data !== null);
+
+        if (itemsData.length === 0) {
+            if (DEBUG_MODE) console.log('No valid items to save in batch');
+            return;
+        }
+
+        // Single database call with array of items (much more efficient!)
+        const { data, error } = await supabaseClient
+            .from('canvas_items')
+            .upsert(itemsData.map(({ data }) => data), {
+                onConflict: 'id',
+                ignoreDuplicates: false
+            })
+            .select();
+
+        if (error) {
+            console.error('Batch save error:', error);
+            AppGlobals.showStatus('Failed to batch save items');
+            throw error;
+        }
+
+        // Update lastSaveTime for all saved items to prevent real-time update loops
+        itemsData.forEach(({ element }) => {
+            element.dataset.lastSaveTime = Date.now().toString();
+        });
+
+        if (DEBUG_MODE) console.log('Batch save completed for', itemsData.length, 'items');
     } catch (error) {
         console.error('Batch save error:', error);
     }

@@ -115,7 +115,7 @@ function hideTextToolbar() {
 function handleFontFamilyChange(e) {
     if (selectedTextItem) {
         selectedTextItem.style.fontFamily = e.target.value;
-        DatabaseModule.saveItemToDatabase(selectedTextItem);
+        debouncedSaveTextItem();
     }
 }
 
@@ -129,7 +129,7 @@ function handleFontSizeChange(e) {
 function handleFontWeightChange(e) {
     if (selectedTextItem) {
         selectedTextItem.style.fontWeight = e.target.value;
-        DatabaseModule.saveItemToDatabase(selectedTextItem);
+        debouncedSaveTextItem();
     }
 }
 
@@ -141,7 +141,7 @@ function handleTextColorChange(e) {
         if (colorPreview) {
             colorPreview.style.backgroundColor = e.target.value;
         }
-        DatabaseModule.saveItemToDatabase(selectedTextItem);
+        debouncedSaveTextItem();
     }
 }
 
